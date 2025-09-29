@@ -23,8 +23,8 @@ typedef struct {
 
 typedef struct {
   ALLEGRO_BITMAP* spritesheet;
-  int x;
-  int y;
+  double x;
+  double y;
   std::string direction;
   std::string current_animation;
   std::map<std::string, s_animation> animations;

@@ -23,8 +23,8 @@ void draw_sprite(sprite& sprite, double delta_time) {
                         animation.frames[animation.current_frame].y,
                         animation.frames[animation.current_frame].width, 
                         animation.frames[animation.current_frame].height, 
-                        sprite.x, 
-                        sprite.y, 
+                        (int)sprite.x, 
+                        (int)sprite.y, 
                         flags);
 
   animation.elapsed_time += delta_time;
