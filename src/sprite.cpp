@@ -52,7 +52,7 @@ sprite load_sprite_from_json(const std::string& filename) {
   new_sprite.y = 0;
   new_sprite.spritesheet = al_load_bitmap(spritesheet_file.c_str());
   new_sprite.current_animation = data["default_animation"];
-  new_sprite.direction = "up";
+  new_sprite.direction = "_up";
 
   for (const auto& animation_data : data["animations"]) {
     std::cout << "\tloading animation " << animation_data["name"] << std::endl;

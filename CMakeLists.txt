@@ -26,6 +26,8 @@ add_compile_options(-Wall -Wextra -O2)
 set(SOURCES
     src/main.cpp
     src/sprite.cpp
+    src/tilemap.cpp
+    src/pathfinding.cpp
 )
 
 # Create executable
