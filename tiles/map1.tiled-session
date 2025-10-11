@@ -12,8 +12,8 @@
             "scale": 0.6555,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 363.0816170861938,
-                "y": 320.3661327231122
+                "x": 409.6109839816933,
+                "y": 415.71319603356216
             }
         },
         "war2_summer.tsx": {
@@ -29,6 +29,7 @@
         "mapa.tmx"
     ],
     "project": "map1.tiled-project",
+    "property.type": "bool",
     "recentFiles": [
         "war2_summer.tsx",
         "mapa.tmx"

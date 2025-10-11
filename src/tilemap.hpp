@@ -2,6 +2,7 @@
 #include <allegro5/allegro_image.h>
 #include <allegro5/allegro_primitives.h>
 #include <tmx.h>
+#include <vector>
 
 #define LINE_THICKNESS 2.5
 
@@ -19,3 +20,4 @@ void draw_layer(tmx_map *map, tmx_layer *layer);
 void draw_image_layer(tmx_image *image);
 void draw_all_layers(tmx_map *map, tmx_layer *layers);
 void render_map(tmx_map *map);
+std::vector<std::vector<int>> get_collision_grid(tmx_map *map);

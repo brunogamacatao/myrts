@@ -1,4 +1,5 @@
 #include "tilemap.hpp"
+#include <string>
 
 void init_tilemap_engine() {
   tmx_img_load_func = Allegro5_tex_loader;
@@ -130,4 +131,82 @@ void draw_all_layers(tmx_map *map, tmx_layer *layers) {
 void render_map(tmx_map *map) {
 	al_clear_to_color(int_to_al_color(map->backgroundcolor));
 	draw_all_layers(map, map->ly_head);
+}
+
+// collision grid functions
+// helper: returns true if property exists and is truthy
+static bool prop_is_true(tmx_properties *props, const char *name) {
+  if (!props || !name) return false;
+  tmx_property *p = tmx_get_property(props, name); // <-- correct API
+  if (!p) return false;
+
+  if (p->type == PT_BOOL) {
+    return p->value.boolean != 0;
+  } else if (p->type == PT_STRING && p->value.string) {
+    // consider "true" (case-insensitive) as true
+    std::string s = p->value.string;
+    for (auto &c : s) c = static_cast<char>(std::tolower(c));
+    return s == "true" || s == "1";
+  } else if (p->type == PT_INT) {
+    return p->value.integer != 0;
+  }
+  // other types (file, color, etc.) are treated as false here
+  return false;
+}
+
+std::vector<std::vector<int>> get_collision_grid(tmx_map *map) {
+  std::vector<std::vector<int>> grid;
+  if (!map) return grid;
+
+  // initialize grid (0 = walkable)
+  grid.assign(map->height, std::vector<int>(map->width, 0));
+
+  // For convenience, treat any layer that has layer property "collision"=true
+  // as fully blocking. You can remove this if you only want tile-based properties.
+  for (tmx_layer *layer = map->ly_head; layer; layer = layer->next) {
+    if (layer->type != L_LAYER) continue;
+
+    const bool layer_is_collision = prop_is_true(layer->properties, "collision");
+
+    for (unsigned int y = 0; y < map->height; ++y) {
+      for (unsigned int x = 0; x < map->width; ++x) {
+        // get cell (may include flip bits)
+        int cell = layer->content.gids[y * map->width + x];
+        unsigned int gid = (unsigned int)(cell & TMX_FLIP_BITS_REMOVAL);
+
+        if (gid == 0) {
+          // empty tile
+          continue;
+        }
+
+        // If the entire layer is flagged as collision, mark it blocked
+        if (layer_is_collision) {
+          grid[y][x] = 1;
+          continue;
+        }
+
+        // get tmx_tile pointer for this gid (map->tiles is GID indexed)
+        tmx_tile *tile = nullptr;
+        if (gid < map->tilecount) {
+          tile = map->tiles[gid];
+        } else {
+          // safe fallback: try to index anyway (some lib versions store up to highest gid)
+          tile = map->tiles[gid];
+        }
+
+        if (!tile) continue;
+
+        // check multiple tile-level properties that should block movement
+        if (prop_is_true(tile->properties, "wall") ||
+            prop_is_true(tile->properties, "water") ||
+            prop_is_true(tile->properties, "tree")) {
+          grid[y][x] = 1;
+        } else {
+          grid[y][x] = 0;
+        }
+      }
+    }
+  }
+
+  return grid;
 }
