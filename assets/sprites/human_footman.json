@@ -3,6 +3,25 @@
   "default_animation": "idle_up",
   "animations": [
     {
+      "name": "death_up",
+      "fps": 4,
+      "loop": false,
+      "frames": [
+        {
+          "x": 24,
+          "y": 522,
+          "w": 31,
+          "h": 46
+        },
+        {
+          "x": 20,
+          "y": 582,
+          "w": 39,
+          "h": 34
+        }
+      ]
+    },
+    {
       "name": "idle_up",
       "fps": 5,
       "frames": [
@@ -79,6 +98,45 @@
           "h": 50
         }
       ]
+    },
+    {
+      "name": "death_up_right",
+      "fps": 4,
+      "loop": false,
+      "frames": [
+        {
+          "x": 97,
+          "y": 534,
+          "w": 45,
+          "h": 38
+        },
+        {
+          "x": 20,
+          "y": 582,
+          "w": 39,
+          "h": 34
+        }
+      ]
+    },
+    {
+      "name": "death_up_left",
+      "fps": 4,
+      "loop": false,
+      "frames": [
+        {
+          "x": 97,
+          "y": 534,
+          "w": 45,
+          "h": 38
+        },
+        {
+          "x": 20,
+          "y": 582,
+          "w": 39,
+          "h": 34
+        }
+      ],
+      "flip_horizontal": true
     },
     {
       "name": "idle_up_right",
@@ -235,6 +293,45 @@
           "y": 453,
           "w": 45,
           "h": 48
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
+      "name": "death_right",
+      "fps": 4,
+      "loop": false,
+      "frames": [
+        {
+          "x": 163,
+          "y": 528,
+          "w": 37,
+          "h": 47
+        },
+        {
+          "x": 20,
+          "y": 582,
+          "w": 39,
+          "h": 34
+        }
+      ]
+    },
+    {
+      "name": "death_left",
+      "fps": 4,
+      "loop": false,
+      "frames": [
+        {
+          "x": 163,
+          "y": 528,
+          "w": 37,
+          "h": 47
+        },
+        {
+          "x": 20,
+          "y": 582,
+          "w": 39,
+          "h": 34
         }
       ],
       "flip_horizontal": true
@@ -399,6 +496,45 @@
       "flip_horizontal": true
     },
     {
+      "name": "death_down_right",
+      "fps": 4,
+      "loop": false,
+      "frames": [
+        {
+          "x": 236,
+          "y": 533,
+          "w": 47,
+          "h": 40
+        },
+        {
+          "x": 20,
+          "y": 582,
+          "w": 39,
+          "h": 34
+        }
+      ]
+    },
+    {
+      "name": "death_down_left",
+      "fps": 4,
+      "loop": false,
+      "frames": [
+        {
+          "x": 236,
+          "y": 533,
+          "w": 47,
+          "h": 40
+        },
+        {
+          "x": 20,
+          "y": 582,
+          "w": 39,
+          "h": 34
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
       "name": "idle_down_right",
       "fps": 5,
       "frames": [
@@ -556,6 +692,25 @@
         }
       ],
       "flip_horizontal": true
+    },
+    {
+      "name": "death_down",
+      "fps": 4,
+      "loop": false,
+      "frames": [
+        {
+          "x": 307,
+          "y": 533,
+          "w": 40,
+          "h": 34
+        },
+        {
+          "x": 20,
+          "y": 582,
+          "w": 39,
+          "h": 34
+        }
+      ]
     },
     {
       "name": "idle_down",

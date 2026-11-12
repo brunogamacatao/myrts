@@ -8,6 +8,8 @@
 #include <vector>
 
 #include "building.hpp"
+#include "defs.hpp"
+#include "facing.hpp"
 #include "grid.hpp"
 #include "ids.hpp"
 
@@ -16,7 +18,8 @@ namespace myrts::ev {
 struct TreeFelled { Point tile; };
 struct MineDepleted { int mine; };
 struct UnitSpawned { EntityId unit; };
-struct UnitDied { EntityId unit; PlayerId owner; };
+/// Carries where and how the unit fell so the view can show a body.
+struct UnitDied { EntityId unit; PlayerId owner; const UnitDef* def; float x; float y; Facing facing; };
 /// `damage` is what was actually taken off after armor.
 struct Attacked { EntityId attacker; EntityId target; bool target_is_building; int damage; };
 struct BuildingDestroyed { EntityId building; PlayerId owner; };

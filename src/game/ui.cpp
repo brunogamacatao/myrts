@@ -104,14 +104,18 @@ void draw_build_menu(ALLEGRO_FONT* font, const HudData& hud) {
   }
 }
 
-void draw_resource(ALLEGRO_FONT* font, float x, int kind, int value) {
+void draw_resource(ALLEGRO_FONT* font, float x, int kind, const std::string& text, ALLEGRO_COLOR color = kText) {
   const float y = 12;
   switch (kind) {
     case 0: al_draw_filled_circle(x, y, 6, kGold); al_draw_circle(x, y, 6, kStoneDark, 1); break;
     case 1: al_draw_filled_triangle(x - 6, y + 6, x + 6, y + 6, x, y - 7, al_map_rgb(50, 160, 60)); break;
-    default: al_draw_filled_circle(x, y + 1, 6, al_map_rgb(40, 40, 60)); al_draw_filled_triangle(x - 5, y, x + 5, y, x, y - 8, al_map_rgb(40, 40, 60)); break;
+    case 2: al_draw_filled_circle(x, y + 1, 6, al_map_rgb(40, 40, 60)); al_draw_filled_triangle(x - 5, y, x + 5, y, x, y - 8, al_map_rgb(40, 40, 60)); break;
+    default:  // food: a little house
+      al_draw_filled_rectangle(x - 5, y - 1, x + 5, y + 6, al_map_rgb(200, 150, 90));
+      al_draw_filled_triangle(x - 7, y - 1, x + 7, y - 1, x, y - 8, al_map_rgb(170, 60, 50));
+      break;
   }
-  draw_text(font, x + 12, 8, ALLEGRO_ALIGN_LEFT, std::to_string(value));
+  draw_text(font, x + 12, 8, ALLEGRO_ALIGN_LEFT, text, color);
 }
 
 void draw_minimap(const HudData& hud) {
@@ -315,10 +319,13 @@ void draw_hud(ALLEGRO_FONT* font, const HudData& hud) {
 
   // Top bar with resources
   draw_bevel({fx(kPanelW), 0, fx(kWidth - kPanelW), fx(kTopBar)}, false, kStone);
-  const float slot_w = fx(kWidth - kPanelW) / 3;
-  draw_resource(font, kPanelW + slot_w * 0.5f - 30, 0, hud.resources.gold);
-  draw_resource(font, kPanelW + slot_w * 1.5f - 30, 1, hud.resources.lumber);
-  draw_resource(font, kPanelW + slot_w * 2.5f - 30, 2, hud.resources.oil);
+  const float slot_w = fx(kWidth - kPanelW) / 4;
+  draw_resource(font, kPanelW + slot_w * 0.5f - 24, 0, std::to_string(hud.resources.gold));
+  draw_resource(font, kPanelW + slot_w * 1.5f - 24, 1, std::to_string(hud.resources.lumber));
+  draw_resource(font, kPanelW + slot_w * 2.5f - 24, 2, std::to_string(hud.resources.oil));
+  const bool full = hud.food_used >= hud.food_cap;  // red when no more units can be trained
+  draw_resource(font, kPanelW + slot_w * 3.5f - 24, 3, std::to_string(hud.food_used) + "/" + std::to_string(hud.food_cap),
+                full ? al_map_rgb(240, 90, 70) : kText);
 
   // Status message
   if (!hud.message.empty()) {

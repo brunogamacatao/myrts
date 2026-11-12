@@ -150,7 +150,14 @@ void Game::on_mouse_down(const ALLEGRO_EVENT& e) {
       message_.clear();
       return;
     }
-    if (in_viewport) {
+    if (in_viewport && selected_building_.valid()) {  // a building is selected: right click sets its rally point
+      const auto w = camera_.to_world(mouse_x_ - ui::kViewport.x, mouse_y_ - ui::kViewport.y);
+      if (const auto tile = tile_at_world(w)) {
+        const auto result = world_->order_rally(local_player_, selected_building_, *tile);
+        apply(result);
+        if (result.ok) set_message("Rally point set");
+      }
+    } else if (in_viewport) {
       const auto w = camera_.to_world(mouse_x_ - ui::kViewport.x, mouse_y_ - ui::kViewport.y);
       if (const auto tile = tile_at_world(w)) right_click_at(*tile);
     } else if (in_minimap) {

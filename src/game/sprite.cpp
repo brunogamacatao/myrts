@@ -37,20 +37,25 @@ void update_animation(const SpriteDef& def, AnimationState& state, double delta_
   const auto& anim = it->second;
 
   state.elapsed += delta_time;
+  const int last = static_cast<int>(anim.frames.size()) - 1;
   while (state.elapsed >= anim.delay) {
     state.elapsed -= anim.delay;
+    if (!anim.loop && state.frame >= last) {  // one-shot: hold the final frame
+      state.elapsed = 0.0;
+      break;
+    }
     state.frame = (state.frame + 1) % static_cast<int>(anim.frames.size());
   }
 }
 
-void draw_sprite_centered(const SpriteDef& def, const AnimationState& state, float cx, float cy) {
+void draw_sprite_centered(const SpriteDef& def, const AnimationState& state, float cx, float cy, float alpha) {
   const s_frame* f = current_frame(def, state);
   if (!f) return;
   const auto& anim = def.animations.at(state.current);
-  al_draw_bitmap_region(def.spritesheet.get(), static_cast<float>(f->x), static_cast<float>(f->y),
-                        static_cast<float>(f->width), static_cast<float>(f->height),
-                        std::floor(cx - static_cast<float>(f->width) / 2),
-                        std::floor(cy - static_cast<float>(f->height) / 2), flip_flags(anim));
+  al_draw_tinted_bitmap_region(def.spritesheet.get(), al_map_rgba_f(alpha, alpha, alpha, alpha),
+                               static_cast<float>(f->x), static_cast<float>(f->y), static_cast<float>(f->width),
+                               static_cast<float>(f->height), std::floor(cx - static_cast<float>(f->width) / 2),
+                               std::floor(cy - static_cast<float>(f->height) / 2), flip_flags(anim));
 }
 
 void draw_sprite_fit(const SpriteDef& def, const AnimationState& state, float bx, float by, float bw, float bh) {
@@ -85,6 +90,7 @@ std::expected<std::shared_ptr<SpriteDef>, std::string> load_sprite_def(const std
 
       animation.delay = 1.0 / fps;
       animation.flip_horizontal = animation_data.value("flip_horizontal", false);
+      animation.loop = animation_data.value("loop", true);
 
       for (const auto& frame_data : animation_data.at("frames")) {
         animation.frames.push_back({frame_data.at("x").get<int>(), frame_data.at("y").get<int>(),

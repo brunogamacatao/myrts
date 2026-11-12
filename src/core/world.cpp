@@ -153,6 +153,22 @@ std::vector<Point> World::depot_tiles(PlayerId owner) const {
   return out;
 }
 
+int World::food_cap(PlayerId owner) const {
+  int cap = 0;
+  buildings_.for_each([&](const Building& b) { cap += (b.owner == owner && b.complete) ? b.def->food : 0; });
+  return cap;
+}
+
+int World::food_used(PlayerId owner) const {
+  int used = 0;
+  units_.for_each([&](const Unit& u) { used += u.owner == owner ? u.def->food : 0; });
+  buildings_.for_each([&](const Building& b) {
+    if (b.owner != owner) return;
+    for (const TrainItem& q : b.queue) used += q.unit->food;
+  });
+  return used;
+}
+
 bool World::has_assets(PlayerId owner) const {
   bool any = false;
   units_.for_each([&](const Unit& u) { any = any || u.owner == owner; });
@@ -266,7 +282,7 @@ void World::kill_unit(EntityId id) {
   Layer& L = layer_of(*u);
   L.occupancy.release(u->tile, occ_id(*u));
   L.occupancy.release(u->next, occ_id(*u));
-  events_.publish(ev::UnitDied{id, u->owner});
+  events_.publish(ev::UnitDied{id, u->owner, u->def, u->x, u->y, u->facing});
   units_.erase(id);
 }
 

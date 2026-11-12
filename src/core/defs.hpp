@@ -50,6 +50,7 @@ struct UnitDef {
   UnitStats stats;
   Cost cost;
   double train_seconds = 0;
+  int food = 1;                          // food this unit eats while alive (or waits in a training queue)
   double attack_seconds = 1.5;           // time between two strikes
   bool aggressive = true;                // attacks enemies it sees on its own (workers do not)
   std::string sprite;                    // path of the sprite definition (json)
@@ -70,6 +71,7 @@ struct BuildingDef {
   double build_seconds = 1.0;
   int hp = 400;
   int armor = 0;
+  int food = 0;           // food this building provides (farms, town halls)
   bool is_depot = false;  // accepts delivered gold and lumber
   std::string sprite;               // finished building (png)
   std::string sprite_construction;  // while being built (png)

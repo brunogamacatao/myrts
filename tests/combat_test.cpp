@@ -13,7 +13,7 @@ namespace {
 constexpr const char* kUnits = R"({"units":[
   {"id":"peon","name":"Peon","hp":10,"move_speed":96,"sprite":"s","commands":["move"],
    "stats":{"damage_min":5,"damage_max":5,"range":1,"sight":4},"cost":{"gold":400},"train_seconds":10,
-   "worker":{"lumber_per_trip":10,"gold_per_trip":100,"chop_seconds":1.0,"mine_seconds":1.0},"builds":["hut"]},
+   "worker":{"lumber_per_trip":10,"gold_per_trip":100,"chop_seconds":1.0,"mine_seconds":1.0},"builds":["hut","farm"]},
   {"id":"grunt","name":"Grunt","hp":20,"move_speed":96,"sprite":"s","attack_seconds":1.0,
    "stats":{"armor":0,"damage_min":5,"damage_max":5,"range":1,"sight":5},"cost":{"gold":600},"train_seconds":20},
   {"id":"footman","name":"Footman","hp":20,"move_speed":96,"sprite":"s","attack_seconds":1.0,
@@ -23,10 +23,15 @@ constexpr const char* kUnits = R"({"units":[
   {"id":"brute","name":"Brute","hp":30,"move_speed":96,"sprite":"s","attack_seconds":1.0,
    "stats":{"armor":0,"damage_min":1,"damage_max":9,"range":1,"sight":5},"cost":{"gold":500}}]})";
 constexpr const char* kBuildings = R"({"buildings":[
-  {"id":"hall","name":"Hall","size":4,"hp":100,"cost":{"gold":1200},"build_seconds":10,"is_depot":true,
+  {"id":"hall","name":"Hall","size":4,"hp":100,"food":50,"cost":{"gold":1200},"build_seconds":10,"is_depot":true,
    "sprite":"h","trains":["peon"]},
-  {"id":"barracks","name":"Barracks","size":3,"hp":100,"armor":1,"cost":{"gold":700},"build_seconds":10,
+  {"id":"barracks","name":"Barracks","size":3,"hp":100,"armor":1,"food":50,"cost":{"gold":700},"build_seconds":10,
    "sprite":"b","trains":["grunt","footman"]},
+  {"id":"bunker","name":"Bunker","size":3,"hp":100,"food":2,"cost":{"gold":300},"build_seconds":10,
+   "sprite":"k","trains":["grunt"]},
+  {"id":"farm","name":"Farm","size":2,"hp":40,"food":4,"cost":{"gold":100,"lumber":20},"build_seconds":2,"sprite":"f"},
+  {"id":"smallhall","name":"Small Hall","size":4,"hp":100,"food":2,"cost":{"gold":1200},"build_seconds":10,
+   "is_depot":true,"sprite":"h","trains":["peon"]},
   {"id":"hut","name":"Hut","size":2,"hp":12,"cost":{"gold":100},"build_seconds":4,"sprite":"x"}]})";
 
 const Registry& registry() {
@@ -276,6 +281,78 @@ TEST_CASE("Idle fighters kill a builder they can see before touching its site") 
   CHECK(f.count<ev::UnitDied>() == 1);
 }
 
+TEST_CASE("Food limits how many units a player can have") {
+  Fixture f;
+  const EntityId bunker = f.world.add_building(f.bdef("bunker"), f.me, {5, 5}, true);  // food 2
+  f.world.player(f.me).stock.gold = 100000;
+  CHECK(f.world.food_cap(f.me) == 2);
+  CHECK(f.world.food_used(f.me) == 0);
+
+  CHECK(f.world.order_train(f.me, bunker, f.def("grunt")).ok);
+  CHECK(f.world.order_train(f.me, bunker, f.def("grunt")).ok);
+  CHECK(f.world.food_used(f.me) == 2);  // queued units already count
+  const auto refused = f.world.order_train(f.me, bunker, f.def("grunt"));
+  CHECK_FALSE(refused.ok);
+  CHECK(refused.message.find("food") != std::string::npos);
+
+  // A finished farm adds room; an unfinished one does not.
+  f.world.add_building(f.bdef("farm"), f.me, {12, 5}, false);
+  CHECK(f.world.food_cap(f.me) == 2);
+  f.world.add_building(f.bdef("farm"), f.me, {16, 5}, true);
+  CHECK(f.world.food_cap(f.me) == 6);
+  CHECK(f.world.order_train(f.me, bunker, f.def("grunt")).ok);
+
+  // Cancelling frees the food again; so does a unit dying.
+  CHECK(f.world.order_cancel_train(f.me, bunker, 0).ok);
+  CHECK(f.world.food_used(f.me) == 2);
+  const auto grunt = f.spawn("grunt", {20, 5}, f.me);
+  CHECK(f.world.food_used(f.me) == 3);
+  f.world.kill_unit(grunt);
+  CHECK(f.world.food_used(f.me) == 2);
+}
+
+TEST_CASE("Units leave the building for its rally point; workers sent to a mine start mining") {
+  WorldConfig cfg;
+  cfg.train_speed = 50;
+  Fixture f(cfg);
+  f.world.add_building(f.bdef("hall"), f.me, {2, 2}, true);
+  f.world.add_mine({20, 8}, 3, 1000);
+  const EntityId barracks = f.world.add_building(f.bdef("barracks"), f.me, {8, 8}, true);
+  f.world.player(f.me).stock.gold = 5000;
+
+  CHECK_FALSE(f.world.order_rally(f.foe, barracks, {15, 3}).ok);  // not yours
+  REQUIRE(f.world.order_rally(f.me, barracks, {15, 3}).ok);
+  REQUIRE(f.world.order_train(f.me, barracks, f.def("grunt")).ok);
+  f.run(5);
+  Point at{};
+  f.world.units().for_each([&](const Unit& u) { at = u.tile; });
+  CHECK(std::max(std::abs(at.x - 15), std::abs(at.y - 3)) <= 1);  // walked to the rally point
+
+  // A worker rallied onto the mine goes to work by itself.
+  const EntityId hall = f.world.building_at({2, 2});
+  REQUIRE(f.world.order_rally(f.me, hall, {20, 8}).ok);
+  REQUIRE(f.world.order_train(f.me, hall, f.def("peon")).ok);
+  f.run(30);
+  CHECK(f.world.player(f.me).stock.gold > 5000 - 600 - 400);  // paid for both units, then earned some back
+}
+
+TEST_CASE("A unit's death says where and facing which way, for the corpse") {
+  Fixture f;
+  const auto grunt = f.spawn("grunt", {5, 5}, f.me);
+  const auto prey = f.spawn("peon", {6, 5}, f.foe);
+  f.world.order_attack(std::array{grunt}, {6, 5});
+  f.run(3);
+  REQUIRE(f.count<ev::UnitDied>() == 1);
+  for (const auto& e : f.seen)
+    if (const auto* d = std::get_if<ev::UnitDied>(&e)) {
+      CHECK(d->unit == prey);
+      CHECK(d->owner == f.foe);
+      CHECK(d->def == &f.def("peon"));
+      CHECK(d->x == 6 * 32 + 16);
+      CHECK(d->y == 5 * 32 + 16);
+    }
+}
+
 TEST_CASE("Destroying everything the other player owns wins the game") {
   Fixture f;
   const auto grunt = f.spawn("grunt", {5, 5}, f.me);
@@ -304,6 +381,62 @@ TEST_CASE("The same seed gives the same fight") {
   CHECK(differs);  // damage really is random
 }
 
+TEST_CASE("A computer player builds a farm when food runs out, cutting wood for it first") {
+  Fixture f(WorldConfig{}, 40, 14);
+  f.world.add_building(f.bdef("smallhall"), f.foe, {20, 5}, true);  // food 2
+  f.world.add_mine({14, 1}, 3, 100000);
+  for (int y = 9; y <= 11; ++y) f.world.add_tree({30, y}, 100);
+  f.world.player(f.foe).stock = {1000, 0, 0};                     // no lumber at all
+  f.spawn("peon", {18, 4}, f.foe);
+  f.spawn("peon", {18, 6}, f.foe);                                // 2 units: the food is exactly used up
+  CHECK(f.world.food_used(f.foe) == f.world.food_cap(f.foe));
+
+  AiConfig cfg;
+  cfg.think_interval = 0.5;
+  Ai ai(f.world, registry(), f.foe, cfg);
+  for (int i = 0; i < 2400; ++i) {  // 120 s
+    ai.update(0.05);
+    f.world.update(0.05);
+  }
+
+  int farms = 0;
+  f.world.buildings().for_each([&](const Building& b) { farms += (b.def->id == "farm" && b.complete) ? 1 : 0; });
+  CHECK(farms >= 1);
+  CHECK(f.world.food_cap(f.foe) >= 6);
+}
+
+TEST_CASE("The computer player holds its first attack until the start delay is over") {
+  WorldConfig cfg;
+  cfg.train_speed = 50;
+  Fixture f(cfg, 40, 14);
+  f.world.add_building(f.bdef("hall"), f.me, {2, 5}, true);
+  f.world.add_building(f.bdef("hall"), f.foe, {30, 5}, true);
+  f.world.add_building(f.bdef("barracks"), f.foe, {30, 10}, true);
+  f.world.add_mine({24, 1}, 3, 100000);
+  f.world.player(f.foe).stock = {6000, 0, 0};
+  f.spawn("peon", {28, 4}, f.foe);
+
+  AiConfig ai_cfg;
+  ai_cfg.think_interval = 0.5;
+  ai_cfg.first_wave = 2;
+  ai_cfg.start_delay = 60;
+  Ai ai(f.world, registry(), f.foe, ai_cfg);
+  for (int i = 0; i < 1000; ++i) {  // 50 s: enough fighters, but too early
+    ai.update(0.05);
+    f.world.update(0.05);
+  }
+  int fighters = 0;
+  f.world.units().for_each([&](const Unit& u) { fighters += (u.owner == f.foe && !u.def->worker) ? 1 : 0; });
+  CHECK(fighters >= 2);
+  CHECK(ai.waves_sent() == 0);
+
+  for (int i = 0; i < 400; ++i) {  // past 60 s
+    ai.update(0.05);
+    f.world.update(0.05);
+  }
+  CHECK(ai.waves_sent() >= 1);
+}
+
 TEST_CASE("A computer player mines, trains fighters and attacks in waves") {
   WorldConfig cfg;
   cfg.train_speed = 25;
@@ -319,7 +452,13 @@ TEST_CASE("A computer player mines, trains fighters and attacks in waves") {
   f.spawn("peon", {28, 4}, f.foe);
   f.spawn("peon", {28, 6}, f.foe);
 
-  Ai ai(f.world, registry(), f.foe, AiConfig{0.5, 3, 3, 1});
+  AiConfig cfg_ai;
+  cfg_ai.think_interval = 0.5;
+  cfg_ai.desired_workers = 3;
+  cfg_ai.first_wave = 3;
+  cfg_ai.wave_growth = 1;
+  cfg_ai.start_delay = 0;
+  Ai ai(f.world, registry(), f.foe, cfg_ai);
   int hall_hp_min = 100;
   for (int i = 0; i < 4000; ++i) {  // 200 s
     ai.update(0.05);

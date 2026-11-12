@@ -23,6 +23,15 @@
 #include "scene.hpp"
 #include "ui.hpp"
 
+/// A body left where a unit died: plays its falling animation, rests for a while and fades away.
+struct Corpse {
+  const myrts::UnitDef* def = nullptr;
+  float x = 0;
+  float y = 0;
+  AnimationState anim;
+  double age = 0.0;
+};
+
 /// The player's view of a match: input, selection, camera, HUD and drawing on top of a `World`.
 /// Everything that is a rule of the game lives in the World; this class only turns clicks into
 /// orders and the World's state (and events) into pixels.
@@ -109,6 +118,7 @@ class Game {
   std::vector<myrts::EntityId> selected_;
   myrts::EntityId selected_building_;  // a building is selected instead of units
   std::unordered_map<myrts::EntityId, AnimationState, myrts::EntityIdHash> anims_;
+  std::vector<Corpse> corpses_;
   std::unordered_map<const myrts::UnitDef*, std::shared_ptr<const SpriteDef>> sprites_;
   BuildingArt art_;
   myrts::Camera camera_;

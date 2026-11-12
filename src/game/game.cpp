@@ -14,6 +14,8 @@ constexpr float kEdgeScrollMargin = 6.0f;
 constexpr int kInitialUnits = 8;
 constexpr unsigned kGrassGid = 191;       // replaces a felled tree
 constexpr int kGoldPerMine = 10000;
+constexpr double kCorpseSeconds = 25.0;  // how long a body stays (the last 5 s it fades)
+constexpr std::size_t kMaxCorpses = 60;
 constexpr int kMineSize = 3;
 constexpr myrts::Stock kStartingStock{2000, 1000, 0};
 
@@ -25,7 +27,7 @@ constexpr myrts::Point kEnemyHall{19, 0};
 constexpr myrts::Point kEnemyBarracks{13, 0};
 constexpr myrts::Point kEnemyMine{16, 0};
 constexpr myrts::Point kEnemyUnits{18, 4};
-constexpr myrts::Stock kEnemyStock{2000, 0, 0};
+constexpr myrts::Stock kEnemyStock{1000, 300, 0};
 }  // namespace
 
 // ---- setup ------------------------------------------------------------------------
@@ -69,7 +71,9 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   world.add_building(*town_hall, enemy, kEnemyHall, true);
   world.add_building(*enemy_barracks, enemy, kEnemyBarracks, true);
   world.add_mine(kEnemyMine, kMineSize, kGoldPerMine);
-  game->ais_.push_back(std::make_unique<myrts::Ai>(world, registry, enemy));
+  myrts::AiConfig ai_config;
+  if (const char* delay = std::getenv("MYRTS_AI_DELAY")) ai_config.start_delay = std::max(0.0, std::atof(delay));
+  game->ais_.push_back(std::make_unique<myrts::Ai>(world, registry, enemy, ai_config));
 
   const auto world_w = static_cast<float>(map->width * map->tile_width);
   const auto world_h = static_cast<float>(map->height * map->tile_height);
@@ -108,6 +112,13 @@ void Game::subscribe_to_world() {
     myrts::on_event<myrts::ev::UnitDied>(e, [&](const myrts::ev::UnitDied& d) {
       std::erase(selected_, d.unit);
       anims_.erase(d.unit);
+      if (const SpriteDef* sprite = sprite_of(*d.def)) {
+        const std::string name = std::string("death_") + myrts::facing_name(d.facing);
+        if (sprite->animations.contains(name)) {
+          if (corpses_.size() >= kMaxCorpses) corpses_.erase(corpses_.begin());
+          corpses_.push_back({d.def, d.x, d.y, AnimationState{name, 0, 0.0}, 0.0});
+        }
+      }
       if (selected_.empty()) close_build_menu();
     });
     myrts::on_event<myrts::ev::BuildingDestroyed>(e, [&](const myrts::ev::BuildingDestroyed& d) {
@@ -325,6 +336,12 @@ void Game::update(double dt) {
     set_animation(anim, unit_animation(u, *sprite));
     update_animation(*sprite, anim, dt);
   });
+
+  for (Corpse& c : corpses_) {
+    c.age += dt;
+    if (const SpriteDef* sprite = sprite_of(*c.def)) update_animation(*sprite, c.anim, dt);
+  }
+  std::erase_if(corpses_, [](const Corpse& c) { return c.age > kCorpseSeconds; });
 
   if (message_time_left_ > 0 && (message_time_left_ -= dt) <= 0 && !awaiting_target_) message_.clear();
 }

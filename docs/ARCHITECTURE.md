@@ -42,6 +42,13 @@ tests/      Catch2 tests for src/core (scripts/test.sh).
 * Buildings train the units listed in `trains` (`order_train`): the price is paid up front, the unit appears on the
   nearest free tile around the building, cancelling refunds.
 * `evaluate_outcome` ends the match when one side has nothing left.
+* **Food**: finished buildings provide food (`food` in `buildings.json`: halls 10, farms 4), every unit eats `food`
+  (default 1) while alive *or waiting in a queue*. `order_train` refuses when it would exceed the cap.
+* **Rally point**: `order_rally` sets where a building's new units go; workers rallied onto a tree or a mine start gathering.
+* `UnitDied` carries the unit's definition, position and facing so the view can leave a corpse
+  (`death_<dir>` animations are one-shot: a falling frame, then the body; they fade after 25 s).
+* The `Ai` builds a farm when food is nearly used up (cutting wood first if it has none), and holds its first attack
+  until `start_delay` has passed.
 
 ## Adding content
 
@@ -72,5 +79,6 @@ from `handle_event` / `update`. Resources are owned by the scene (RAII) and free
 movement, unit death, combat (armor, chasing, ranged, attack-move, buildings), training, the AI and victory.
 
 Handy environment variables when running the game: `MYRTS_BUILD_SPEED` and `MYRTS_TRAIN_SPEED` speed up construction
-and training (e.g. `MYRTS_TRAIN_SPEED=20`).
+and training (e.g. `MYRTS_TRAIN_SPEED=20`); `MYRTS_AI_DELAY` sets how many seconds the computer player waits before its
+first attack (default 150).
 The Allegro layer is checked by running the game.

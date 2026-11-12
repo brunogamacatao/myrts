@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 #include "pathfinding.hpp"
@@ -65,8 +66,18 @@ Result World::order_train(PlayerId owner, EntityId building, const UnitDef& unit
   if (!b || b->owner != owner || !b->complete) return Result::fail("That building cannot train units yet");
   if (!trains(*b->def, unit)) return Result::fail(b->def->name + " cannot train a " + unit.name);
   if (b->queue.size() >= static_cast<std::size_t>(config_.max_queue)) return Result::fail("The training queue is full");
+  if (food_used(owner) + unit.food > food_cap(owner)) return Result::fail("Not enough food: build more farms");
   if (!pay(player(owner).stock, unit.cost)) return Result::fail("Not enough resources for a " + unit.name);
   b->queue.push_back({&unit, 0.0});
+  return Result::success();
+}
+
+Result World::order_rally(PlayerId owner, EntityId building, Point tile) {
+  Building* b = buildings_.get(building);
+  if (!b || b->owner != owner) return Result::fail("Select one of your buildings");
+  if (b->def->trains.empty()) return Result::fail("This building does not train units");
+  if (!layer(MoveClass::Land).blocked.contains(tile)) return Result::fail("Cannot rally there");
+  b->rally = tile;
   return Result::success();
 }
 
@@ -278,9 +289,19 @@ void World::update_training(double dt) {
       continue;
     }
     const PlayerId owner = b->owner;
+    const std::optional<Point> rally = b->rally;
     b->queue.erase(b->queue.begin());
-    spawn_unit(def, owner, *tile);
+    const EntityId spawned = spawn_unit(def, owner, *tile);
     notice(owner, def.name + " ready");
+
+    // Head for the rally point; workers sent to a tree or a mine start gathering.
+    if (spawned.valid() && rally) {
+      const std::array one{spawned};
+      if (def.worker && (trees_.has_tree(*rally) || mine_at(*rally) >= 0))
+        order_harvest(one, *rally);
+      else
+        order_move(one, *rally);
+    }
   }
 }
 

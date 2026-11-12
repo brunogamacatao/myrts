@@ -8,6 +8,7 @@
 
 namespace {
 const ALLEGRO_COLOR kSelectGreen = al_map_rgb(60, 230, 60);
+constexpr double kCorpseSeconds = 25.0;  // keep in step with game.cpp
 }
 
 void Game::draw_health_bar(float x, float y, float w, int hp, int max_hp) {
@@ -58,6 +59,22 @@ void Game::draw_world() {
       al_draw_filled_rectangle(x + 1, y - 7, x + 1 + (side - 2) * frac, y - 4, al_map_rgb(60, 220, 60));
     }
   });
+
+  // Bodies lie under everything that is alive.
+  for (const Corpse& c : corpses_) {
+    const auto sprite = sprites_.find(c.def);
+    if (sprite == sprites_.end() || !sprite->second) continue;
+    const float fade = std::clamp(static_cast<float>((kCorpseSeconds - c.age) / 5.0), 0.0f, 1.0f);
+    draw_sprite_centered(*sprite->second, c.anim, c.x, c.y, fade);
+  }
+
+  // The rally point of the selected building: a small flag.
+  if (const myrts::Building* b = world_->buildings().get(selected_building_); b && b->rally) {
+    const float fx = static_cast<float>(b->rally->x * tile_size_ + tile_size_ / 2);
+    const float fy = static_cast<float>(b->rally->y * tile_size_ + tile_size_ / 2);
+    al_draw_line(fx, fy + 8, fx, fy - 12, al_map_rgb(240, 240, 240), 2);
+    al_draw_filled_triangle(fx, fy - 12, fx + 12, fy - 7, fx, fy - 2, al_map_rgb(60, 220, 60));
+  }
 
   // Units sorted by y so lower ones overlap higher ones.
   std::vector<const myrts::Unit*> order;
@@ -159,6 +176,7 @@ void Game::draw() {
 
   const ui::HudData hud{stock,     cards,     dots,       minimap_bitmap_.get(), minimap_, camera_,
                         message_,  mouse_x_,  mouse_y_,   commands,              build_menu_, options,
-                        building_card ? &*building_card : nullptr, train_options};
+                        building_card ? &*building_card : nullptr, train_options,
+                        world_->food_used(local_player_), world_->food_cap(local_player_)};
   ui::draw_hud(font_, hud);
 }

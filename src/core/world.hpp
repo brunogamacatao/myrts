@@ -13,6 +13,7 @@
 #include "defs.hpp"
 #include "entity_store.hpp"
 #include "events.hpp"
+#include "facing.hpp"
 #include "grid.hpp"
 #include "harvest.hpp"
 #include "occupancy.hpp"
@@ -21,9 +22,6 @@ namespace myrts {
 
 enum class Cargo { None, Lumber, Gold };
 
-enum class Facing { Up, UpRight, Right, DownRight, Down, DownLeft, Left, UpLeft };
-/// "up", "up_right", ... (the direction names used by the sprite definitions).
-[[nodiscard]] const char* facing_name(Facing f);
 
 // ---- orders -----------------------------------------------------------------
 // What a unit is busy with. Moving is not an order: a unit simply follows its path. To teach units
@@ -129,6 +127,7 @@ struct Building {
   EntityId builder;  // unit currently working on it
   int hp = 1;
   std::vector<TrainItem> queue;  // the front one is being trained
+  std::optional<Point> rally;    // where new units go after leaving the building
 };
 
 struct Mine {
@@ -191,6 +190,8 @@ class World {
   /// Walk to `tile` and engage any enemy met on the way.
   Result order_attack_move(std::span<const EntityId> units, Point tile);
   Result order_train(PlayerId owner, EntityId building, const UnitDef& unit);
+  /// Where units trained in `building` head for (gold mines and trees put workers to work).
+  Result order_rally(PlayerId owner, EntityId building, Point tile);
   /// Takes the `index`-th queued unit out of the queue and refunds its price.
   Result order_cancel_train(PlayerId owner, EntityId building, std::size_t index);
 
@@ -211,6 +212,10 @@ class World {
   [[nodiscard]] int mine_at(Point tile) const;  // -1 if none (depleted mines do not count)
   [[nodiscard]] std::vector<Point> depot_tiles(PlayerId owner) const;
   [[nodiscard]] bool has_assets(PlayerId owner) const;
+  /// Food provided by finished buildings.
+  [[nodiscard]] int food_cap(PlayerId owner) const;
+  /// Food eaten by living units plus those waiting in training queues.
+  [[nodiscard]] int food_used(PlayerId owner) const;
   [[nodiscard]] std::size_t player_count() const { return players_.size(); }
 
   [[nodiscard]] Player& player(PlayerId id) { return players_.at(static_cast<std::size_t>(id)); }

@@ -19,26 +19,44 @@ OUT = pathlib.Path(__file__).resolve().parent.parent / "assets" / "sprites"
 DIRS = ["up", "up_right", "right", "down_right", "down"]
 
 # Row indices (0-based, top to bottom, gaps between rows detect them) of each animation.
+# "fall" is the row with one falling sprite per direction and "corpse" the row with the body left behind;
+# together they make the one-shot death animation.
 UNITS = {
+    "orcs_peon": {
+        "sheet": "orcs_peon.png",
+        "in_assets": True,  # the sheet already lives in assets/sprites
+        "walk": range(0, 5),
+        "chop": range(5, 10),
+        "fall": 10,
+        "corpse": 11,
+        "walk_gold": range(12, 17),
+        "walk_wood": range(17, 22),
+    },
     "orcs_grunt": {
         "sheet": "wc2_orc_grunt.png",
         "walk": range(0, 5),
         "attack": range(5, 9),
+        "fall": 9,
+        "corpse": 10,
     },
     "human_footman": {
         "sheet": "wc2_human_footman.png",
         "walk": range(0, 5),
         "attack": range(5, 9),
+        "fall": 9,
+        "corpse": 10,
     },
     "human_peasant": {
         "sheet": "wc2_human_peasant.png",
         "walk": range(0, 5),
         "chop": range(5, 10),
+        "fall": 10,
+        "corpse": 11,
         "walk_gold": range(12, 17),
         "walk_wood": range(17, 22),
     },
 }
-FPS = {"walk": 5, "attack": 8, "chop": 6, "walk_gold": 5, "walk_wood": 5}
+FPS = {"walk": 5, "attack": 8, "chop": 6, "walk_gold": 5, "walk_wood": 5, "death": 4}
 
 
 def bands(flags, min_width=1):
@@ -71,17 +89,33 @@ def frame_box(alpha, col, row):
 
 
 def build(name, spec, directory):
-    sheet = directory / spec["sheet"]
+    sheet = (OUT if spec.get("in_assets") else directory) / spec["sheet"]
     im = Image.open(sheet).convert("RGBA")
     width, height = im.size
     alpha = im.split()[3].load()
     rows = bands([any(alpha[x, y] > 0 for x in range(width)) for y in range(height)])
-    columns = {r: row_columns(alpha, width, rows[r]) for r in {i for k, v in spec.items() if k != "sheet" for i in v}}
+    animated = {k: v for k, v in spec.items() if isinstance(v, range)}
+    row_ids = {i for v in animated.values() for i in v} | {spec["fall"]}
+    columns = {r: row_columns(alpha, width, rows[r]) for r in row_ids}
+    # The body sprite is the first thing in the "corpse" row (one pose for every direction).
+    corpse_cols = bands([any(alpha[x, y] > 0 for y in range(*rows[spec["corpse"]])) for x in range(width)], min_width=4)
+    corpse = frame_box(alpha, corpse_cols[0], rows[spec["corpse"]])
 
     def frames(kind, d):
         return [frame_box(alpha, columns[r][d], rows[r]) for r in spec[kind]]
 
     animations = []
+
+    def add_death(d):
+        fall = frame_box(alpha, columns[spec["fall"]][d], rows[spec["fall"]])
+        variants = [(DIRS[d], False)]
+        if "right" in DIRS[d]:
+            variants.append((DIRS[d].replace("right", "left"), True))
+        for direction, flip in variants:
+            a = {"name": f"death_{direction}", "fps": FPS["death"], "loop": False, "frames": [fall, corpse]}
+            if flip:
+                a["flip_horizontal"] = True
+            animations.append(a)
 
     def add(label, kind, d, only_first=False):
         fr = frames(kind, d)
@@ -95,6 +129,7 @@ def build(name, spec, directory):
             animations.append(a)
 
     for d in range(5):
+        add_death(d)
         add("idle", "walk", d, only_first=True)
         add("walk", "walk", d)
         if "attack" in spec:
@@ -110,7 +145,8 @@ def build(name, spec, directory):
 
     OUT.mkdir(parents=True, exist_ok=True)
     png = f"{name}.png"
-    shutil.copyfile(sheet, OUT / png)
+    if sheet.resolve() != (OUT / png).resolve():
+        shutil.copyfile(sheet, OUT / png)
     (OUT / f"{name}.json").write_text(
         json.dumps({"spritesheet": f"sprites/{png}", "default_animation": "idle_up", "animations": animations}, indent=2)
     )

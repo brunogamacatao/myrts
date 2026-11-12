@@ -104,6 +104,8 @@ struct HudData {
   std::span<const BuildOption> build_options;   // build-menu buttons, in slot order
   const BuildingCard* building = nullptr;       // a building is selected (instead of units)
   std::span<const TrainOption> train_options;   // its training buttons, in slot order
+  int food_used = 0;
+  int food_cap = 0;
 };
 
 /// Rectangle of a command button slot (0..kButtonSlots-1), in screen coordinates.

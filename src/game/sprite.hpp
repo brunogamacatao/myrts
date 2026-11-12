@@ -24,6 +24,7 @@ struct s_animation {
   std::vector<s_frame> frames;
   double delay = 0.2;
   bool flip_horizontal = false;
+  bool loop = true;  // false: stops on the last frame (death animations)
 };
 
 /// Spritesheet + animations. Loaded once and shared between units.
@@ -55,7 +56,7 @@ void update_animation(const SpriteDef& def, AnimationState& state, double delta_
 const s_frame* current_frame(const SpriteDef& def, const AnimationState& state);
 
 /// Draws the current frame centred at (cx, cy) in the current target's coordinates.
-void draw_sprite_centered(const SpriteDef& def, const AnimationState& state, float cx, float cy);
+void draw_sprite_centered(const SpriteDef& def, const AnimationState& state, float cx, float cy, float alpha = 1.0f);
 
 /// Draws the current frame scaled down (never up) to fit the box, centred in it.
 void draw_sprite_fit(const SpriteDef& def, const AnimationState& state, float bx, float by, float bw, float bh);
