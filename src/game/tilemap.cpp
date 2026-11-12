@@ -29,7 +29,7 @@ void* Allegro5_tex_loader(const char *path) {
 
 ALLEGRO_COLOR int_to_al_color(int color) {
 	tmx_col_floats res = tmx_col_to_floats(color);
-	return *((ALLEGRO_COLOR*)&res);
+	return al_map_rgba_f(res.r, res.g, res.b, res.a);
 }
 
 void draw_polyline(double **points, double x, double y, int pointsc, ALLEGRO_COLOR color) {

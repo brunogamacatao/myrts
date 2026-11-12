@@ -37,16 +37,24 @@ endif()
 if(MYRTS_BUILD_GAME)
   FetchContent_MakeAvailable(nlohmann_json tmx)
 
-  find_package(PkgConfig REQUIRED)
-  pkg_check_modules(ALLEGRO REQUIRED IMPORTED_TARGET
-    allegro-5 allegro_font-5 allegro_image-5 allegro_primitives-5)
+  # vcpkg ships a CMake config; system installs only provide pkg-config files.
+  find_package(Allegro CONFIG QUIET)
+  if(TARGET Allegro::allegro)
+    set(MYRTS_ALLEGRO_LIBS Allegro::allegro Allegro::allegro_font
+        Allegro::allegro_image Allegro::allegro_primitives)
+  else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(ALLEGRO REQUIRED IMPORTED_TARGET
+      allegro-5 allegro_font-5 allegro_image-5 allegro_primitives-5)
+    set(MYRTS_ALLEGRO_LIBS PkgConfig::ALLEGRO)
+  endif()
 
   add_executable(myrts
     src/game/main.cpp
     src/game/sprite.cpp
     src/game/tilemap.cpp)
   target_link_libraries(myrts PRIVATE
-    myrts_core myrts_warnings nlohmann_json::nlohmann_json tmx PkgConfig::ALLEGRO)
+    myrts_core myrts_warnings nlohmann_json::nlohmann_json tmx ${MYRTS_ALLEGRO_LIBS})
 
   # Make assets available next to the executable (run it from there).
   add_custom_command(TARGET myrts POST_BUILD
