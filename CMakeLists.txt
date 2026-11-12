@@ -24,22 +24,28 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   endif()
 endif()
 
+FetchContent_MakeAvailable(nlohmann_json)
+
 # ---- core: pure logic, no graphics dependencies --------------------------
 add_library(myrts_core STATIC
   src/core/pathfinding.cpp
   src/core/formation.cpp
   src/core/harvest.cpp
-  src/core/building.cpp)
+  src/core/building.cpp
+  src/core/defs.cpp
+  src/core/world.cpp
+  src/core/orders.cpp
+  src/core/rules.cpp)
 target_include_directories(myrts_core PUBLIC src)
 target_compile_features(myrts_core PUBLIC cxx_std_23)
-target_link_libraries(myrts_core PRIVATE myrts_warnings)
+target_link_libraries(myrts_core PRIVATE myrts_warnings nlohmann_json::nlohmann_json)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(myrts_core PRIVATE -Wconversion)
 endif()
 
 # ---- game ----------------------------------------------------------------
 if(MYRTS_BUILD_GAME)
-  FetchContent_MakeAvailable(nlohmann_json tmx)
+  FetchContent_MakeAvailable(tmx)
 
   # vcpkg ships a CMake config; system installs only provide pkg-config files.
   find_package(Allegro CONFIG QUIET)
@@ -57,14 +63,16 @@ if(MYRTS_BUILD_GAME)
     src/game/main.cpp
     src/game/sprite.cpp
     src/game/tilemap.cpp
-    src/game/unit.cpp
     src/game/ui.cpp
     src/game/building_art.cpp
     src/game/draw_util.cpp
     src/game/menu_scene.cpp
     src/game/scene_manager.cpp
     src/game/scenes.cpp
-    src/game/game.cpp)
+    src/game/assets.cpp
+    src/game/game.cpp
+    src/game/game_input.cpp
+    src/game/game_render.cpp)
   target_link_libraries(myrts PRIVATE
     myrts_core myrts_warnings nlohmann_json::nlohmann_json tmx ${MYRTS_ALLEGRO_LIBS})
 
@@ -85,7 +93,11 @@ if(MYRTS_BUILD_TESTS)
     tests/geometry_test.cpp
     tests/harvest_test.cpp
     tests/building_test.cpp
-    tests/scene_stack_test.cpp)
+    tests/scene_stack_test.cpp
+    tests/infrastructure_test.cpp
+    tests/defs_test.cpp
+    tests/world_test.cpp)
+  target_compile_definitions(myrts_tests PRIVATE MYRTS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   target_link_libraries(myrts_tests PRIVATE myrts_core myrts_warnings Catch2::Catch2WithMain)
   if(catch2_SOURCE_DIR)
     list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)  # FetchContent fallback

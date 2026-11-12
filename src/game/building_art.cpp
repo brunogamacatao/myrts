@@ -2,18 +2,16 @@
 
 #include <allegro5/allegro_primitives.h>
 
+#include <cstdio>
+
 namespace {
 
-const char* kFinished[] = {"buildings/great_hall.png", "buildings/pig_farm.png", "buildings/barracks.png"};
-const char* kConstruction[] = {"buildings/great_hall_construction.png", "buildings/pig_farm_construction.png",
-                               "buildings/barracks_construction.png"};
-
 /// Stand-in used when buildings/gold_mine*.png are absent.
-ALLEGRO_BITMAP* make_placeholder_mine(bool active) {
-  ALLEGRO_BITMAP* bmp = al_create_bitmap(96, 89);
-  if (!bmp) return nullptr;
+std::shared_ptr<const Bitmap> make_placeholder_mine(bool active) {
+  BitmapPtr bmp(al_create_bitmap(96, 89));
+  if (!bmp) return std::make_shared<const Bitmap>();
   ALLEGRO_BITMAP* previous = al_get_target_bitmap();
-  al_set_target_bitmap(bmp);
+  al_set_target_bitmap(bmp.get());
   al_clear_to_color(al_map_rgba(0, 0, 0, 0));
   al_draw_filled_ellipse(48, 56, 46, 30, al_map_rgb(96, 92, 86));
   al_draw_filled_ellipse(48, 46, 38, 30, al_map_rgb(128, 122, 112));
@@ -24,29 +22,27 @@ ALLEGRO_BITMAP* make_placeholder_mine(bool active) {
   al_draw_filled_circle(30, 40, 4, gold);
   al_draw_filled_circle(66, 44, 4, gold);
   al_set_target_bitmap(previous);
-  return bmp;
+  return std::make_shared<const Bitmap>(Bitmap{std::move(bmp)});
+}
+
+std::shared_ptr<const Bitmap> load_or(Assets& assets, const std::string& path, bool active_placeholder,
+                                      bool placeholder_allowed) {
+  auto bmp = assets.bitmap(path);
+  if (bmp) return *bmp;
+  if (placeholder_allowed) return make_placeholder_mine(active_placeholder);
+  std::fprintf(stderr, "warning: %s\n", bmp.error().c_str());
+  return nullptr;
 }
 
 }  // namespace
 
-BuildingArt::~BuildingArt() {
-  for (auto* b : finished_) al_destroy_bitmap(b);
-  for (auto* b : construction_) al_destroy_bitmap(b);
-  al_destroy_bitmap(mine_);
-  al_destroy_bitmap(mine_active_);
-}
-
-bool BuildingArt::load() {
-  for (std::size_t i = 0; i < kKinds; ++i) {
-    finished_[i] = al_load_bitmap(kFinished[i]);
-    construction_[i] = al_load_bitmap(kConstruction[i]);
-    if (!finished_[i] || !construction_[i]) return false;
+void BuildingArt::load(const myrts::Registry& registry, Assets& assets) {
+  for (const auto& def : registry.buildings()) {
+    if (auto b = load_or(assets, def.sprite, false, false)) finished_[def.id] = std::move(b);
+    if (auto b = load_or(assets, def.sprite_construction, false, false)) construction_[def.id] = std::move(b);
   }
-  mine_ = al_load_bitmap("buildings/gold_mine.png");
-  if (!mine_) mine_ = make_placeholder_mine(false);
-  mine_active_ = al_load_bitmap("buildings/gold_mine_active.png");
-  if (!mine_active_) mine_active_ = make_placeholder_mine(true);
-  return mine_ && mine_active_;
+  mine_ = load_or(assets, "buildings/gold_mine.png", false, true);
+  mine_active_ = load_or(assets, "buildings/gold_mine_active.png", true, true);
 }
 
 void draw_centered_in_square(ALLEGRO_BITMAP* bitmap, float x, float y, float size_px, ALLEGRO_COLOR tint) {

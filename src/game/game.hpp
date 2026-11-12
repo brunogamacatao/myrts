@@ -2,62 +2,35 @@
 
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_font.h>
-#include <tmx.h>
 
-#include <array>
 #include <expected>
-#include <utility>
-#include <optional>
-#include <span>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
+#include "assets.hpp"
 #include "building_art.hpp"
-#include "core/building.hpp"
 #include "core/geometry.hpp"
-#include "core/grid.hpp"
-#include "core/harvest.hpp"
-#include "core/occupancy.hpp"
+#include "core/rules.hpp"
+#include "core/selection.hpp"
+#include "core/world.hpp"
+#include "raii.hpp"
+#include "scene.hpp"
 #include "ui.hpp"
-#include "unit.hpp"
 
-/// A peon's gathering cycle: walk to a tree or gold mine, work, carry the load to a depot, repeat.
-struct HarvestJob {
-  enum class State { ToResource, Working, ToDepot };
-  State state = State::ToResource;
-  bool gold = false;
-  myrts::Point target{};  // a tree tile, or any tile of the mine
-  int mine = -1;          // index into mines_ when gold
-  double timer = 0.0;     // work progress, or delay before re-planning a blocked route
-};
-
-struct Building {
-  myrts::BuildingKind kind;
-  myrts::Point origin;
-  double progress = 0.0;  // seconds of work done
-  bool complete = false;
-  int builder = -1;       // unit id currently working on it
-};
-
-struct MineSite {
-  myrts::GoldMine mine;
-  bool busy = false;  // a peon is inside
-};
-
-/// A peon heading to (or working on) a construction site.
-struct BuildJob {
-  enum class State { ToSite, Building };
-  State state = State::ToSite;
-  int building = 0;
-  double timer = 0.0;
-};
-
-/// Game state, input handling and rendering.
+/// The player's view of a match: input, selection, camera, HUD and drawing on top of a `World`.
+/// Everything that is a rule of the game lives in the World; this class only turns clicks into
+/// orders and the World's state (and events) into pixels.
+///
+/// Implementation is split by responsibility: game.cpp (setup, update, commands),
+/// game_input.cpp (mouse and keyboard) and game_render.cpp (drawing).
 class Game {
  public:
-  static std::expected<std::unique_ptr<Game>, std::string> create(ALLEGRO_FONT* font);
-  ~Game();
+  static std::expected<std::unique_ptr<Game>, std::string> create(const SceneContext& ctx);
   Game(const Game&) = delete;
   Game& operator=(const Game&) = delete;
 
@@ -69,79 +42,78 @@ class Game {
   void update(double dt);
   void draw();
 
+  /// Set once the match is decided (see core/rules.hpp).
+  [[nodiscard]] std::optional<myrts::Outcome> outcome() const;
+
  private:
   Game() = default;
 
-  // input
+  // ---- setup / events (game.cpp)
+  void subscribe_to_world();
+  void register_commands();
+  void redraw_minimap_bitmap();
+  void set_message(std::string text, double seconds = 3.0);
+  void apply(const myrts::Result& result);
+  [[nodiscard]] const SpriteDef* sprite_of(const myrts::UnitDef& def);
+
+  // ---- commands & selection (game.cpp)
+  void activate_command(const myrts::CommandDef& command);
+  void select_only(std::vector<myrts::EntityId> ids);
+  void toggle_selected(myrts::EntityId id);
+  void close_build_menu();
+  void start_placing(const myrts::BuildingDef& def);
+  void try_place_building(myrts::Point origin);
+  [[nodiscard]] std::vector<const myrts::CommandDef*> current_commands() const;
+  [[nodiscard]] std::vector<const myrts::BuildingDef*> current_build_options() const;
+  [[nodiscard]] myrts::Point placement_origin(const myrts::BuildingDef& def, myrts::Point cursor_tile) const;
+  [[nodiscard]] std::string unit_animation(const myrts::Unit& u, const SpriteDef& sprite) const;
+
+  // ---- input (game_input.cpp)
   void on_mouse_down(const ALLEGRO_EVENT& e);
   void on_mouse_up(const ALLEGRO_EVENT& e);
   void on_mouse_move(const ALLEGRO_EVENT& e);
   void on_key_down(int keycode);
   void click_in_viewport(float screen_x, float screen_y);
+  void right_click_at(myrts::Point tile);
   void box_select(float x1, float y1, float x2, float y2);
-  void activate_command(Command c);
-
-  // orders / selection
-  void issue_move(myrts::Point target_tile);
-  void issue_harvest(myrts::Point tile);
-  void issue_build_on(int building_index);
-  /// A peon that started building stays on the job until the construction is finished.
-  [[nodiscard]] bool is_building(int unit_id) const { return build_jobs_[static_cast<std::size_t>(unit_id)].has_value(); }
-  /// The selected units that are free to take new orders.
-  [[nodiscard]] std::vector<int> free_selected() const;
-  void cancel_job(int unit_id);
-
-  // gathering
-  void update_jobs(double dt);
-  void update_harvest_job(Unit& unit, HarvestJob& job, double dt);
-  void update_build_job(Unit& unit, BuildJob& job, double dt);
-  [[nodiscard]] std::optional<myrts::ApproachPath> approach(const Unit& unit,
-                                                            std::span<const myrts::Point> targets) const;
-  bool start_gathering(Unit& unit, bool gold, myrts::Point target);
-  bool start_gathering_nearest(Unit& unit, bool gold);
-  bool send_to_depot(Unit& unit);
-  void remove_tree(myrts::Point tile);
-  [[nodiscard]] int mine_at(myrts::Point tile) const;
-  void remove_mine(int index);
-
-  // buildings
-  void start_placing(myrts::BuildingKind kind);
-  void try_place_building(myrts::Point origin);
-  bool start_building(Unit& unit, int building_index);
-  [[nodiscard]] int building_at(myrts::Point tile) const;
-  [[nodiscard]] myrts::Point placement_origin(myrts::BuildingKind kind, myrts::Point cursor_tile) const;
-  void refresh_depots();
-  void close_build_menu();
-  void redraw_minimap_bitmap();
-  void select_only(std::vector<int> ids);
-  void toggle_selected(int id);
-  void refresh_selection_flags();
-  void set_message(std::string text, double seconds = 3.0);
   [[nodiscard]] bool shift_down() const;
   [[nodiscard]] std::optional<myrts::Point> tile_at_world(myrts::Vec2 w) const;
+  [[nodiscard]] myrts::Rect unit_box(const myrts::Unit& u) const;
+  /// Selectable units (own, not hidden in a mine); box ids are positions in `ids`.
+  void selectable_units(std::vector<myrts::EntityId>& ids, std::vector<myrts::SelectBox>& boxes) const;
 
+  // ---- drawing (game_render.cpp)
+  void draw_world();
+  void draw_placement_ghost();
+
+  // services (owned by main)
   ALLEGRO_FONT* font_ = nullptr;
-  tmx_map* map_ = nullptr;
-  ALLEGRO_BITMAP* minimap_bitmap_ = nullptr;
+  Assets* assets_ = nullptr;
+  const myrts::Registry* registry_ = nullptr;
+
+  // simulation
+  std::unique_ptr<myrts::World> world_;
+  myrts::PlayerId local_player_ = myrts::kNoPlayer;
+
+  // map graphics (tmx owns its tile bitmaps)
+  TmxMapPtr map_;
+  BitmapPtr minimap_bitmap_;
   int tile_size_ = 32;
 
-  myrts::Grid grid_;
-  myrts::Occupancy occupancy_;
-  std::vector<Unit> units_;  // unit id == index
-  std::vector<int> selected_;
+  // view state
+  std::vector<myrts::EntityId> selected_;
+  std::unordered_map<myrts::EntityId, AnimationState, myrts::EntityIdHash> anims_;
+  std::unordered_map<const myrts::UnitDef*, std::shared_ptr<const SpriteDef>> sprites_;
+  BuildingArt art_;
   myrts::Camera camera_;
   myrts::Minimap minimap_;
-  ui::Resources resources_;
-  myrts::TreeField trees_;
-  std::vector<MineSite> mines_;
-  std::vector<Building> buildings_;
-  std::vector<myrts::Point> depot_tiles_;  // tiles of finished depots, where loads are delivered
-  std::vector<std::optional<HarvestJob>> jobs_;   // by unit id
-  std::vector<std::optional<BuildJob>> build_jobs_;  // by unit id
-  BuildingArt art_;
-  bool build_menu_ = false;
-  std::optional<myrts::BuildingKind> placing_;
-  double build_speed_ = 1.0;  // construction time divisor (MYRTS_BUILD_SPEED, for testing)
+
+  // commands: behaviour is registered by command id (see register_commands)
+  std::unordered_map<std::string, std::function<void()>> instant_commands_;
+  std::unordered_map<std::string, std::function<void(myrts::Point)>> targeted_commands_;
+  const myrts::CommandDef* awaiting_target_ = nullptr;  // command waiting for its target click
+  bool build_menu_ = false;                              // panel shows the buildings to construct
+  const myrts::BuildingDef* placing_ = nullptr;          // building being positioned
 
   // mouse / keyboard state
   bool keys_[ALLEGRO_KEY_MAX] = {};
@@ -152,8 +124,6 @@ class Game {
   bool dragging_minimap_ = false;
   bool box_selecting_ = false;
   float press_x_ = 0, press_y_ = 0;
-  bool awaiting_target_ = false;
-  Command target_command_ = Command::Move;  // what the awaited click will do
 
   std::string message_;
   double message_time_left_ = 0;

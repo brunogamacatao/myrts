@@ -28,27 +28,6 @@ constexpr bool pay(Stock& stock, const Cost& cost) {
   return true;
 }
 
-enum class BuildingKind { GreatHall, PigFarm, Barracks };
-inline constexpr BuildingKind kAllBuildingKinds[] = {BuildingKind::GreatHall, BuildingKind::PigFarm,
-                                                     BuildingKind::Barracks};
-
-struct BuildingSpec {
-  const char* name;
-  int size;  // footprint in tiles (square)
-  Cost cost;
-  double build_seconds;
-  bool is_depot;  // accepts delivered gold and lumber
-};
-
-[[nodiscard]] constexpr BuildingSpec building_spec(BuildingKind k) {
-  switch (k) {
-    case BuildingKind::GreatHall: return {"Great Hall", 4, {1200, 800, 0}, 255.0, true};
-    case BuildingKind::PigFarm: return {"Pig Farm", 2, {500, 250, 0}, 100.0, false};
-    case BuildingKind::Barracks: return {"Barracks", 3, {700, 450, 0}, 200.0, false};
-  }
-  return {"?", 1, {}, 1.0, false};
-}
-
 /// All tiles of a `size` x `size` square whose top-left tile is `origin`.
 [[nodiscard]] std::vector<Point> footprint(Point origin, int size);
 

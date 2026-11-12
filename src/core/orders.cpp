@@ -1,0 +1,407 @@
+#include <algorithm>
+
+#include "pathfinding.hpp"
+#include "formation.hpp"
+#include "world.hpp"
+
+namespace myrts {
+
+namespace {
+
+template <class... Ts>
+struct Overloaded : Ts... {
+  using Ts::operator()...;
+};
+
+bool adjacent_to_any(Point p, std::span<const Point> tiles) {
+  return std::ranges::any_of(tiles, [&](Point t) { return is_adjacent(p, t); });
+}
+
+bool contains(const std::vector<std::string>& v, const std::string& s) { return std::ranges::find(v, s) != v.end(); }
+
+bool can_build(const Unit& u, const BuildingDef& def) {
+  return u.def->worker && contains(u.def->builds, def.id);
+}
+
+}  // namespace
+
+void World::notice(PlayerId to, std::string text) { events_.publish(ev::Notice{to, std::move(text)}); }
+
+void World::free_units(std::span<const EntityId> in, std::vector<EntityId>& out) const {
+  for (const EntityId id : in) {
+    const Unit* u = units_.get(id);
+    if (u && !u->locked()) out.push_back(id);
+  }
+}
+
+/// Route to a tile next to one of `targets`, avoiding other units when possible. If they hem the
+/// unit in, plan through them anyway: movement re-plans around whoever is still in the way.
+std::optional<ApproachPath> World::approach(const Unit& u, std::span<const Point> targets) const {
+  const Layer& L = layer(u.def->move_class);
+  const Grid others = L.occupancy.blocked_for(occ_id(u));
+  auto route = path_to_adjacent(L.blocked, u.anchor(), targets, &others);
+  if (!route) route = path_to_adjacent(L.blocked, u.anchor(), targets);
+  return route;
+}
+
+void World::cancel_order(Unit& u) {
+  if (const auto* h = std::get_if<order::Harvest>(&u.order)) {
+    if (h->gold && h->mine >= 0 && h->state == order::Harvest::State::Working)
+      mines_[static_cast<std::size_t>(h->mine)].busy = false;
+  } else if (const auto* b = std::get_if<order::Build>(&u.order)) {
+    if (Building* bld = buildings_.get(b->building); bld && bld->builder == u.id) bld->builder = kNoEntity;
+  }
+  u.order = order::Idle{};
+  u.hidden = false;
+}
+
+// ---- player orders --------------------------------------------------------------------
+
+Result World::order_stop(std::span<const EntityId> ids) {
+  std::vector<EntityId> free;
+  free_units(ids, free);
+  for (const EntityId id : free) {
+    Unit& u = *units_.get(id);
+    cancel_order(u);
+    stop_unit(u);
+  }
+  return Result::success();
+}
+
+Result World::order_move(std::span<const EntityId> ids, Point target) {
+  if (ids.empty()) return Result::success();
+  std::vector<EntityId> movers;
+  free_units(ids, movers);
+  if (movers.empty()) return Result::fail("Builders cannot be interrupted");
+  for (const EntityId id : movers) cancel_order(*units_.get(id));
+
+  for (const MoveClass cls : {MoveClass::Land, MoveClass::Water, MoveClass::Air}) {
+    std::vector<EntityId> group;
+    for (const EntityId id : movers)
+      if (units_.get(id)->def->move_class == cls) group.push_back(id);
+    if (group.empty()) continue;
+
+    Layer& L = layer(cls);
+    std::vector<Point> anchors;
+    std::vector<int> occ;
+    for (const EntityId id : group) {
+      anchors.push_back(units_.get(id)->anchor());
+      occ.push_back(occ_id(*units_.get(id)));
+    }
+    // Tiles held by units outside the group are obstacles; the group's own tiles are not.
+    const Grid occupied = L.occupancy.blocked_except(occ);
+    const auto destinations = assign_destinations(L.blocked, &occupied, anchors, target);
+    for (std::size_t i = 0; i < group.size(); ++i) {
+      Unit& u = *units_.get(group[i]);
+      if (!destinations[i]) {
+        stop_unit(u);
+        continue;
+      }
+      send_along(u, a_star(L.blocked, anchors[i], *destinations[i], &occupied));
+    }
+  }
+  return Result::success();
+}
+
+Result World::order_harvest(std::span<const EntityId> ids, Point tile) {
+  if (ids.empty()) return Result::success();
+  const bool gold = mine_at(tile) >= 0;
+  if (!gold && !trees_.has_tree(tile)) return Result::fail("Select a tree or a gold mine");
+
+  std::vector<EntityId> free;
+  free_units(ids, free);
+  if (free.empty()) return Result::fail("Builders cannot be interrupted");
+
+  bool any_worker = false, no_depot = false, unreachable = false;
+  for (const EntityId id : free) {
+    Unit& u = *units_.get(id);
+    if (!u.def->worker) continue;
+    any_worker = true;
+    if (depot_tiles(u.owner).empty()) {
+      no_depot = true;
+      continue;
+    }
+    cancel_order(u);
+    stop_unit(u);
+    const Cargo wanted = gold ? Cargo::Gold : Cargo::Lumber;
+    if (u.carrying > 0 && u.cargo != wanted) {  // drops what it was carrying
+      u.carrying = 0;
+      u.cargo = Cargo::None;
+    }
+    if (!start_gathering(u, gold, tile)) unreachable = true;
+  }
+  if (!any_worker) return Result::fail("These units cannot gather resources");
+  if (no_depot) return Result::fail("You need a Great Hall to deliver resources");
+  if (unreachable) return Result::fail(gold ? "Cannot reach that gold mine" : "Cannot reach that tree");
+  return Result::success();
+}
+
+Result World::order_build(PlayerId owner, std::span<const EntityId> candidates, const BuildingDef& def,
+                          Point origin) {
+  std::vector<EntityId> free;
+  free_units(candidates, free);
+  std::erase_if(free, [&](EntityId id) { return !can_build(*units_.get(id), def); });
+  if (free.empty()) return Result::fail("The selected peons are busy or cannot build that");
+
+  switch (placement_status(def, origin)) {
+    case PlaceStatus::Blocked: return Result::fail("Cannot build there");
+    case PlaceStatus::UnitInWay: return Result::fail("A unit is in the way");
+    case PlaceStatus::Ok: break;
+  }
+  if (!pay(player(owner).stock, def.cost)) return Result::fail("Not enough resources for a " + def.name);
+
+  const EntityId site = add_building(def, owner, origin, false);
+
+  // The candidate with the shortest unobstructed walk builds it (others may be hemmed in).
+  const auto tiles = footprint(origin, def.size);
+  EntityId best = free.front();
+  std::size_t best_len = static_cast<std::size_t>(-1);
+  for (const EntityId id : free) {
+    const Unit& u = *units_.get(id);
+    const Layer& L = layer(u.def->move_class);
+    const Grid others = L.occupancy.blocked_for(occ_id(u));
+    const auto route = path_to_adjacent(L.blocked, u.anchor(), tiles, &others);
+    if (route && route->path.size() < best_len) {
+      best_len = route->path.size();
+      best = id;
+    }
+  }
+  Unit& builder = *units_.get(best);
+  cancel_order(builder);
+  stop_unit(builder);
+  if (!start_building(builder, site)) return Result::fail("The builder cannot reach the construction site");
+  return Result::success();
+}
+
+Result World::order_resume_build(std::span<const EntityId> ids, EntityId building) {
+  Building* b = buildings_.get(building);
+  if (!b || b->complete) return Result::success();
+  if (b->builder.valid() && units_.alive(b->builder)) return Result::fail("Someone is already building it");
+
+  std::vector<EntityId> free;
+  free_units(ids, free);
+  std::erase_if(free, [&](EntityId id) { return !can_build(*units_.get(id), *b->def); });
+  if (free.empty()) return Result::fail("Builders cannot be interrupted");
+
+  Unit& u = *units_.get(free.front());
+  cancel_order(u);
+  stop_unit(u);
+  if (!start_building(u, building)) return Result::fail("Cannot reach the construction site");
+  return Result::success();
+}
+
+// ---- gathering --------------------------------------------------------------------------
+
+bool World::start_gathering(Unit& u, bool gold, Point target) {
+  std::vector<Point> targets;
+  int mine = -1;
+  if (gold) {
+    mine = mine_at(target);
+    if (mine < 0) return false;
+    targets = mines_[static_cast<std::size_t>(mine)].site.tiles();
+  } else {
+    if (!trees_.has_tree(target)) return false;
+    targets = {target};
+  }
+  auto route = approach(u, targets);
+  if (!route) return false;
+  send_along(u, std::move(route->path));
+  u.order = order::Harvest{order::Harvest::State::ToResource, gold, target, mine, 0.0};
+  return true;
+}
+
+bool World::start_gathering_nearest(Unit& u, bool gold) {
+  std::vector<Point> targets;
+  if (gold) {
+    for (const auto& m : mines_) {
+      if (m.site.depleted()) continue;
+      const auto tiles = m.site.tiles();
+      targets.insert(targets.end(), tiles.begin(), tiles.end());
+    }
+  } else {
+    targets = trees_.positions();
+  }
+  auto route = approach(u, targets);
+  if (!route) return false;
+  send_along(u, std::move(route->path));
+  u.order = order::Harvest{order::Harvest::State::ToResource, gold, route->target,
+                           gold ? mine_at(route->target) : -1, 0.0};
+  return true;
+}
+
+bool World::send_to_depot(Unit& u) {
+  const auto depots = depot_tiles(u.owner);
+  auto route = approach(u, depots);
+  if (!route) return false;
+  send_along(u, std::move(route->path));
+  if (auto* h = std::get_if<order::Harvest>(&u.order)) {
+    h->state = order::Harvest::State::ToDepot;
+    h->timer = 0.0;
+  }
+  return true;
+}
+
+void World::fell_tree(Point tile) {
+  layer(MoveClass::Land).blocked.set_blocked(tile, false);
+  events_.publish(ev::TreeFelled{tile});
+}
+
+void World::exhaust_mine(int index) {
+  for (const Point p : mines_[static_cast<std::size_t>(index)].site.tiles())
+    layer(MoveClass::Land).blocked.set_blocked(p, false);
+  events_.publish(ev::MineDepleted{index});
+}
+
+void World::update_order(Unit& u, double dt) {
+  std::visit(Overloaded{[](order::Idle&) {}, [&](order::Harvest& h) { update_harvest(u, h, dt); },
+                        [&](order::Build& b) { update_build(u, b, dt); }},
+             u.order);
+}
+
+// NOTE: failing or re-planning replaces `u.order`, which destroys `h`. Every path below returns
+// right after such a call and never touches `h` again.
+void World::update_harvest(Unit& u, order::Harvest& h, double dt) {
+  using State = order::Harvest::State;
+  const WorkerDef worker = u.def->worker.value_or(WorkerDef{});
+  const bool gold = h.gold;
+  const Point target = h.target;
+
+  const auto fail = [&](const std::string& msg) {
+    notice(u.owner, msg);
+    cancel_order(u);
+  };
+  const auto retry = [&] {
+    const bool alive = gold ? mine_at(target) >= 0 : trees_.has_tree(target);
+    const bool ok = alive ? start_gathering(u, gold, target) : start_gathering_nearest(u, gold);
+    if (!ok) fail(gold ? "There is no gold left to mine" : "There are no more trees");
+  };
+
+  switch (h.state) {
+    case State::ToResource: {
+      if (!u.is_idle()) return;
+      if (gold) {
+        const int mine = mine_at(target);
+        if (mine < 0) return retry();
+        Mine& m = mines_[static_cast<std::size_t>(mine)];
+        const auto tiles = m.site.tiles();
+        if (adjacent_to_any(u.tile, tiles)) {
+          if (m.busy) return;  // wait for the peon inside to come out
+          m.busy = true;
+          h.mine = mine;
+          h.state = State::Working;
+          h.timer = 0.0;
+          u.hidden = true;
+          return;
+        }
+      } else if (trees_.has_tree(target) && is_adjacent(u.tile, target)) {
+        h.state = State::Working;
+        h.timer = 0.0;
+        face_tile(u, target);
+        return;
+      }
+      // Arrived without reaching the resource (blocked route, or someone else used it up).
+      if ((h.timer += dt) >= config_.retry_delay) {
+        h.timer = 0.0;
+        retry();
+      }
+      return;
+    }
+    case State::Working: {
+      h.timer += dt;
+      if (gold) {
+        if (h.timer < worker.mine_seconds) return;
+        Mine& m = mines_[static_cast<std::size_t>(h.mine)];
+        const int got = m.site.take(worker.gold_per_trip);
+        m.busy = false;
+        u.hidden = false;
+        u.cargo = Cargo::Gold;
+        u.carrying = got;
+        if (m.site.depleted()) {
+          exhaust_mine(h.mine);
+          notice(u.owner, "The gold mine is exhausted");
+        }
+      } else {
+        if (h.timer < worker.chop_seconds) return;
+        const int got = trees_.take(target, worker.lumber_per_trip);
+        if (got > 0 && !trees_.has_tree(target)) fell_tree(target);
+        u.cargo = Cargo::Lumber;
+        u.carrying = got;
+      }
+      if (u.carrying > 0) {
+        if (!send_to_depot(u)) fail("Cannot reach a Great Hall");
+      } else {
+        retry();
+      }
+      return;
+    }
+    case State::ToDepot: {
+      if (!u.is_idle()) return;
+      const auto depots = depot_tiles(u.owner);
+      if (adjacent_to_any(u.tile, depots)) {
+        Stock amount;
+        (u.cargo == Cargo::Gold ? amount.gold : amount.lumber) = u.carrying;
+        Stock& stock = player(u.owner).stock;
+        stock.gold += amount.gold;
+        stock.lumber += amount.lumber;
+        events_.publish(ev::Delivered{u.owner, amount});
+        u.carrying = 0;
+        u.cargo = Cargo::None;
+        return retry();
+      }
+      if ((h.timer += dt) >= config_.retry_delay && !send_to_depot(u)) fail("Cannot reach a Great Hall");
+      return;
+    }
+  }
+}
+
+// ---- construction -------------------------------------------------------------------------
+
+bool World::start_building(Unit& u, EntityId building) {
+  Building* b = buildings_.get(building);
+  if (!b) return false;
+  const auto tiles = footprint(b->origin, b->def->size);
+  auto route = approach(u, tiles);
+  if (!route) return false;
+  send_along(u, std::move(route->path));
+  b->builder = u.id;
+  u.order = order::Build{order::Build::State::ToSite, building, 0.0};
+  return true;
+}
+
+void World::update_build(Unit& u, order::Build& o, double dt) {
+  Building* b = buildings_.get(o.building);
+  if (!b) {  // the site is gone
+    cancel_order(u);
+    return;
+  }
+  const auto tiles = footprint(b->origin, b->def->size);
+
+  if (o.state == order::Build::State::ToSite) {
+    if (!u.is_idle()) return;
+    if (adjacent_to_any(u.tile, tiles)) {
+      o.state = order::Build::State::Building;
+      const auto it = std::ranges::find_if(tiles, [&](Point t) { return is_adjacent(u.tile, t); });
+      face_tile(u, *it);
+      return;
+    }
+    if ((o.timer += dt) >= config_.retry_delay) {
+      const EntityId site = o.building;
+      cancel_order(u);
+      if (!start_building(u, site)) notice(u.owner, "Cannot reach the construction site");
+    }
+    return;
+  }
+
+  b->progress += dt * config_.build_speed;
+  if (b->progress < b->def->build_seconds) return;
+  b->progress = b->def->build_seconds;
+  b->complete = true;
+  const EntityId id = b->id;
+  const PlayerId owner = b->owner;
+  const std::string name = b->def->name;
+  cancel_order(u);  // frees the builder slot and the unit
+  events_.publish(ev::BuildingCompleted{id, owner});
+  notice(owner, name + " completed");
+}
+
+}  // namespace myrts

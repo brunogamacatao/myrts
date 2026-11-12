@@ -8,12 +8,17 @@
 #include <memory>
 #include <string>
 
+#include "assets.hpp"
+#include "core/defs.hpp"
+
 class Scene;
 
 /// Services every scene may use. Passed explicitly (no globals); owned by main().
 struct SceneContext {
   ALLEGRO_DISPLAY* display = nullptr;
   ALLEGRO_FONT* font = nullptr;
+  Assets* assets = nullptr;                    // shared, reference-counted resources
+  const myrts::Registry* registry = nullptr;   // game data (units, buildings, commands)
 };
 
 /// Builds a scene when the manager needs it (the old scene is still alive while this runs, so a

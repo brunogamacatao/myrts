@@ -135,6 +135,9 @@ class GameScene : public Scene {
 
   Transition update(double dt) override {
     game_->update(dt);
+    if (const auto outcome = game_->outcome())
+      return Transition::replace(make_game_over(*outcome == myrts::Outcome::Victory ? GameResult::Victory
+                                                                                     : GameResult::Defeat));
     return Transition::none();
   }
 
@@ -154,7 +157,7 @@ SceneFactory make_intro(std::function<Transition()> when_done) {
 
 SceneFactory make_game() {
   return [](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
-    auto game = Game::create(ctx.font);
+    auto game = Game::create(ctx);
     if (!game) return std::unexpected(game.error());
     return std::make_unique<GameScene>(std::move(*game));
   };

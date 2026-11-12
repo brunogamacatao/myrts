@@ -9,10 +9,6 @@ void init_tilemap_engine() {
   tmx_img_free_func = (void (*)(void*))al_destroy_bitmap;
 }
 
-void destroy_map(tmx_map *map) {
-  tmx_map_free(map);
-}
-
 void* Allegro5_tex_loader(const char *path) {
 	ALLEGRO_BITMAP *res    = NULL;
 	ALLEGRO_PATH   *alpath = NULL;
@@ -238,4 +234,24 @@ static void clear_trees_at(const tmx_map *map, tmx_layer *layers, myrts::Point p
 void replace_tree_tile(tmx_map *map, myrts::Point p, unsigned int gid) {
   if (map && p.x >= 0 && p.y >= 0 && p.x < static_cast<int>(map->width) && p.y < static_cast<int>(map->height))
     clear_trees_at(map, map->ly_head, p, gid);
+}
+
+myrts::Grid get_water_grid(const tmx_map *map) {
+  if (!map) return {};
+  myrts::Grid grid(static_cast<int>(map->width), static_cast<int>(map->height));
+  for (int y = 0; y < grid.height(); ++y)
+    for (int x = 0; x < grid.width(); ++x) grid.set_blocked({x, y});  // sailable only where there is water
+  for (const tmx_layer *layer = map->ly_head; layer; layer = layer->next) {
+    if (layer->type != L_LAYER) continue;
+    for (unsigned int y = 0; y < map->height; ++y) {
+      for (unsigned int x = 0; x < map->width; ++x) {
+        const unsigned int gid = layer->content.gids[y * map->width + x] & TMX_FLIP_BITS_REMOVAL;
+        if (gid == 0 || gid >= map->tilecount) continue;
+        const tmx_tile *tile = map->tiles[gid];
+        if (tile && prop_is_true(tile->properties, "water"))
+          grid.set_blocked({static_cast<int>(x), static_cast<int>(y)}, false);
+      }
+    }
+  }
+  return grid;
 }

@@ -2,32 +2,39 @@
 
 #include <allegro5/allegro5.h>
 
-#include "core/building.hpp"
+#include <memory>
+#include <string>
+#include <unordered_map>
 
-/// Bitmaps of the buildings and the gold mine, loaded once from assets/buildings/.
+#include "assets.hpp"
+#include "core/defs.hpp"
+
+/// Bitmaps of every building in the registry plus the gold mine. Sprites are shared through
+/// `Assets`; this object only keeps them alive while the game uses them.
 class BuildingArt {
  public:
-  BuildingArt() = default;
-  BuildingArt(const BuildingArt&) = delete;
-  BuildingArt& operator=(const BuildingArt&) = delete;
-  ~BuildingArt();
+  /// Loads what the registry names. A missing sprite is reported on stderr and that building is
+  /// simply not drawn; a missing gold-mine sprite is replaced by a drawn placeholder
+  /// (see scripts/extract_sprites.py).
+  void load(const myrts::Registry& registry, Assets& assets);
 
-  /// Loads every sprite. Missing gold-mine sprites are replaced by a drawn placeholder
-  /// (see scripts/extract_sprites.py); missing building sprites are an error.
-  bool load();
-
-  [[nodiscard]] ALLEGRO_BITMAP* finished(myrts::BuildingKind k) const { return finished_[index(k)]; }
-  [[nodiscard]] ALLEGRO_BITMAP* construction(myrts::BuildingKind k) const { return construction_[index(k)]; }
-  [[nodiscard]] ALLEGRO_BITMAP* gold_mine(bool active) const { return active ? mine_active_ : mine_; }
+  [[nodiscard]] ALLEGRO_BITMAP* finished(const myrts::BuildingDef& def) const { return find(finished_, def.id); }
+  [[nodiscard]] ALLEGRO_BITMAP* construction(const myrts::BuildingDef& def) const {
+    return find(construction_, def.id);
+  }
+  [[nodiscard]] ALLEGRO_BITMAP* gold_mine(bool active) const { return (active ? mine_active_ : mine_)->get(); }
 
  private:
-  static constexpr std::size_t index(myrts::BuildingKind k) { return static_cast<std::size_t>(k); }
-  static constexpr std::size_t kKinds = 3;
+  using Map = std::unordered_map<std::string, std::shared_ptr<const Bitmap>>;
+  static ALLEGRO_BITMAP* find(const Map& m, const std::string& id) {
+    const auto it = m.find(id);
+    return it == m.end() ? nullptr : it->second->get();
+  }
 
-  ALLEGRO_BITMAP* finished_[kKinds] = {};
-  ALLEGRO_BITMAP* construction_[kKinds] = {};
-  ALLEGRO_BITMAP* mine_ = nullptr;
-  ALLEGRO_BITMAP* mine_active_ = nullptr;
+  Map finished_;
+  Map construction_;
+  std::shared_ptr<const Bitmap> mine_;
+  std::shared_ptr<const Bitmap> mine_active_;
 };
 
 /// Draws `bitmap` centred inside the square of `size_px` pixels whose top-left is (x, y).

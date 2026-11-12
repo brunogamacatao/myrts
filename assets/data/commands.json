@@ -1,0 +1,10 @@
+{
+  "commands": [
+    {"id": "move",    "label": "Move",    "icon": "move",    "hotkey": "M", "targeting": "ground"},
+    {"id": "stop",    "label": "Stop",    "icon": "stop",    "hotkey": "S", "targeting": "none"},
+    {"id": "attack",  "label": "Attack",  "icon": "attack",  "hotkey": "A", "targeting": "ground", "implemented": false},
+    {"id": "repair",  "label": "Repair",  "icon": "repair",  "hotkey": "R", "targeting": "resource", "implemented": false},
+    {"id": "harvest", "label": "Harvest", "icon": "harvest", "hotkey": "H", "targeting": "resource"},
+    {"id": "build",   "label": "Build",   "icon": "build",   "hotkey": "B", "targeting": "menu"}
+  ]
+}

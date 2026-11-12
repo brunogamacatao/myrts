@@ -6,6 +6,8 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "assets.hpp"
+#include "core/defs.hpp"
 #include "scene_manager.hpp"
 #include "scenes.hpp"
 #include "ui.hpp"
@@ -42,7 +44,14 @@ int main() {
   al_register_event_source(queue, al_get_display_event_source(display));
   al_register_event_source(queue, al_get_timer_event_source(timer));
 
-  SceneManager scenes({display, font});
+  auto registry = myrts::Registry::load_directory("data");
+  if (!registry) {
+    std::fprintf(stderr, "couldn't load game data: %s\n", registry.error().c_str());
+    return EXIT_FAILURE;
+  }
+  Assets assets;
+
+  SceneManager scenes({display, font, &assets, &*registry});
   if (!scenes.start(make_intro([] { return Transition::replace(make_main_menu()); }))) return EXIT_FAILURE;
 
   bool redraw = true;
@@ -70,6 +79,9 @@ int main() {
   }
 
   scenes.shutdown();  // free every scene's resources while Allegro is still initialised
+  if (assets.live_sprites() + assets.live_bitmaps() != 0)  // everything is owned by scenes, so none should remain
+    std::fprintf(stderr, "warning: %zu sprites and %zu bitmaps still alive after shutdown (leak?)\n",
+                 assets.live_sprites(), assets.live_bitmaps());
   al_destroy_font(font);
   al_destroy_display(display);
   al_destroy_timer(timer);

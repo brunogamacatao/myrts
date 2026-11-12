@@ -12,7 +12,6 @@
 inline constexpr float LINE_THICKNESS = 2.5f;
 
 void init_tilemap_engine();
-void destroy_map(tmx_map *map);
 void* Allegro5_tex_loader(const char *path);
 ALLEGRO_COLOR int_to_al_color(int color);
 void draw_polyline(double **points, double x, double y, int pointsc, ALLEGRO_COLOR color);
@@ -27,6 +26,8 @@ void draw_all_layers(tmx_map *map, tmx_layer *layers);
 void render_map(tmx_map *map);
 /// Builds the walkability grid from a Tiled map (empty grid if `map` is null).
 myrts::Grid get_collision_grid(const tmx_map *map);
+/// Tiles where ships can sail: blocked everywhere except on `water` tiles.
+myrts::Grid get_water_grid(const tmx_map *map);
 /// Tiles whose tileset entry has the custom property `tree`.
 std::vector<myrts::Point> find_tree_tiles(const tmx_map *map);
 /// Replaces the tree tile at `p` (in every layer that has one) with `gid`.

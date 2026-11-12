@@ -1,0 +1,36 @@
+{
+  "buildings": [
+    {
+      "id": "great_hall",
+      "name": "Great Hall",
+      "faction": "orcs",
+      "size": 4,
+      "cost": {"gold": 1200, "lumber": 800},
+      "build_seconds": 255,
+      "is_depot": true,
+      "sprite": "buildings/great_hall.png",
+      "sprite_construction": "buildings/great_hall_construction.png",
+      "trains": ["orc_peon"]
+    },
+    {
+      "id": "pig_farm",
+      "name": "Pig Farm",
+      "faction": "orcs",
+      "size": 2,
+      "cost": {"gold": 500, "lumber": 250},
+      "build_seconds": 100,
+      "sprite": "buildings/pig_farm.png",
+      "sprite_construction": "buildings/pig_farm_construction.png"
+    },
+    {
+      "id": "barracks",
+      "name": "Barracks",
+      "faction": "orcs",
+      "size": 3,
+      "cost": {"gold": 700, "lumber": 450},
+      "build_seconds": 200,
+      "sprite": "buildings/barracks.png",
+      "sprite_construction": "buildings/barracks_construction.png"
+    }
+  ]
+}

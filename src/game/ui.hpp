@@ -8,10 +8,10 @@
 #include <string>
 #include <vector>
 
-#include "building_art.hpp"
 #include "core/building.hpp"
+#include "core/defs.hpp"
 #include "core/geometry.hpp"
-#include "unit.hpp"
+#include "sprite.hpp"
 
 namespace ui {
 
@@ -27,35 +27,59 @@ inline constexpr myrts::Rect kInfoPanel{8, 166, 144, 262};
 inline constexpr int kButtonCols = 3;
 inline constexpr int kButtonRows = 2;
 inline constexpr int kButtonSlots = kButtonCols * kButtonRows;
+inline constexpr int kBuildMenuCancel = kButtonSlots - 1;  // last slot closes the build menu
 
-using Resources = myrts::Stock;
+// The HUD only sees small view-models filled in by the game every frame; it knows nothing about
+// the simulation.
+
+/// A selected unit, as shown in the info panel.
+struct UnitCard {
+  std::string name;
+  int level = 1;
+  int hp = 1;
+  int max_hp = 1;
+  myrts::UnitStats stats;
+  const SpriteDef* sprite = nullptr;
+  const AnimationState* anim = nullptr;
+};
+
+struct MinimapDot {
+  float x = 0;  // world pixels
+  float y = 0;
+  bool selected = false;
+};
+
+struct CommandButton {
+  const myrts::CommandDef* def = nullptr;
+  bool active = false;  // waiting for its target click
+};
+
+struct BuildOption {
+  const myrts::BuildingDef* def = nullptr;
+  ALLEGRO_BITMAP* icon = nullptr;
+  bool affordable = true;
+  bool placing = false;
+};
 
 struct HudData {
-  const Resources& resources;
-  const std::vector<Unit>& units;
-  std::span<const int> selected;  // unit ids
+  const myrts::Stock& resources;
+  std::span<const UnitCard> selection;
+  std::span<const MinimapDot> dots;
   ALLEGRO_BITMAP* minimap_bitmap;  // whole map, drawn scaled
   const myrts::Minimap& minimap;
   const myrts::Camera& camera;
   const std::string& message;  // shown at the bottom of the viewport
-  bool awaiting_target;
   float mouse_x;
   float mouse_y;
-  bool build_menu = false;  // command panel shows the buildings a peon can construct
-  const BuildingArt* art = nullptr;
-  std::optional<myrts::BuildingKind> placing;  // building being positioned
+  std::span<const CommandButton> commands;     // panel buttons, in slot order
+  bool build_menu = false;                      // panel shows `build_options` instead of `commands`
+  std::span<const BuildOption> build_options;   // build-menu buttons, in slot order
 };
 
 /// Rectangle of a command button slot (0..kButtonSlots-1), in screen coordinates.
 myrts::Rect button_rect(int slot);
 /// Slot under the point, if any.
 std::optional<int> button_at(float x, float y);
-/// Building offered in a build-menu slot (slot kBuildMenuCancel closes the menu).
-std::optional<myrts::BuildingKind> build_menu_slot(int slot);
-inline constexpr int kBuildMenuCancel = 5;
-
-/// Commands to offer for the current selection (those of the first selected unit's type).
-std::vector<Command> panel_commands(const std::vector<Unit>& units, std::span<const int> selected);
 
 void draw_hud(ALLEGRO_FONT* font, const HudData& hud);
 

@@ -37,37 +37,32 @@ void draw_text(ALLEGRO_FONT* font, float x, float y, int align, const std::strin
   al_draw_text(font, color, x, y, align, text.c_str());
 }
 
-void draw_command_glyph(Command c, const Rect& r, float alpha) {
+void draw_command_glyph(const std::string& icon, const Rect& r, float alpha) {
   const float cx = r.x + r.w / 2;
   const float cy = r.y + r.h / 2;
   const auto a = [alpha](int rr, int g, int b) { return al_map_rgba_f(static_cast<float>(rr) / 255 * alpha,
                                                                       static_cast<float>(g) / 255 * alpha,
                                                                       static_cast<float>(b) / 255 * alpha, alpha); };
-  switch (c) {
-    case Command::Move:  // arrow pointing right
-      al_draw_filled_rectangle(cx - 14, cy - 3, cx + 4, cy + 3, a(220, 60, 50));
-      al_draw_filled_triangle(cx + 2, cy - 11, cx + 2, cy + 11, cx + 16, cy, a(220, 60, 50));
-      break;
-    case Command::Stop:
-      al_draw_filled_rectangle(cx - 11, cy - 11, cx + 11, cy + 11, a(200, 40, 40));
-      al_draw_rectangle(cx - 11, cy - 11, cx + 11, cy + 11, a(250, 200, 190), 2);
-      break;
-    case Command::Attack:
-      al_draw_line(cx - 12, cy + 12, cx + 12, cy - 12, a(210, 210, 220), 3);
-      al_draw_line(cx - 12, cy - 12, cx + 12, cy + 12, a(210, 210, 220), 3);
-      break;
-    case Command::Repair:
-      al_draw_circle(cx - 6, cy - 6, 7, a(200, 200, 210), 3);
-      al_draw_line(cx - 2, cy - 2, cx + 12, cy + 12, a(200, 200, 210), 4);
-      break;
-    case Command::Harvest:
-      al_draw_filled_triangle(cx - 12, cy + 6, cx + 12, cy + 6, cx, cy - 14, a(40, 140, 50));
-      al_draw_filled_rectangle(cx - 3, cy + 6, cx + 3, cy + 14, a(110, 70, 30));
-      break;
-    case Command::Build:
-      al_draw_filled_rectangle(cx - 12, cy - 2, cx + 12, cy + 12, a(170, 130, 80));
-      al_draw_filled_triangle(cx - 15, cy - 2, cx + 15, cy - 2, cx, cy - 14, a(140, 40, 40));
-      break;
+  if (icon == "move") {  // arrow pointing right
+    al_draw_filled_rectangle(cx - 14, cy - 3, cx + 4, cy + 3, a(220, 60, 50));
+    al_draw_filled_triangle(cx + 2, cy - 11, cx + 2, cy + 11, cx + 16, cy, a(220, 60, 50));
+  } else if (icon == "stop") {
+    al_draw_filled_rectangle(cx - 11, cy - 11, cx + 11, cy + 11, a(200, 40, 40));
+    al_draw_rectangle(cx - 11, cy - 11, cx + 11, cy + 11, a(250, 200, 190), 2);
+  } else if (icon == "attack" || icon == "cancel") {  // crossed swords double as "cancel"
+    al_draw_line(cx - 12, cy + 12, cx + 12, cy - 12, a(210, 210, 220), 3);
+    al_draw_line(cx - 12, cy - 12, cx + 12, cy + 12, a(210, 210, 220), 3);
+  } else if (icon == "repair") {
+    al_draw_circle(cx - 6, cy - 6, 7, a(200, 200, 210), 3);
+    al_draw_line(cx - 2, cy - 2, cx + 12, cy + 12, a(200, 200, 210), 4);
+  } else if (icon == "harvest") {
+    al_draw_filled_triangle(cx - 12, cy + 6, cx + 12, cy + 6, cx, cy - 14, a(40, 140, 50));
+    al_draw_filled_rectangle(cx - 3, cy + 6, cx + 3, cy + 14, a(110, 70, 30));
+  } else if (icon == "build") {
+    al_draw_filled_rectangle(cx - 12, cy - 2, cx + 12, cy + 12, a(170, 130, 80));
+    al_draw_filled_triangle(cx - 15, cy - 2, cx + 15, cy - 2, cx, cy - 14, a(140, 40, 40));
+  } else {  // unknown icon: a plain box so a data typo is visible but harmless
+    al_draw_rectangle(cx - 10, cy - 10, cx + 10, cy + 10, a(200, 200, 200), 2);
   }
 }
 
@@ -75,35 +70,36 @@ void draw_command_glyph(Command c, const Rect& r, float alpha) {
 void draw_build_menu(ALLEGRO_FONT* font, const HudData& hud) {
   for (int slot = 0; slot < kButtonSlots; ++slot) {
     const Rect r = button_rect(slot);
-    const auto kind = build_menu_slot(slot);
-    const bool has = kind || slot == kBuildMenuCancel;
+    const bool is_cancel = slot == kBuildMenuCancel;
+    const BuildOption* opt =
+        static_cast<std::size_t>(slot) < hud.build_options.size() && !is_cancel ? &hud.build_options[static_cast<std::size_t>(slot)]
+                                                                                 : nullptr;
+    const bool has = opt || is_cancel;
     const bool hovered = has && r.contains(hud.mouse_x, hud.mouse_y);
     draw_bevel(r, !has, has ? (hovered ? al_map_rgb(100, 94, 86) : al_map_rgb(64, 60, 56)) : kInset);
     if (!has) continue;
-    if (!kind) {
-      draw_command_glyph(Command::Attack, r, 1.0f);  // crossed swords double as "cancel"
+    if (is_cancel) {
+      draw_command_glyph("cancel", r, 1.0f);
       if (hovered) draw_text(font, kPanelW / 2.0f, 552, ALLEGRO_ALIGN_CENTER, "Cancel");
       continue;
     }
-    const auto spec = myrts::building_spec(*kind);
-    const bool affordable = myrts::can_afford(hud.resources, spec.cost);
-    if (hud.art) {
-      ALLEGRO_BITMAP* bmp = hud.art->finished(*kind);
-      const auto bw = static_cast<float>(al_get_bitmap_width(bmp));
-      const auto bh = static_cast<float>(al_get_bitmap_height(bmp));
+    const myrts::BuildingDef& def = *opt->def;
+    if (opt->icon) {
+      const auto bw = static_cast<float>(al_get_bitmap_width(opt->icon));
+      const auto bh = static_cast<float>(al_get_bitmap_height(opt->icon));
       const float scale = std::min((r.w - 6) / bw, (r.h - 6) / bh);
-      const float alpha = affordable ? 1.0f : 0.35f;
-      al_draw_tinted_scaled_bitmap(bmp, al_map_rgba_f(alpha, alpha, alpha, alpha), 0, 0, bw, bh,
+      const float alpha = opt->affordable ? 1.0f : 0.35f;
+      al_draw_tinted_scaled_bitmap(opt->icon, al_map_rgba_f(alpha, alpha, alpha, alpha), 0, 0, bw, bh,
                                    r.x + (r.w - bw * scale) / 2, r.y + (r.h - bh * scale) / 2, bw * scale,
                                    bh * scale, 0);
     }
-    if (hud.placing == kind) al_draw_rectangle(r.x + 2, r.y + 2, r.x + r.w - 2, r.y + r.h - 2, kGreen, 2);
+    if (opt->placing) al_draw_rectangle(r.x + 2, r.y + 2, r.x + r.w - 2, r.y + r.h - 2, kGreen, 2);
     if (hovered) {
-      draw_text(font, kPanelW / 2.0f, 552, ALLEGRO_ALIGN_CENTER, spec.name,
-                affordable ? kText : al_map_rgb(230, 80, 60));
+      draw_text(font, kPanelW / 2.0f, 552, ALLEGRO_ALIGN_CENTER, def.name,
+                opt->affordable ? kText : al_map_rgb(230, 80, 60));
       draw_text(font, kPanelW / 2.0f, 566, ALLEGRO_ALIGN_CENTER,
-                std::to_string(spec.cost.gold) + "g " + std::to_string(spec.cost.lumber) + "w " +
-                    std::to_string(static_cast<int>(spec.build_seconds)) + "s");
+                std::to_string(def.cost.gold) + "g " + std::to_string(def.cost.lumber) + "w " +
+                    std::to_string(static_cast<int>(def.build_seconds)) + "s");
     }
   }
 }
@@ -127,10 +123,10 @@ void draw_minimap(const HudData& hud) {
                         static_cast<float>(al_get_bitmap_height(hud.minimap_bitmap)), area.x + mm.offset_x(),
                         area.y + mm.offset_y(), mm.width(), mm.height(), 0);
 
-  for (const Unit& u : hud.units) {
-    const auto p = mm.world_to_mini(u.x(), u.y());
+  for (const MinimapDot& d : hud.dots) {
+    const auto p = mm.world_to_mini(d.x, d.y);
     al_draw_filled_rectangle(area.x + p.x - 1, area.y + p.y - 1, area.x + p.x + 1.5f, area.y + p.y + 1.5f,
-                             u.selected ? kGreen : al_map_rgb(240, 220, 60));
+                             d.selected ? kGreen : al_map_rgb(240, 220, 60));
   }
 
   const Rect view = hud.camera.visible();
@@ -145,26 +141,30 @@ void draw_minimap(const HudData& hud) {
 void draw_unit_info(ALLEGRO_FONT* font, const HudData& hud) {
   const Rect& p = kInfoPanel;
   draw_bevel(p, true, kInset);
-  if (hud.selected.empty()) return;
+  if (hud.selection.empty()) return;
 
-  if (hud.selected.size() == 1) {
-    const Unit& u = hud.units[static_cast<std::size_t>(hud.selected[0])];
+  const auto draw_portrait = [&](const UnitCard& u, const Rect& box) {
+    if (u.sprite && u.anim) draw_sprite_fit(*u.sprite, *u.anim, box.x + 2, box.y + 2, box.w - 4, box.h - 4);
+  };
+
+  if (hud.selection.size() == 1) {
+    const UnitCard& u = hud.selection[0];
     const Rect portrait{p.x + 6, p.y + 6, 52, 52};
     draw_bevel(portrait, true, al_map_rgb(40, 50, 40));
-    draw_sprite_fit(*u.type().sprite, u.animation(), portrait.x + 2, portrait.y + 2, portrait.w - 4, portrait.h - 4);
+    draw_portrait(u, portrait);
 
-    draw_text(font, p.x + 100, p.y + 12, ALLEGRO_ALIGN_CENTER, u.type().name);
-    draw_text(font, p.x + 100, p.y + 28, ALLEGRO_ALIGN_CENTER, "Level " + std::to_string(u.type().level));
+    draw_text(font, p.x + 100, p.y + 12, ALLEGRO_ALIGN_CENTER, u.name);
+    draw_text(font, p.x + 100, p.y + 28, ALLEGRO_ALIGN_CENTER, "Level " + std::to_string(u.level));
 
     // HP bar + numbers under the portrait
-    const float frac = static_cast<float>(u.hp()) / static_cast<float>(u.type().max_hp);
+    const float frac = static_cast<float>(u.hp) / static_cast<float>(u.max_hp);
     al_draw_filled_rectangle(portrait.x, portrait.y + 58, portrait.x + portrait.w, portrait.y + 64, kInset);
     al_draw_filled_rectangle(portrait.x, portrait.y + 58, portrait.x + portrait.w * frac, portrait.y + 64,
                              frac > 0.5f ? kGreen : (frac > 0.25f ? kGold : al_map_rgb(220, 50, 40)));
     draw_text(font, portrait.x + portrait.w / 2, portrait.y + 67, ALLEGRO_ALIGN_CENTER,
-              std::to_string(u.hp()) + "/" + std::to_string(u.type().max_hp));
+              std::to_string(u.hp) + "/" + std::to_string(u.max_hp));
 
-    const auto& s = u.type().stats;
+    const auto& s = u.stats;
     const std::string lines[] = {"Armor: " + std::to_string(s.armor),
                                  "Damage: " + std::to_string(s.damage_min) + "-" + std::to_string(s.damage_max),
                                  "Range: " + std::to_string(s.range), "Sight: " + std::to_string(s.sight),
@@ -178,34 +178,28 @@ void draw_unit_info(ALLEGRO_FONT* font, const HudData& hud) {
   }
 
   // Several units: grid of small portraits.
-  draw_text(font, p.x + p.w / 2, p.y + 8, ALLEGRO_ALIGN_CENTER, std::to_string(hud.selected.size()) + " units");
+  draw_text(font, p.x + p.w / 2, p.y + 8, ALLEGRO_ALIGN_CENTER, std::to_string(hud.selection.size()) + " units");
   constexpr int kCols = 3, kCell = 46, kMaxShown = 15;
   const float left = p.x + (p.w - kCols * kCell) / 2;
   int shown = 0;
-  for (const int id : hud.selected) {
+  for (const UnitCard& u : hud.selection) {
     if (shown >= kMaxShown) break;
-    const Unit& u = hud.units[static_cast<std::size_t>(id)];
     const Rect cell{left + static_cast<float>(shown % kCols * kCell), p.y + 24 + static_cast<float>(shown / kCols * kCell),
                     kCell - 2, kCell - 2};
     draw_bevel(cell, true, al_map_rgb(40, 50, 40));
-    draw_sprite_fit(*u.type().sprite, u.animation(), cell.x + 2, cell.y + 2, cell.w - 4, cell.h - 10);
-    const float frac = static_cast<float>(u.hp()) / static_cast<float>(u.type().max_hp);
+    draw_portrait(u, {cell.x, cell.y, cell.w, cell.h - 8});
+    const float frac = static_cast<float>(u.hp) / static_cast<float>(u.max_hp);
     al_draw_filled_rectangle(cell.x + 2, cell.y + cell.h - 6, cell.x + cell.w - 2, cell.y + cell.h - 3, kInset);
     al_draw_filled_rectangle(cell.x + 2, cell.y + cell.h - 6, cell.x + 2 + (cell.w - 4) * frac, cell.y + cell.h - 3, kGreen);
     ++shown;
   }
-  if (hud.selected.size() > kMaxShown) {
+  if (hud.selection.size() > kMaxShown) {
     draw_text(font, p.x + p.w - 6, p.y + p.h - 12, ALLEGRO_ALIGN_RIGHT,
-              "+" + std::to_string(hud.selected.size() - kMaxShown));
+              "+" + std::to_string(hud.selection.size() - kMaxShown));
   }
 }
 
 }  // namespace
-
-std::optional<myrts::BuildingKind> build_menu_slot(int slot) {
-  if (slot < 0 || static_cast<std::size_t>(slot) >= std::size(myrts::kAllBuildingKinds)) return std::nullopt;
-  return myrts::kAllBuildingKinds[slot];
-}
 
 Rect button_rect(int slot) {
   constexpr float kSize = 44, kGap = 4;
@@ -221,11 +215,6 @@ std::optional<int> button_at(float x, float y) {
   return std::nullopt;
 }
 
-std::vector<Command> panel_commands(const std::vector<Unit>& units, std::span<const int> selected) {
-  if (selected.empty()) return {};
-  return units[static_cast<std::size_t>(selected.front())].type().commands;
-}
-
 void draw_hud(ALLEGRO_FONT* font, const HudData& hud) {
   // Left panel
   draw_bevel({0, 0, fx(kPanelW), fx(kHeight)}, false, kStone);
@@ -236,19 +225,20 @@ void draw_hud(ALLEGRO_FONT* font, const HudData& hud) {
   draw_unit_info(font, hud);
 
   // Command buttons (only when something is selected)
-  const auto commands = panel_commands(hud.units, hud.selected);
-  const bool show_commands = !hud.build_menu;
-  if (hud.build_menu) draw_build_menu(font, hud);
-  for (int slot = 0; show_commands && slot < kButtonSlots; ++slot) {
-    const Rect r = button_rect(slot);
-    const bool has = static_cast<std::size_t>(slot) < commands.size();
-    const bool hovered = has && r.contains(hud.mouse_x, hud.mouse_y);
-    draw_bevel(r, !has, has ? (hovered ? al_map_rgb(100, 94, 86) : al_map_rgb(64, 60, 56)) : kInset);
-    if (!has) continue;
-    const Command c = commands[static_cast<std::size_t>(slot)];
-    draw_command_glyph(c, r, is_implemented(c) ? 1.0f : 0.35f);
-    if (c == Command::Move && hud.awaiting_target) al_draw_rectangle(r.x + 2, r.y + 2, r.x + r.w - 2, r.y + r.h - 2, kGreen, 2);
-    if (hovered) draw_text(font, kPanelW / 2.0f, 552, ALLEGRO_ALIGN_CENTER, command_label(c));
+  if (hud.build_menu) {
+    draw_build_menu(font, hud);
+  } else {
+    for (int slot = 0; slot < kButtonSlots; ++slot) {
+      const Rect r = button_rect(slot);
+      const bool has = static_cast<std::size_t>(slot) < hud.commands.size();
+      const bool hovered = has && r.contains(hud.mouse_x, hud.mouse_y);
+      draw_bevel(r, !has, has ? (hovered ? al_map_rgb(100, 94, 86) : al_map_rgb(64, 60, 56)) : kInset);
+      if (!has) continue;
+      const CommandButton& b = hud.commands[static_cast<std::size_t>(slot)];
+      draw_command_glyph(b.def->icon, r, b.def->implemented ? 1.0f : 0.35f);
+      if (b.active) al_draw_rectangle(r.x + 2, r.y + 2, r.x + r.w - 2, r.y + r.h - 2, kGreen, 2);
+      if (hovered) draw_text(font, kPanelW / 2.0f, 552, ALLEGRO_ALIGN_CENTER, b.def->label);
+    }
   }
 
   // Top bar with resources

@@ -4,10 +4,13 @@
 #include <allegro5/allegro_image.h>
 
 #include <expected>
+#include <initializer_list>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "raii.hpp"
 
 struct s_frame {
   int x;
@@ -25,16 +28,9 @@ struct s_animation {
 
 /// Spritesheet + animations. Loaded once and shared between units.
 struct SpriteDef {
-  ALLEGRO_BITMAP* spritesheet = nullptr;
+  BitmapPtr spritesheet;
   std::string default_animation;
   std::map<std::string, s_animation> animations;
-
-  SpriteDef() = default;
-  SpriteDef(const SpriteDef&) = delete;
-  SpriteDef& operator=(const SpriteDef&) = delete;
-  ~SpriteDef() {
-    if (spritesheet) al_destroy_bitmap(spritesheet);
-  }
 };
 
 /// Per-unit playback state.
@@ -46,6 +42,10 @@ struct AnimationState {
 
 /// Loads a sprite definition; returns an error message on failure.
 std::expected<std::shared_ptr<SpriteDef>, std::string> load_sprite_def(const std::string& filename);
+
+/// The first of `candidates` that this sprite defines, or its default animation. Lets a unit
+/// without e.g. "walk_gold_*" frames fall back to plain walking.
+std::string pick_animation(const SpriteDef& def, std::initializer_list<std::string> candidates);
 
 /// Switches animation (restarting it only if it actually changed).
 void set_animation(AnimationState& state, const std::string& name);

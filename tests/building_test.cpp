@@ -4,22 +4,6 @@
 
 using namespace myrts;
 
-TEST_CASE("Building specs match the design table") {
-  const auto hall = building_spec(BuildingKind::GreatHall);
-  CHECK(hall.cost == Cost{1200, 800, 0});
-  CHECK(hall.build_seconds == 255.0);
-  CHECK(hall.is_depot);
-
-  const auto farm = building_spec(BuildingKind::PigFarm);
-  CHECK(farm.cost == Cost{500, 250, 0});
-  CHECK(farm.build_seconds == 100.0);
-  CHECK_FALSE(farm.is_depot);
-
-  const auto barracks = building_spec(BuildingKind::Barracks);
-  CHECK(barracks.cost == Cost{700, 450, 0});
-  CHECK(barracks.build_seconds == 200.0);
-}
-
 TEST_CASE("pay only succeeds when every resource is covered") {
   Stock s{1000, 300, 0};
   CHECK_FALSE(pay(s, Cost{500, 400, 0}));  // not enough lumber

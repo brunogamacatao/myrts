@@ -18,6 +18,12 @@ const s_frame* current_frame(const SpriteDef& def, const AnimationState& state) 
   return &frames[static_cast<std::size_t>(state.frame) % frames.size()];
 }
 
+std::string pick_animation(const SpriteDef& def, std::initializer_list<std::string> candidates) {
+  for (const auto& c : candidates)
+    if (def.animations.contains(c)) return c;
+  return def.default_animation;
+}
+
 void set_animation(AnimationState& state, const std::string& name) {
   if (state.current == name) return;
   state.current = name;
@@ -41,7 +47,7 @@ void draw_sprite_centered(const SpriteDef& def, const AnimationState& state, flo
   const s_frame* f = current_frame(def, state);
   if (!f) return;
   const auto& anim = def.animations.at(state.current);
-  al_draw_bitmap_region(def.spritesheet, static_cast<float>(f->x), static_cast<float>(f->y),
+  al_draw_bitmap_region(def.spritesheet.get(), static_cast<float>(f->x), static_cast<float>(f->y),
                         static_cast<float>(f->width), static_cast<float>(f->height),
                         std::floor(cx - static_cast<float>(f->width) / 2),
                         std::floor(cy - static_cast<float>(f->height) / 2), flip_flags(anim));
@@ -54,7 +60,7 @@ void draw_sprite_fit(const SpriteDef& def, const AnimationState& state, float bx
   const float fw = static_cast<float>(f->width);
   const float fh = static_cast<float>(f->height);
   const float scale = std::min({1.0f, bw / fw, bh / fh});
-  al_draw_scaled_bitmap(def.spritesheet, static_cast<float>(f->x), static_cast<float>(f->y), fw, fh,
+  al_draw_scaled_bitmap(def.spritesheet.get(), static_cast<float>(f->x), static_cast<float>(f->y), fw, fh,
                         bx + (bw - fw * scale) / 2, by + (bh - fh * scale) / 2, fw * scale, fh * scale,
                         flip_flags(anim));
 }
@@ -68,7 +74,7 @@ std::expected<std::shared_ptr<SpriteDef>, std::string> load_sprite_def(const std
     auto def = std::make_shared<SpriteDef>();
 
     const auto spritesheet_file = data.at("spritesheet").get<std::string>();
-    def->spritesheet = al_load_bitmap(spritesheet_file.c_str());
+    def->spritesheet.reset(al_load_bitmap(spritesheet_file.c_str()));
     if (!def->spritesheet) return std::unexpected("cannot load spritesheet " + spritesheet_file);
     def->default_animation = data.at("default_animation").get<std::string>();
 
