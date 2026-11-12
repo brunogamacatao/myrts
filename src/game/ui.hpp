@@ -44,6 +44,7 @@ struct UnitCard {
   const AnimationState* anim = nullptr;
 };
 
+/// One dot on the minimap (a unit or a building).
 struct MinimapDot {
   float x = 0;  // world pixels
   float y = 0;
@@ -52,11 +53,13 @@ struct MinimapDot {
   float size = 2;  // pixels on the minimap (buildings are bigger)
 };
 
+/// A button of the command panel.
 struct CommandButton {
   const myrts::CommandDef* def = nullptr;
   bool active = false;  // waiting for its target click
 };
 
+/// A button of the build menu (one building a worker can construct).
 struct BuildOption {
   const myrts::BuildingDef* def = nullptr;
   ALLEGRO_BITMAP* icon = nullptr;
@@ -90,6 +93,7 @@ struct TrainOption {
   bool affordable = true;
 };
 
+/// Everything draw_hud() needs for one frame. Filled in by Game; the HUD never touches the World.
 struct HudData {
   const myrts::Stock& resources;
   std::span<const UnitCard> selection;
@@ -117,6 +121,7 @@ std::optional<int> button_at(float x, float y);
 /// Training-queue cell (0..4) under the point in the building info panel, if any.
 std::optional<int> queue_slot_at(float x, float y);
 
+/// Draws the side panel, top bar, minimap and message line.
 void draw_hud(ALLEGRO_FONT* font, const HudData& hud);
 
 }  // namespace ui

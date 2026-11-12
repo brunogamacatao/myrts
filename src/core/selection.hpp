@@ -8,6 +8,7 @@
 
 namespace myrts {
 
+/// A selectable thing: caller-chosen `id` and its on-screen bounding box.
 struct SelectBox {
   int id;
   Rect box;
@@ -22,6 +23,7 @@ struct SelectBox {
 }
 
 /// All entities whose box overlaps the drag rectangle.
+/// Ids of every item whose box touches `area` (box selection).
 [[nodiscard]] inline std::vector<int> pick_in(std::span<const SelectBox> items, const Rect& area) {
   std::vector<int> ids;
   for (const auto& item : items) {

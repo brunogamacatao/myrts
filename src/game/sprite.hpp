@@ -12,6 +12,7 @@
 
 #include "raii.hpp"
 
+/// A rectangle of the spritesheet.
 struct s_frame {
   int x;
   int y;

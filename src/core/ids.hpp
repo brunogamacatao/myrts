@@ -18,6 +18,7 @@ struct EntityId {
   [[nodiscard]] constexpr bool valid() const { return index != kInvalid; }
   constexpr auto operator<=>(const EntityId&) const = default;
 };
+/// The invalid handle: refers to nothing.
 inline constexpr EntityId kNoEntity{};
 
 struct EntityIdHash {
@@ -26,6 +27,7 @@ struct EntityIdHash {
   }
 };
 
+/// Index of a player in World (0, 1, ...).
 using PlayerId = int;
 inline constexpr PlayerId kNoPlayer = -1;
 

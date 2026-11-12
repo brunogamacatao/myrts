@@ -15,6 +15,9 @@
 
 namespace myrts::ev {
 
+/// @name Events
+/// Published by the World while it updates; delivered by EventBus::dispatch().
+/// @{
 struct TreeFelled { Point tile; };
 struct MineDepleted { int mine; };
 struct UnitSpawned { EntityId unit; };
@@ -28,6 +31,7 @@ struct BuildingCompleted { EntityId building; PlayerId owner; };
 struct Delivered { PlayerId player; Stock amount; };
 /// A message for the player (shown in the HUD, never parsed by game logic).
 struct Notice { PlayerId player; std::string text; };
+/// @}
 
 }  // namespace myrts::ev
 

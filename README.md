@@ -52,3 +52,9 @@ A* stays single-agent. For a group order, `assign_destinations` picks the closes
 the target and pairs them with units; each unit then runs A* to its own tile. While moving, units reserve
 their current and next tile in `Occupancy`; a unit whose next tile is taken waits briefly and then re-plans
 around the tiles held by others.
+
+## Documentation
+- [docs/OVERVIEW.md](docs/OVERVIEW.md) – system overview: module diagram, class diagrams, match flow (Mermaid, rendered on GitHub)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – design rules and how to add units, buildings, commands and scenes
+- API reference (Javadoc-style, from the source comments): `sudo apt install doxygen graphviz && scripts/docs.sh`,
+  then open `build/docs/html/index.html`

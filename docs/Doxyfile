@@ -1,0 +1,53 @@
+# Doxygen configuration. Run through scripts/docs.sh (output: build/docs/html/index.html).
+PROJECT_NAME           = "myrts"
+PROJECT_BRIEF          = "RTS prototype in C++23"
+OUTPUT_DIRECTORY       = build/docs
+INPUT                  = src docs/mainpage.md
+FILE_PATTERNS          = *.hpp *.cpp *.md
+RECURSIVE              = YES
+USE_MDFILE_AS_MAINPAGE = docs/mainpage.md
+
+# Javadoc style: the first sentence of a /** or /// comment is the brief description,
+# @param / @return work as in Javadoc, and Markdown is allowed inside comments.
+JAVADOC_AUTOBRIEF      = YES
+MARKDOWN_SUPPORT       = YES
+OPTIMIZE_OUTPUT_FOR_C  = NO
+CPP_CLI_SUPPORT        = NO
+BUILTIN_STL_SUPPORT    = YES
+
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_ANON_NSPACES   = NO
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+
+# Allegro / tmx headers are not parsed; unresolved names are just shown as text.
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+PREDEFINED             = MYRTS_DOXYGEN=1
+
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HTML_DYNAMIC_SECTIONS  = YES
+GENERATE_TREEVIEW      = YES
+FULL_PATH_NAMES        = YES
+STRIP_FROM_PATH        = src
+
+# Diagrams: scripts/docs.sh turns HAVE_DOT on when Graphviz (dot) is installed.
+HAVE_DOT               = NO
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = YES
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+CALL_GRAPH             = NO
+GRAPHICAL_HIERARCHY    = YES
+UML_LOOK               = YES
+DOT_IMAGE_FORMAT       = svg
+DOT_GRAPH_MAX_NODES    = 60
+
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_NO_PARAMDOC       = NO

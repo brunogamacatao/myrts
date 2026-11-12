@@ -49,6 +49,8 @@ struct Transition {
   static Transition quit() { return {Kind::Quit, {}, false}; }
 };
 
+/// One screen of the game (intro, menu, a match...). The SceneManager keeps scenes on a stack; only the
+/// top one gets input and updates. Scenes never create each other: they return a Transition.
 class Scene {
  public:
   virtual ~Scene() = default;

@@ -7,6 +7,7 @@
 
 namespace myrts {
 
+/// A tile coordinate (map units, not pixels). Ordered so it can key a std::map.
 struct Point {
   int x{};
   int y{};

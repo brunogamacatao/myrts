@@ -25,15 +25,17 @@ class Ai {
   Ai(World& world, const Registry& registry, PlayerId player, AiConfig config = {})
       : world_(world), registry_(registry), me_(player), cfg_(config) {}
 
+  /// Advances the AI's clock; it makes decisions every AiConfig::think_interval seconds.
   void update(double dt);
+  /// How many attack waves have been launched so far.
   [[nodiscard]] int waves_sent() const { return waves_; }
 
  private:
-  void think();
-  void manage_workers();
-  void manage_construction();
-  void manage_production();
-  void manage_army();
+  void think();                ///< runs the four managers below, in order
+  void manage_workers();       ///< keep AiConfig::desired_workers mining (one on wood if a farm is needed)
+  void manage_construction();  ///< build a farm when food is nearly used up
+  void manage_production();    ///< queue whatever fighters the buildings can train
+  void manage_army();          ///< send a wave, attack-moving, once enough fighters have gathered
 
   World& world_;
   const Registry& registry_;

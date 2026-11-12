@@ -6,11 +6,13 @@
 
 #include "scene.hpp"
 
+/// One button: its label and the transition to make when chosen.
 struct MenuItem {
   std::string label;
   std::function<Transition()> action;
 };
 
+/// Describes a menu screen completely (title, buttons, ESC behaviour).
 struct MenuConfig {
   std::string title;
   std::string subtitle;

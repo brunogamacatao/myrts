@@ -12,6 +12,7 @@
 namespace myrts {
 
 /// Which terrain a unit can use. Each class has its own blocked-tile grid and tile occupancy.
+/// @see World for how each class gets its own blocked grid.
 enum class MoveClass { Land, Water, Air };
 
 enum class Targeting {
@@ -22,12 +23,12 @@ enum class Targeting {
 };
 
 struct UnitStats {
-  int armor = 0;
-  int damage_min = 0;
-  int damage_max = 0;
-  int range = 0;
-  int sight = 0;
-  int speed = 0;
+  int armor = 0;       ///< subtracted from each hit taken (a hit does at least 1)
+  int damage_min = 0;  ///< lower bound of the damage roll
+  int damage_max = 0;  ///< upper bound; 0 means the unit cannot attack
+  int range = 0;       ///< attack reach in tiles; 1 = melee
+  int sight = 0;       ///< how far (tiles) it notices enemies
+  int speed = 0;       ///< display value only; movement uses UnitDef::move_speed
 };
 
 /// Optional capability: this unit can gather resources.
@@ -83,9 +84,9 @@ struct BuildingDef {
 struct CommandDef {
   std::string id;
   std::string label;
-  std::string icon;  // key into the UI's glyph table
+  std::string icon;  ///< key into the UI's glyph table
   Targeting targeting = Targeting::None;
-  char hotkey = 0;  // upper-case letter, 0 for none
+  char hotkey = 0;  ///< upper-case letter, 0 for none
   bool implemented = true;
 };
 
@@ -99,6 +100,8 @@ class Registry {
   Registry(Registry&&) = default;
   Registry& operator=(Registry&&) = default;
 
+  /// Parses the three JSON documents and cross-checks every reference (`builds`, `trains`, `commands`...).
+  /// @return the registry, or a message naming the first problem found.
   static std::expected<Registry, std::string> parse(std::string_view units_json, std::string_view buildings_json,
                                                     std::string_view commands_json);
   /// Reads units.json, buildings.json and commands.json from `directory`.

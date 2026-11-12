@@ -5,11 +5,13 @@
 
 namespace myrts {
 
+/// A 2D position or offset in floating point (pixels unless stated otherwise).
 struct Vec2 {
   float x{};
   float y{};
 };
 
+/// Axis-aligned rectangle; the right and bottom edges are exclusive.
 struct Rect {
   float x{};
   float y{};
@@ -46,18 +48,23 @@ struct Camera {
     x = std::clamp(x, 0.0f, std::max(0.0f, world_w - view_w));
     y = std::clamp(y, 0.0f, std::max(0.0f, world_h - view_h));
   }
+  /// Scrolls by (dx, dy) pixels, staying inside the world.
   void move(float dx, float dy) {
     x += dx;
     y += dy;
     clamp();
   }
+  /// Centres the view on a world position (clamped).
   void center_on(float wx, float wy) {
     x = wx - view_w / 2;
     y = wy - view_h / 2;
     clamp();
   }
+  /// Viewport coordinates -> world coordinates.
   [[nodiscard]] constexpr Vec2 to_world(float vx, float vy) const { return {vx + x, vy + y}; }
+  /// World coordinates -> viewport coordinates.
   [[nodiscard]] constexpr Vec2 to_view(float wx, float wy) const { return {wx - x, wy - y}; }
+  /// The part of the world currently on screen.
   [[nodiscard]] constexpr Rect visible() const { return {x, y, view_w, view_h}; }
 };
 

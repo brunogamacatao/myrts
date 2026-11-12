@@ -20,64 +20,71 @@
 
 namespace myrts {
 
+/// What a worker is carrying back to a depot.
 enum class Cargo { None, Lumber, Gold };
 
 
 // ---- orders -----------------------------------------------------------------
-// What a unit is busy with. Moving is not an order: a unit simply follows its path. To teach units
+/// @name Orders
+/// What a unit is busy with. Moving is not an order: a unit simply follows its path. To teach units
 // a new activity (attack, repair, patrol...) add an alternative here and a handler in World::update_order.
 
 namespace order {
 
+/// Nothing to do. Idle fighters may pick a fight by themselves (see World::auto_acquire).
 struct Idle {};
 
 /// Walk to a tree or gold mine, work, carry the load to a depot, repeat.
 struct Harvest {
   enum class State { ToResource, Working, ToDepot };
-  State state = State::ToResource;
-  bool gold = false;
-  Point target{};      // a tree tile, or any tile of the mine
-  int mine = -1;       // index of the mine when gold
-  double timer = 0.0;  // work progress, or delay before re-planning a blocked route
+  State state = State::ToResource;  ///< current leg of the work cycle
+  bool gold = false;                ///< true: mining gold, false: chopping lumber
+  Point target{};                   ///< a tree tile, or any tile of the mine
+  int mine = -1;                    ///< index into World::mines() when gold
+  double timer = 0.0;               ///< work progress, or delay before re-planning a blocked route
 };
 
 /// Walk to a construction site and work on it until it is finished.
 struct Build {
   enum class State { ToSite, Building };
-  State state = State::ToSite;
-  EntityId building;
-  double timer = 0.0;
+  State state = State::ToSite;  ///< walking there, or hammering
+  EntityId building;            ///< the construction site
+  double timer = 0.0;           ///< delay before re-planning a blocked route
 };
 
 /// What an attack is aimed at.
 struct Target {
   enum class Kind { Unit, Building };
-  Kind kind = Kind::Unit;
+  Kind kind = Kind::Unit;  ///< which store `id` refers to
   EntityId id;
 };
 
 /// Chase a target and strike it until it is gone. `resume` is where an attack-move was heading.
 struct Attack {
   Target target;
-  std::optional<Point> resume;
-  double retry = 0.0;  // time since the route to a moving target was last planned
+  std::optional<Point> resume;  ///< where to carry on to afterwards (set when interrupting an attack-move)
+  double retry = 0.0;           ///< time since the route to a moving target was last planned
 };
 
 /// Walk to a point and fight whatever enemy comes into sight on the way.
 struct AttackMove {
-  Point dest{};
-  double scan = 0.0;
+  Point dest{};       ///< final destination
+  double scan = 0.0;  ///< time since the surroundings were last scanned for enemies
 };
 
 }  // namespace order
 
+/// @}
+
+/// The activity of a unit: exactly one alternative of `order::*` at a time.
 using Order = std::variant<order::Idle, order::Harvest, order::Build, order::Attack, order::AttackMove>;
 
 // ---- entities ---------------------------------------------------------------
 
+/// A living unit: its static data (`def`), position, path and what it is doing.
 struct Unit {
   EntityId id;
-  const UnitDef* def = nullptr;
+  const UnitDef* def = nullptr;  ///< static data shared by all units of this kind
   PlayerId owner = kNoPlayer;
   int hp = 1;
 
@@ -114,9 +121,10 @@ struct Unit {
 /// A unit waiting to be trained in a building.
 struct TrainItem {
   const UnitDef* unit = nullptr;
-  double progress = 0.0;  // seconds
+  double progress = 0.0;  ///< seconds of training done
 };
 
+/// A building, under construction or finished. Static data is in `def`.
 struct Building {
   EntityId id;
   const BuildingDef* def = nullptr;
@@ -130,17 +138,20 @@ struct Building {
   std::optional<Point> rally;    // where new units go after leaving the building
 };
 
+/// A gold mine on the map plus whether a worker is currently inside it.
 struct Mine {
   GoldMine site;
-  bool busy = false;  // a peon is inside
+  bool busy = false;  ///< a worker is inside (only one at a time)
 };
 
+/// A participant of the match (human or computer) and their resources.
 struct Player {
   std::string name;
   std::string faction;
   Stock stock;
 };
 
+/// Tunables of a World. The `*_speed` fields exist for testing (they divide durations).
 struct WorldConfig {
   int tile_size = 32;
   double build_speed = 1.0;   // construction time divisor (testing)
@@ -160,6 +171,7 @@ struct Result {
   static Result fail(std::string m) { return {false, std::move(m)}; }
 };
 
+/// Whether a building can be placed: `Blocked` by terrain/other buildings, or `UnitInWay` (temporary)
 enum class PlaceStatus { Ok, Blocked, UnitInWay };
 
 /// The whole simulation: terrain, units, buildings, resources and the orders that drive them.
@@ -171,19 +183,27 @@ class World {
   World(WorldConfig config, Grid land_blocked, Grid water_blocked = {});
 
   // ---- setup
+  /// Adds a player and returns their id (ids are assigned in order: 0, 1, ...).
   PlayerId add_player(std::string name, std::string faction, Stock stock);
   /// Returns kNoEntity if `tile` is blocked or already occupied.
   EntityId spawn_unit(const UnitDef& def, PlayerId owner, Point tile);
+  /// Places a building. With `complete == false` it starts as a construction site.
   EntityId add_building(const BuildingDef& def, PlayerId owner, Point origin, bool complete);
+  /// Adds a tree holding `lumber` units of wood.
   void add_tree(Point tile, int lumber);
+  /// Adds a gold mine (a `size` x `size` obstacle) and returns its index in mines().
   int add_mine(Point origin, int size, int gold);
 
   // ---- orders (what the player asks for)
+  /// Cancels the orders and movement of the given units (builders stay locked).
   Result order_stop(std::span<const EntityId> units);
+  /// Moves a group to `target`; each unit gets its own destination tile (see assign_destinations).
   Result order_move(std::span<const EntityId> units, Point target);
+  /// Workers go gather the tree or mine on `tile` and keep cycling between it and a depot.
   Result order_harvest(std::span<const EntityId> units, Point tile);
   /// Pays for and starts a building; the nearest free unit among `candidates` goes to build it.
   Result order_build(PlayerId owner, std::span<const EntityId> candidates, const BuildingDef& def, Point origin);
+  /// Sends a worker back to finish an unfinished building.
   Result order_resume_build(std::span<const EntityId> units, EntityId building);
   /// Attack the enemy unit or building on `tile`; on open ground, attack-move there.
   Result order_attack(std::span<const EntityId> units, Point tile);
@@ -195,9 +215,10 @@ class World {
   /// Takes the `index`-th queued unit out of the queue and refunds its price.
   Result order_cancel_train(PlayerId owner, EntityId building, std::size_t index);
 
+  /// Removes a unit immediately, releasing its tiles, and publishes ev::UnitDied.
   void kill_unit(EntityId id);
 
-  /// Advances the simulation and then delivers the queued events.
+  /// Advances the simulation by `dt` seconds (orders, movement, training) and then delivers the queued events.
   void update(double dt);
 
   // ---- queries
@@ -206,11 +227,14 @@ class World {
   [[nodiscard]] int height() const { return land().blocked.height(); }
   [[nodiscard]] const Grid& grid(MoveClass c) const { return layer(c).blocked; }
   [[nodiscard]] PlaceStatus placement_status(const BuildingDef& def, Point origin) const;
+  /// The building covering `tile`, or kNoEntity.
   [[nodiscard]] EntityId building_at(Point tile) const;
   [[nodiscard]] EntityId unit_at(Point tile) const;  // visible unit standing on (or stepping onto) the tile
   [[nodiscard]] static bool is_enemy(PlayerId a, PlayerId b) { return a != b && a != kNoPlayer && b != kNoPlayer; }
   [[nodiscard]] int mine_at(Point tile) const;  // -1 if none (depleted mines do not count)
+  /// Tiles of the owner's finished depots (halls), where workers deliver.
   [[nodiscard]] std::vector<Point> depot_tiles(PlayerId owner) const;
+  /// True while the player still has any unit or building (used by the victory rules).
   [[nodiscard]] bool has_assets(PlayerId owner) const;
   /// Food provided by finished buildings.
   [[nodiscard]] int food_cap(PlayerId owner) const;
