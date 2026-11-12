@@ -1,34 +1,38 @@
+#pragma once
+
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_image.h>
 #include <map>
 #include <vector>
+#include <expected>
 #include <string>
 
 // types
-typedef struct {
+struct s_frame {
   int x;
   int y;
   int width;
   int height;
-} s_frame;
+};
 
-typedef struct {
+struct s_animation {
   std::vector<s_frame> frames;
   int current_frame;
   int n_frames;
   double delay;
   double elapsed_time;
   bool flip_horizontal;
-} s_animation;
+};
 
-typedef struct {
+struct sprite {
   ALLEGRO_BITMAP* spritesheet;
   double x;
   double y;
   std::string direction;
   std::string current_animation;
   std::map<std::string, s_animation> animations;
-} sprite;
+};
 
 void draw_sprite(sprite& sprite, double delta_time);
-sprite load_sprite_from_json(const std::string& filename);
+/// Loads a sprite definition; returns an error message on failure.
+std::expected<sprite, std::string> load_sprite_from_json(const std::string& filename);

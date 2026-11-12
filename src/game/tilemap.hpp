@@ -1,10 +1,13 @@
+#pragma once
+
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_image.h>
 #include <allegro5/allegro_primitives.h>
 #include <tmx.h>
-#include <vector>
 
-#define LINE_THICKNESS 2.5
+#include "core/grid.hpp"
+
+inline constexpr float LINE_THICKNESS = 2.5f;
 
 void init_tilemap_engine();
 void destroy_map(tmx_map *map);
@@ -20,4 +23,5 @@ void draw_layer(tmx_map *map, tmx_layer *layer);
 void draw_image_layer(tmx_image *image);
 void draw_all_layers(tmx_map *map, tmx_layer *layers);
 void render_map(tmx_map *map);
-std::vector<std::vector<int>> get_collision_grid(tmx_map *map);
+/// Builds the walkability grid from a Tiled map (empty grid if `map` is null).
+myrts::Grid get_collision_grid(const tmx_map *map);

@@ -1,21 +1,22 @@
-#include <stdio.h>
-#include <stdbool.h>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <deque>
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_font.h>
 #include <allegro5/allegro_image.h>
 #include <allegro5/allegro_primitives.h>
-#include <iostream>
-#include <fstream>
 #include <string>
 #include "sprite.hpp"
 #include "tilemap.hpp"
-#include "pathfinding.hpp"
+#include "core/pathfinding.hpp"
 
-#define WIDTH 800
-#define HEIGHT 600
-#define FPS 60.0
+constexpr int WIDTH = 800;
+constexpr int HEIGHT = 600;
+constexpr double FPS = 60.0;
 
-typedef struct {
+struct t_mouse {
   int x;
   int y;
   int mouse_pressed_x;
@@ -23,12 +24,9 @@ typedef struct {
   int mouse_released_x;
   int mouse_released_y;
   bool is_pressed;
-} t_mouse;
+};
 
-typedef struct {
-  int x;
-  int y;
-} t_point;
+using myrts::Point;
 
 // globals
 double last_update_time;
@@ -44,7 +42,7 @@ tmx_map *map;
 t_mouse mouse = {0, 0, 0, 0, 0, 0, false};
 
 // input handling globals
-bool key[ALLEGRO_KEY_MAX];
+bool key[ALLEGRO_KEY_MAX] = {};
 
 // functions
 void init();
@@ -58,7 +56,7 @@ void mouse_released();
 
 // fixed map just for testing purposes
 std::deque<Point> path;
-std::vector<std::vector<int>> collisions_grid;
+myrts::Grid collisions_grid;
 
 int main() {
   double delta_time;
@@ -68,7 +66,6 @@ int main() {
 
   ALLEGRO_EVENT event;
   last_update_time = al_get_time();
-  memset(key, false, sizeof(key)); // initializing keys map
 
   al_start_timer(timer);
 
@@ -108,12 +105,6 @@ int main() {
         break;
     }
 
-    if (event.type == ALLEGRO_EVENT_TIMER) {
-      redraw = true;
-    } else if(event.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
-      break;
-    }
-
     if (redraw && al_is_event_queue_empty(queue)) {
       delta_time = al_get_time() - last_update_time;
       last_update_time = al_get_time();
@@ -124,16 +115,14 @@ int main() {
 
   destroy();
 
-  return 0;
+  return EXIT_SUCCESS;
 }
 
 void must_init(bool test, const char *description) {
   if(test) return;
 
-  fprintf(stderr, "couldn't initialize %s\n", description);
-
-  running = false;
-  exit(1);
+  std::fprintf(stderr, "couldn't initialize %s\n", description);
+  std::exit(1);
 }
 
 void init() {
@@ -142,16 +131,32 @@ void init() {
   must_init(al_install_mouse(), "mouse");
   must_init(al_init_image_addon(), "image addon");
 
+  must_init(al_init_primitives_addon(), "primitives addon");
+
   timer = al_create_timer(1.0 / FPS);
+  must_init(timer, "timer");
   queue = al_create_event_queue();
+  must_init(queue, "event queue");
   disp  = al_create_display(WIDTH, HEIGHT);
+  must_init(disp, "display");
   font  = al_create_builtin_font();
+  must_init(font, "font");
 
   init_tilemap_engine();
 
   // loading resources
-  character = load_sprite_from_json("sprites/orcs_peon.json");
+  auto loaded = load_sprite_from_json("sprites/orcs_peon.json");
+  if (!loaded) {
+    std::fprintf(stderr, "couldn't load sprite: %s\n", loaded.error().c_str());
+    std::exit(1);
+  }
+  character = std::move(*loaded);
+
   map = tmx_load("tiles/mapa.tmx");
+  if (!map) {
+    tmx_perror("couldn't load map");
+    std::exit(1);
+  }
   collisions_grid = get_collision_grid(map);
 
   // registering engines
@@ -170,12 +175,12 @@ void paint(double delta_time) {
 
   // BEGIN simple movement
   if (!path.empty()) {
-    Point goal = path.front();
+    const Point goal = path.front();
 
-    int dest_x = goal.x * map->tile_width;
-    int dest_y = goal.y * map->tile_height;
+    const int dest_x = goal.x * static_cast<int>(map->tile_width);
+    const int dest_y = goal.y * static_cast<int>(map->tile_height);
 
-    if (character.x == dest_x && character.y == dest_y) {
+    if (static_cast<int>(character.x) == dest_x && static_cast<int>(character.y) == dest_y) {
       path.pop_front();
     } else {
       character.direction = "";
@@ -223,41 +228,31 @@ void destroy() {
   al_destroy_event_queue(queue);
 }
 
-t_point get_tile_coordinates() {
-  t_point coords;
-
-  unsigned int tile_width = map->tile_width;
-  unsigned int tile_height = map->tile_height;
-
-  coords.x = mouse.x / tile_width;
-  coords.y = mouse.y / tile_height;
-
-  return coords;
+Point get_tile_coordinates() {
+  return {mouse.x / static_cast<int>(map->tile_width), mouse.y / static_cast<int>(map->tile_height)};
 }
 
 void process_mouse() {
   if (!map) return;
 
   // fetching the tile based on mouse coordinates
-  t_point tile_coords = get_tile_coordinates();
+  const Point tile_coords = get_tile_coordinates();
 
   status = "X: " + std::to_string(mouse.x) + " - Y: " + std::to_string(mouse.y);
   status += " [tile x: " + std::to_string(tile_coords.x) + ", y: " + std::to_string(tile_coords.y) + "]";
 }
 
-Point start{0,0};
-Point goal{0,0};
-
 void mouse_pressed() {
-  t_point tile_coords = get_tile_coordinates();
+  if (!map) return;
 
-  goal.x = tile_coords.x;
-  goal.y = tile_coords.y;
+  const Point goal = get_tile_coordinates();
 
-  path = a_star(collisions_grid, start, goal);
+  // path starts at the tile the character currently occupies
+  const Point start{
+      static_cast<int>(std::lround(character.x / map->tile_width)),
+      static_cast<int>(std::lround(character.y / map->tile_height))};
 
-  start.x = tile_coords.x;
-  start.y = tile_coords.y;
+  path = myrts::a_star(collisions_grid, start, goal);
 }
 
 void mouse_released() {

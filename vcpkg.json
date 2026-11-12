@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "myrts",
+  "version": "0.1.0",
+  "builtin-baseline": "e238b4b4a4239829e1fde2c7db2ab668b65ae1dd",
+  "dependencies": [
+    "nlohmann-json",
+    "catch2"
+  ],
+  "default-features": ["game"],
+  "features": {
+    "game": {
+      "description": "Dependencies of the game executable",
+      "dependencies": [
+        "allegro5",
+        "tmx"
+      ]
+    }
+  }
+}
