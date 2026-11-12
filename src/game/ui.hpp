@@ -47,6 +47,8 @@ struct MinimapDot {
   float x = 0;  // world pixels
   float y = 0;
   bool selected = false;
+  bool enemy = false;
+  float size = 2;  // pixels on the minimap (buildings are bigger)
 };
 
 struct CommandButton {
@@ -59,6 +61,32 @@ struct BuildOption {
   ALLEGRO_BITMAP* icon = nullptr;
   bool affordable = true;
   bool placing = false;
+};
+
+/// A unit waiting in a building's training queue.
+struct QueueEntry {
+  std::string name;
+  float progress = 0;  // 0..1, only meaningful for the front entry
+  const SpriteDef* sprite = nullptr;
+  const AnimationState* anim = nullptr;
+};
+
+/// A selected building, as shown in the info panel.
+struct BuildingCard {
+  std::string name;
+  int hp = 1;
+  int max_hp = 1;
+  bool complete = true;
+  float build_progress = 1;  // 0..1 while under construction
+  std::vector<QueueEntry> queue;
+};
+
+/// A unit a selected building can train (one button each).
+struct TrainOption {
+  const myrts::UnitDef* def = nullptr;
+  const SpriteDef* sprite = nullptr;
+  const AnimationState* anim = nullptr;
+  bool affordable = true;
 };
 
 struct HudData {
@@ -74,12 +102,16 @@ struct HudData {
   std::span<const CommandButton> commands;     // panel buttons, in slot order
   bool build_menu = false;                      // panel shows `build_options` instead of `commands`
   std::span<const BuildOption> build_options;   // build-menu buttons, in slot order
+  const BuildingCard* building = nullptr;       // a building is selected (instead of units)
+  std::span<const TrainOption> train_options;   // its training buttons, in slot order
 };
 
 /// Rectangle of a command button slot (0..kButtonSlots-1), in screen coordinates.
 myrts::Rect button_rect(int slot);
 /// Slot under the point, if any.
 std::optional<int> button_at(float x, float y);
+/// Training-queue cell (0..4) under the point in the building info panel, if any.
+std::optional<int> queue_slot_at(float x, float y);
 
 void draw_hud(ALLEGRO_FONT* font, const HudData& hud);
 

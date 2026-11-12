@@ -35,6 +35,8 @@ add_library(myrts_core STATIC
   src/core/defs.cpp
   src/core/world.cpp
   src/core/orders.cpp
+  src/core/combat.cpp
+  src/core/ai.cpp
   src/core/rules.cpp)
 target_include_directories(myrts_core PUBLIC src)
 target_compile_features(myrts_core PUBLIC cxx_std_23)
@@ -96,7 +98,8 @@ if(MYRTS_BUILD_TESTS)
     tests/scene_stack_test.cpp
     tests/infrastructure_test.cpp
     tests/defs_test.cpp
-    tests/world_test.cpp)
+    tests/world_test.cpp
+    tests/combat_test.cpp)
   target_compile_definitions(myrts_tests PRIVATE MYRTS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   target_link_libraries(myrts_tests PRIVATE myrts_core myrts_warnings Catch2::Catch2WithMain)
   if(catch2_SOURCE_DIR)

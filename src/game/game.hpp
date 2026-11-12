@@ -14,6 +14,7 @@
 
 #include "assets.hpp"
 #include "building_art.hpp"
+#include "core/ai.hpp"
 #include "core/geometry.hpp"
 #include "core/rules.hpp"
 #include "core/selection.hpp"
@@ -61,10 +62,12 @@ class Game {
   void select_only(std::vector<myrts::EntityId> ids);
   void toggle_selected(myrts::EntityId id);
   void close_build_menu();
+  void select_building(myrts::EntityId id);
   void start_placing(const myrts::BuildingDef& def);
   void try_place_building(myrts::Point origin);
   [[nodiscard]] std::vector<const myrts::CommandDef*> current_commands() const;
   [[nodiscard]] std::vector<const myrts::BuildingDef*> current_build_options() const;
+  [[nodiscard]] std::vector<const myrts::UnitDef*> current_train_options() const;
   [[nodiscard]] myrts::Point placement_origin(const myrts::BuildingDef& def, myrts::Point cursor_tile) const;
   [[nodiscard]] std::string unit_animation(const myrts::Unit& u, const SpriteDef& sprite) const;
 
@@ -85,6 +88,7 @@ class Game {
   // ---- drawing (game_render.cpp)
   void draw_world();
   void draw_placement_ghost();
+  void draw_health_bar(float x, float y, float w, int hp, int max_hp);
 
   // services (owned by main)
   ALLEGRO_FONT* font_ = nullptr;
@@ -94,6 +98,7 @@ class Game {
   // simulation
   std::unique_ptr<myrts::World> world_;
   myrts::PlayerId local_player_ = myrts::kNoPlayer;
+  std::vector<std::unique_ptr<myrts::Ai>> ais_;  // the computer players
 
   // map graphics (tmx owns its tile bitmaps)
   TmxMapPtr map_;
@@ -102,6 +107,7 @@ class Game {
 
   // view state
   std::vector<myrts::EntityId> selected_;
+  myrts::EntityId selected_building_;  // a building is selected instead of units
   std::unordered_map<myrts::EntityId, AnimationState, myrts::EntityIdHash> anims_;
   std::unordered_map<const myrts::UnitDef*, std::shared_ptr<const SpriteDef>> sprites_;
   BuildingArt art_;

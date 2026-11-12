@@ -125,8 +125,9 @@ void draw_minimap(const HudData& hud) {
 
   for (const MinimapDot& d : hud.dots) {
     const auto p = mm.world_to_mini(d.x, d.y);
-    al_draw_filled_rectangle(area.x + p.x - 1, area.y + p.y - 1, area.x + p.x + 1.5f, area.y + p.y + 1.5f,
-                             d.selected ? kGreen : al_map_rgb(240, 220, 60));
+    const ALLEGRO_COLOR color = d.enemy ? al_map_rgb(230, 60, 50) : (d.selected ? kGreen : al_map_rgb(240, 220, 60));
+    const float h = d.size / 2;
+    al_draw_filled_rectangle(area.x + p.x - h, area.y + p.y - h, area.x + p.x + h, area.y + p.y + h, color);
   }
 
   const Rect view = hud.camera.visible();
@@ -138,9 +139,71 @@ void draw_minimap(const HudData& hud) {
   al_set_clipping_rectangle(0, 0, kWidth, kHeight);
 }
 
+constexpr int kQueueCells = 5;
+constexpr float kQueueCell = 26;
+
+Rect queue_cell_rect(int i) {
+  const Rect& p = kInfoPanel;
+  return {p.x + 6 + static_cast<float>(i) * (kQueueCell + 2), p.y + 150, kQueueCell, kQueueCell};
+}
+
+void draw_building_info(ALLEGRO_FONT* font, const HudData& hud) {
+  const Rect& p = kInfoPanel;
+  const BuildingCard& b = *hud.building;
+  draw_text(font, p.x + p.w / 2, p.y + 10, ALLEGRO_ALIGN_CENTER, b.name);
+
+  const float frac = static_cast<float>(b.hp) / static_cast<float>(b.max_hp);
+  al_draw_filled_rectangle(p.x + 10, p.y + 30, p.x + p.w - 10, p.y + 38, kInset);
+  al_draw_filled_rectangle(p.x + 10, p.y + 30, p.x + 10 + (p.w - 20) * frac, p.y + 38,
+                           frac > 0.5f ? kGreen : (frac > 0.25f ? kGold : al_map_rgb(220, 50, 40)));
+  draw_text(font, p.x + p.w / 2, p.y + 42, ALLEGRO_ALIGN_CENTER, std::to_string(b.hp) + "/" + std::to_string(b.max_hp));
+
+  if (!b.complete) {
+    draw_text(font, p.x + p.w / 2, p.y + 70, ALLEGRO_ALIGN_CENTER, "Under construction");
+    al_draw_filled_rectangle(p.x + 10, p.y + 86, p.x + p.w - 10, p.y + 94, kInset);
+    al_draw_filled_rectangle(p.x + 10, p.y + 86, p.x + 10 + (p.w - 20) * b.build_progress, p.y + 94, kGold);
+    return;
+  }
+  if (hud.train_options.empty()) return;
+
+  draw_text(font, p.x + 8, p.y + 130, ALLEGRO_ALIGN_LEFT, "Training");
+  for (int i = 0; i < kQueueCells; ++i) {
+    const Rect cell = queue_cell_rect(i);
+    draw_bevel(cell, true, kInset);
+    if (static_cast<std::size_t>(i) >= b.queue.size()) continue;
+    const QueueEntry& q = b.queue[static_cast<std::size_t>(i)];
+    if (q.sprite && q.anim) draw_sprite_fit(*q.sprite, *q.anim, cell.x + 2, cell.y + 2, cell.w - 4, cell.h - 7);
+    if (i == 0)  // progress of the unit being trained
+      al_draw_filled_rectangle(cell.x + 2, cell.y + cell.h - 5, cell.x + 2 + (cell.w - 4) * q.progress,
+                               cell.y + cell.h - 2, kGreen);
+  }
+  if (!b.queue.empty()) draw_text(font, p.x + 8, p.y + 182, ALLEGRO_ALIGN_LEFT, "click to cancel");
+}
+
+/// Command panel while a building is selected: one button per trainable unit.
+void draw_train_menu(ALLEGRO_FONT* font, const HudData& hud) {
+  for (int slot = 0; slot < kButtonSlots; ++slot) {
+    const Rect r = button_rect(slot);
+    const bool has = static_cast<std::size_t>(slot) < hud.train_options.size();
+    const bool hovered = has && r.contains(hud.mouse_x, hud.mouse_y);
+    draw_bevel(r, !has, has ? (hovered ? al_map_rgb(100, 94, 86) : al_map_rgb(64, 60, 56)) : kInset);
+    if (!has) continue;
+    const TrainOption& o = hud.train_options[static_cast<std::size_t>(slot)];
+    if (o.sprite && o.anim) draw_sprite_fit(*o.sprite, *o.anim, r.x + 3, r.y + 3, r.w - 6, r.h - 6);
+    if (!o.affordable) al_draw_filled_rectangle(r.x + 1, r.y + 1, r.x + r.w - 1, r.y + r.h - 1, al_map_rgba_f(0, 0, 0, 0.55f));
+    if (hovered) {
+      draw_text(font, kPanelW / 2.0f, 552, ALLEGRO_ALIGN_CENTER, "Train " + o.def->name,
+                o.affordable ? kText : al_map_rgb(230, 80, 60));
+      draw_text(font, kPanelW / 2.0f, 566, ALLEGRO_ALIGN_CENTER,
+                std::to_string(o.def->cost.gold) + "g " + std::to_string(static_cast<int>(o.def->train_seconds)) + "s");
+    }
+  }
+}
+
 void draw_unit_info(ALLEGRO_FONT* font, const HudData& hud) {
   const Rect& p = kInfoPanel;
   draw_bevel(p, true, kInset);
+  if (hud.building) return draw_building_info(font, hud);
   if (hud.selection.empty()) return;
 
   const auto draw_portrait = [&](const UnitCard& u, const Rect& box) {
@@ -208,6 +271,12 @@ Rect button_rect(int slot) {
           440 + static_cast<float>(slot / kButtonCols) * (kSize + kGap), kSize, kSize};
 }
 
+std::optional<int> queue_slot_at(float x, float y) {
+  for (int i = 0; i < kQueueCells; ++i)
+    if (queue_cell_rect(i).contains(x, y)) return i;
+  return std::nullopt;
+}
+
 std::optional<int> button_at(float x, float y) {
   for (int i = 0; i < kButtonSlots; ++i) {
     if (button_rect(i).contains(x, y)) return i;
@@ -225,7 +294,10 @@ void draw_hud(ALLEGRO_FONT* font, const HudData& hud) {
   draw_unit_info(font, hud);
 
   // Command buttons (only when something is selected)
-  if (hud.build_menu) {
+  if (hud.building) {
+    if (hud.building->complete) draw_train_menu(font, hud);
+    for (int slot = 0; !hud.building->complete && slot < kButtonSlots; ++slot) draw_bevel(button_rect(slot), true, kInset);
+  } else if (hud.build_menu) {
     draw_build_menu(font, hud);
   } else {
     for (int slot = 0; slot < kButtonSlots; ++slot) {

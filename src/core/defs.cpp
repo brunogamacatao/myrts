@@ -54,6 +54,8 @@ UnitDef parse_unit(const json& j) {
   }
   if (j.contains("cost")) u.cost = parse_cost(j.at("cost"));
   u.train_seconds = j.value("train_seconds", 0.0);
+  u.attack_seconds = j.value("attack_seconds", u.attack_seconds);
+  if (u.attack_seconds <= 0) throw std::runtime_error("unit '" + u.id + "': attack_seconds must be > 0");
   u.sprite = j.at("sprite").get<std::string>();
   u.commands = parse_strings(j, "commands");
   u.builds = parse_strings(j, "builds");
@@ -66,6 +68,7 @@ UnitDef parse_unit(const json& j) {
     def.mine_seconds = w.value("mine_seconds", def.mine_seconds);
     u.worker = def;
   }
+  u.aggressive = j.value("aggressive", !u.worker.has_value());  // workers keep working unless told to fight
   return u;
 }
 
@@ -78,6 +81,9 @@ BuildingDef parse_building(const json& j) {
   if (b.size < 1) throw std::runtime_error("building '" + b.id + "': size must be >= 1");
   b.cost = parse_cost(j.value("cost", json::object()));
   b.build_seconds = j.at("build_seconds").get<double>();
+  b.hp = j.value("hp", b.hp);
+  b.armor = j.value("armor", 0);
+  if (b.hp < 1) throw std::runtime_error("building '" + b.id + "': hp must be >= 1");
   b.is_depot = j.value("is_depot", false);
   b.sprite = j.at("sprite").get<std::string>();
   b.sprite_construction = j.value("sprite_construction", b.sprite);

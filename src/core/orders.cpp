@@ -68,38 +68,46 @@ Result World::order_stop(std::span<const EntityId> ids) {
   return Result::success();
 }
 
+/// Plans paths that bring `movers` (all free to move) to distinct tiles around `target`. Returns
+/// each unit's destination, aligned with `movers` (nullopt: no place for it).
+std::vector<std::optional<Point>> World::move_group(const std::vector<EntityId>& movers, Point target) {
+  std::vector<std::optional<Point>> result(movers.size());
+  for (const MoveClass cls : {MoveClass::Land, MoveClass::Water, MoveClass::Air}) {
+    std::vector<std::size_t> group;  // indices into movers
+    for (std::size_t i = 0; i < movers.size(); ++i)
+      if (units_.get(movers[i])->def->move_class == cls) group.push_back(i);
+    if (group.empty()) continue;
+
+    Layer& L = layer(cls);
+    std::vector<Point> anchors;
+    std::vector<int> occ;
+    for (const std::size_t i : group) {
+      anchors.push_back(units_.get(movers[i])->anchor());
+      occ.push_back(occ_id(*units_.get(movers[i])));
+    }
+    // Tiles held by units outside the group are obstacles; the group's own tiles are not.
+    const Grid occupied = L.occupancy.blocked_except(occ);
+    const auto destinations = assign_destinations(L.blocked, &occupied, anchors, target);
+    for (std::size_t k = 0; k < group.size(); ++k) {
+      Unit& u = *units_.get(movers[group[k]]);
+      if (!destinations[k]) {
+        stop_unit(u);
+        continue;
+      }
+      send_along(u, a_star(L.blocked, anchors[k], *destinations[k], &occupied));
+      result[group[k]] = destinations[k];
+    }
+  }
+  return result;
+}
+
 Result World::order_move(std::span<const EntityId> ids, Point target) {
   if (ids.empty()) return Result::success();
   std::vector<EntityId> movers;
   free_units(ids, movers);
   if (movers.empty()) return Result::fail("Builders cannot be interrupted");
   for (const EntityId id : movers) cancel_order(*units_.get(id));
-
-  for (const MoveClass cls : {MoveClass::Land, MoveClass::Water, MoveClass::Air}) {
-    std::vector<EntityId> group;
-    for (const EntityId id : movers)
-      if (units_.get(id)->def->move_class == cls) group.push_back(id);
-    if (group.empty()) continue;
-
-    Layer& L = layer(cls);
-    std::vector<Point> anchors;
-    std::vector<int> occ;
-    for (const EntityId id : group) {
-      anchors.push_back(units_.get(id)->anchor());
-      occ.push_back(occ_id(*units_.get(id)));
-    }
-    // Tiles held by units outside the group are obstacles; the group's own tiles are not.
-    const Grid occupied = L.occupancy.blocked_except(occ);
-    const auto destinations = assign_destinations(L.blocked, &occupied, anchors, target);
-    for (std::size_t i = 0; i < group.size(); ++i) {
-      Unit& u = *units_.get(group[i]);
-      if (!destinations[i]) {
-        stop_unit(u);
-        continue;
-      }
-      send_along(u, a_star(L.blocked, anchors[i], *destinations[i], &occupied));
-    }
-  }
+  move_group(movers, target);
   return Result::success();
 }
 
@@ -253,8 +261,12 @@ void World::exhaust_mine(int index) {
 }
 
 void World::update_order(Unit& u, double dt) {
-  std::visit(Overloaded{[](order::Idle&) {}, [&](order::Harvest& h) { update_harvest(u, h, dt); },
-                        [&](order::Build& b) { update_build(u, b, dt); }},
+  if (u.attack_flash > 0.0) u.attack_flash -= dt;
+  std::visit(Overloaded{[&](order::Idle&) { auto_acquire(u, dt); },
+                        [&](order::Harvest& h) { update_harvest(u, h, dt); },
+                        [&](order::Build& b) { update_build(u, b, dt); },
+                        [&](order::Attack& a) { update_attack(u, a, dt); },
+                        [&](order::AttackMove& m) { update_attack_move(u, m, dt); }},
              u.order);
 }
 

@@ -35,7 +35,7 @@ bool Unit::working() const {
 
 // ---- setup --------------------------------------------------------------------
 
-World::World(WorldConfig config, Grid land_blocked, Grid water_blocked) : config_(config) {
+World::World(WorldConfig config, Grid land_blocked, Grid water_blocked) : config_(config), rng_(config.seed) {
   const int w = land_blocked.width();
   const int h = land_blocked.height();
   if (water_blocked.empty()) {  // no water on this map: nothing is sailable
@@ -85,6 +85,7 @@ EntityId World::add_building(const BuildingDef& def, PlayerId owner, Point origi
     b.origin = origin;
     b.complete = complete;
     b.progress = complete ? def.build_seconds : 0.0;
+    b.hp = def.hp;
     return b;
   });
   for (const Point p : footprint(origin, def.size)) layer(MoveClass::Land).blocked.set_blocked(p);
@@ -120,6 +121,15 @@ EntityId World::building_at(Point tile) const {
     const int dx = tile.x - b.origin.x;
     const int dy = tile.y - b.origin.y;
     if (dx >= 0 && dy >= 0 && dx < b.def->size && dy < b.def->size) found = b.id;
+  });
+  return found;
+}
+
+EntityId World::unit_at(Point tile) const {
+  EntityId found;
+  units_.for_each([&](const Unit& u) {
+    if (found.valid() || u.hidden) return;
+    if (u.tile == tile || (u.moving && u.next == tile)) found = u.id;
   });
   return found;
 }
@@ -245,6 +255,7 @@ void World::update(double dt) {
     if (Unit* u = units_.get(id)) update_order(*u, dt);
   for (const EntityId id : units_.ids())
     if (Unit* u = units_.get(id)) step_unit(*u, dt);
+  update_training(dt);
   events_.dispatch();
 }
 

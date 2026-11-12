@@ -3,9 +3,10 @@
 
 Sheets (download manually from https://www.spriters-resource.com/ms_dos/warcraftii/):
   asset/29484  Orc Buildings (Summer)   -> --buildings <png>
+  asset/29540  Human Buildings (Summer) -> --human <png>
   asset/29542  Miscellaneous            -> --misc <png>   (gold mine, optional)
 
-Usage: scripts/extract_sprites.py --buildings orc_buildings.png [--misc misc.png]
+Usage: scripts/extract_sprites.py --buildings orc_buildings.png [--human human_buildings.png] [--misc misc.png]
 Writes PNGs to assets/buildings/.
 """
 import argparse
@@ -24,6 +25,14 @@ BUILDINGS = {
     "barracks_construction": (14, 448, 92, 89),
     "barracks": (109, 441, 96, 96),
 }
+HUMAN_BUILDINGS = {
+    "alliance_town_hall_construction": (270, 154, 111, 95),
+    "alliance_town_hall": (270, 17, 119, 104),
+    "alliance_farm_construction": (398, 73, 63, 59),
+    "alliance_farm": (398, 4, 64, 64),
+    "alliance_barracks_construction": (107, 370, 93, 82),
+    "alliance_barracks": (105, 271, 95, 85),
+}
 MISC = {
     "gold_mine": (13, 12, 96, 89),
     "gold_mine_active": (13, 108, 96, 89),
@@ -41,9 +50,12 @@ def crop_all(sheet: str, boxes: dict) -> None:
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--buildings")
+    ap.add_argument("--human")
     ap.add_argument("--misc")
     args = ap.parse_args()
     if args.buildings:
         crop_all(args.buildings, BUILDINGS)
+    if args.human:
+        crop_all(args.human, HUMAN_BUILDINGS)
     if args.misc:
         crop_all(args.misc, MISC)

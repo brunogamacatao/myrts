@@ -122,7 +122,13 @@ void Game::on_mouse_move(const ALLEGRO_EVENT& e) {
 void Game::right_click_at(myrts::Point tile) {
   const myrts::EntityId site = world_->building_at(tile);
   const myrts::Building* b = site.valid() ? world_->buildings().get(site) : nullptr;
-  if (world_->trees().has_tree(tile) || world_->mine_at(tile) >= 0) {
+  const myrts::EntityId other = world_->unit_at(tile);
+  const myrts::Unit* foe_unit = other.valid() ? world_->units().get(other) : nullptr;
+  const bool enemy_unit = foe_unit && myrts::World::is_enemy(local_player_, foe_unit->owner);
+  const bool enemy_building = b && myrts::World::is_enemy(local_player_, b->owner);
+  if (enemy_unit || enemy_building) {
+    apply(world_->order_attack(selected_, tile));
+  } else if (world_->trees().has_tree(tile) || world_->mine_at(tile) >= 0) {
     apply(world_->order_harvest(selected_, tile));
   } else if (b && !b->complete) {
     apply(world_->order_resume_build(selected_, site));
@@ -167,9 +173,14 @@ void Game::on_mouse_down(const ALLEGRO_EVENT& e) {
     camera_.center_on(w.x, w.y);
   } else if (ui::kMenuButton.contains(mouse_x_, mouse_y_)) {
     menu_requested_ = true;
+  } else if (const auto queued = ui::queue_slot_at(mouse_x_, mouse_y_); queued && selected_building_.valid()) {
+    apply(world_->order_cancel_train(local_player_, selected_building_, static_cast<std::size_t>(*queued)));
   } else if (const auto slot = ui::button_at(mouse_x_, mouse_y_)) {
     const auto index = static_cast<std::size_t>(*slot);
-    if (build_menu_) {
+    if (selected_building_.valid()) {
+      const auto options = current_train_options();
+      if (index < options.size()) apply(world_->order_train(local_player_, selected_building_, *options[index]));
+    } else if (build_menu_) {
       const auto options = current_build_options();
       if (*slot == ui::kBuildMenuCancel) {
         close_build_menu();
@@ -246,7 +257,12 @@ void Game::click_in_viewport(float sx, float sy) {
     } else {
       select_only({id});
     }
+  } else if (const auto tile = tile_at_world(world); tile && !shift_down() &&
+                                                       world_->building_at(*tile).valid() &&
+                                                       world_->buildings().get(world_->building_at(*tile))->owner ==
+                                                           local_player_) {
+    select_building(world_->building_at(*tile));  // one of our buildings
   } else if (!shift_down()) {
-    select_only({});  // clicking empty ground deselects
+    select_only({});  // clicking empty ground (or an enemy) deselects
   }
 }

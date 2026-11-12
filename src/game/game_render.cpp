@@ -10,6 +10,13 @@ namespace {
 const ALLEGRO_COLOR kSelectGreen = al_map_rgb(60, 230, 60);
 }
 
+void Game::draw_health_bar(float x, float y, float w, int hp, int max_hp) {
+  const float frac = std::clamp(static_cast<float>(hp) / static_cast<float>(max_hp), 0.0f, 1.0f);
+  al_draw_filled_rectangle(x, y, x + w, y + 3, al_map_rgb(20, 18, 16));
+  al_draw_filled_rectangle(x + 0.5f, y + 0.5f, x + 0.5f + (w - 1) * frac, y + 2.5f,
+                           frac > 0.5f ? al_map_rgb(60, 220, 60) : (frac > 0.25f ? al_map_rgb(240, 200, 40) : al_map_rgb(220, 50, 40)));
+}
+
 void Game::draw_placement_ghost() {
   const myrts::BuildingDef& def = *placing_;
   const auto w = camera_.to_world(mouse_x_ - ui::kViewport.x, mouse_y_ - ui::kViewport.y);
@@ -44,6 +51,7 @@ void Game::draw_world() {
     const float y = static_cast<float>(b.origin.y) * tile_px;
     const float side = static_cast<float>(b.def->size) * tile_px;
     draw_centered_in_square(b.complete ? art_.finished(*b.def) : art_.construction(*b.def), x, y, side);
+    if (b.hp < b.def->hp || b.id == selected_building_) draw_health_bar(x, y - 14, side, b.hp, b.def->hp);
     if (!b.complete) {  // progress bar above the site
       const float frac = static_cast<float>(b.progress / b.def->build_seconds);
       al_draw_filled_rectangle(x, y - 8, x + side, y - 3, al_map_rgb(20, 18, 16));
@@ -63,10 +71,12 @@ void Game::draw_world() {
     const auto anim = anims_.find(u->id);
     if (sprite != sprites_.end() && sprite->second && anim != anims_.end())
       draw_sprite_centered(*sprite->second, anim->second, u->x, u->y);
-    if (std::ranges::find(selected_, u->id) != selected_.end()) {
+    const bool selected = std::ranges::find(selected_, u->id) != selected_.end();
+    if (selected) {
       const auto b = unit_box(*u);
       al_draw_rectangle(b.x + 2, b.y + 2, b.x + b.w - 2, b.y + b.h - 2, kSelectGreen, 1.5f);
     }
+    if (selected || u->hp < u->def->max_hp) draw_health_bar(u->x - 13, u->y - 21, 26, u->hp, u->def->max_hp);
   }
 
   if (placing_ && mouse_in_window_ && ui::kViewport.contains(mouse_x_, mouse_y_)) draw_placement_ghost();
@@ -108,10 +118,38 @@ void Game::draw() {
                      anim != anims_.end() ? &anim->second : &kNoAnimation});
   }
   std::vector<ui::MinimapDot> dots;
+  world_->buildings().for_each([&](const myrts::Building& b) {
+    const float half = static_cast<float>(b.def->size * tile_size_) / 2;
+    dots.push_back({static_cast<float>(b.origin.x * tile_size_) + half, static_cast<float>(b.origin.y * tile_size_) + half,
+                    b.id == selected_building_, b.owner != local_player_, 4});
+  });
   world_->units().for_each([&](const myrts::Unit& u) {
     if (u.hidden) return;
-    dots.push_back({u.x, u.y, std::ranges::find(selected_, u.id) != selected_.end()});
+    dots.push_back({u.x, u.y, std::ranges::find(selected_, u.id) != selected_.end(), u.owner != local_player_, 2});
   });
+
+  // A selected building: its info card and what it can train.
+  std::optional<ui::BuildingCard> building_card;
+  std::vector<ui::TrainOption> train_options;
+  if (const myrts::Building* b = world_->buildings().get(selected_building_)) {
+    static AnimationState icon_anim;  // every icon shows the unit standing, facing the viewer
+    icon_anim.current = "idle_down";
+    ui::BuildingCard card;
+    card.name = b->def->name;
+    card.hp = b->hp;
+    card.max_hp = b->def->hp;
+    card.complete = b->complete;
+    card.build_progress = static_cast<float>(b->progress / b->def->build_seconds);
+    for (const myrts::TrainItem& q : b->queue) {
+      const auto sprite = sprites_.find(q.unit);
+      card.queue.push_back({q.unit->name, static_cast<float>(q.progress / q.unit->train_seconds),
+                            sprite != sprites_.end() ? sprite->second.get() : nullptr, &icon_anim});
+    }
+    building_card = std::move(card);
+    const myrts::Stock& have = world_->player(local_player_).stock;
+    for (const myrts::UnitDef* def : current_train_options())
+      train_options.push_back({def, sprite_of(*def), &icon_anim, myrts::can_afford(have, def->cost)});
+  }
   std::vector<ui::CommandButton> commands;
   for (const myrts::CommandDef* c : current_commands()) commands.push_back({c, c == awaiting_target_});
   std::vector<ui::BuildOption> options;
@@ -120,6 +158,7 @@ void Game::draw() {
     options.push_back({def, art_.finished(*def), myrts::can_afford(stock, def->cost), def == placing_});
 
   const ui::HudData hud{stock,     cards,     dots,       minimap_bitmap_.get(), minimap_, camera_,
-                        message_,  mouse_x_,  mouse_y_,   commands,              build_menu_, options};
+                        message_,  mouse_x_,  mouse_y_,   commands,              build_menu_, options,
+                        building_card ? &*building_card : nullptr, train_options};
   ui::draw_hud(font_, hud);
 }

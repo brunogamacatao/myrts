@@ -5,6 +5,7 @@
       "name": "Great Hall",
       "faction": "orcs",
       "size": 4,
+      "hp": 1200,
       "cost": {"gold": 1200, "lumber": 800},
       "build_seconds": 255,
       "is_depot": true,
@@ -17,6 +18,7 @@
       "name": "Pig Farm",
       "faction": "orcs",
       "size": 2,
+      "hp": 400,
       "cost": {"gold": 500, "lumber": 250},
       "build_seconds": 100,
       "sprite": "buildings/pig_farm.png",
@@ -27,10 +29,48 @@
       "name": "Barracks",
       "faction": "orcs",
       "size": 3,
+      "hp": 800,
       "cost": {"gold": 700, "lumber": 450},
       "build_seconds": 200,
       "sprite": "buildings/barracks.png",
-      "sprite_construction": "buildings/barracks_construction.png"
+      "sprite_construction": "buildings/barracks_construction.png",
+      "trains": ["orc_grunt"]
+    },
+    {
+      "id": "alliance_town_hall",
+      "name": "Town Hall",
+      "faction": "alliance",
+      "size": 4,
+      "hp": 1200,
+      "cost": {"gold": 1200, "lumber": 800},
+      "build_seconds": 255,
+      "is_depot": true,
+      "sprite": "buildings/alliance_town_hall.png",
+      "sprite_construction": "buildings/alliance_town_hall_construction.png",
+      "trains": ["alliance_peasant"]
+    },
+    {
+      "id": "alliance_farm",
+      "name": "Farm",
+      "faction": "alliance",
+      "size": 2,
+      "hp": 400,
+      "cost": {"gold": 500, "lumber": 250},
+      "build_seconds": 100,
+      "sprite": "buildings/alliance_farm.png",
+      "sprite_construction": "buildings/alliance_farm_construction.png"
+    },
+    {
+      "id": "alliance_barracks",
+      "name": "Barracks",
+      "faction": "alliance",
+      "size": 3,
+      "hp": 800,
+      "cost": {"gold": 700, "lumber": 450},
+      "build_seconds": 200,
+      "sprite": "buildings/alliance_barracks.png",
+      "sprite_construction": "buildings/alliance_barracks_construction.png",
+      "trains": ["alliance_footman"]
     }
   ]
 }

@@ -2,6 +2,8 @@
 
 #include <functional>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -15,6 +17,9 @@ struct TreeFelled { Point tile; };
 struct MineDepleted { int mine; };
 struct UnitSpawned { EntityId unit; };
 struct UnitDied { EntityId unit; PlayerId owner; };
+/// `damage` is what was actually taken off after armor.
+struct Attacked { EntityId attacker; EntityId target; bool target_is_building; int damage; };
+struct BuildingDestroyed { EntityId building; PlayerId owner; };
 struct BuildingPlaced { EntityId building; PlayerId owner; };
 struct BuildingCompleted { EntityId building; PlayerId owner; };
 struct Delivered { PlayerId player; Stock amount; };
@@ -25,8 +30,9 @@ struct Notice { PlayerId player; std::string text; };
 
 namespace myrts {
 
-using Event = std::variant<ev::TreeFelled, ev::MineDepleted, ev::UnitSpawned, ev::UnitDied, ev::BuildingPlaced,
-                           ev::BuildingCompleted, ev::Delivered, ev::Notice>;
+using Event = std::variant<ev::TreeFelled, ev::MineDepleted, ev::UnitSpawned, ev::UnitDied, ev::Attacked,
+                           ev::BuildingPlaced, ev::BuildingCompleted, ev::BuildingDestroyed, ev::Delivered,
+                           ev::Notice>;
 
 /// Decouples "something happened" (the simulation) from "who cares" (HUD, sound, victory rules).
 /// Events are queued by publish() and delivered, in order, by dispatch(), so a handler never
@@ -36,7 +42,15 @@ class EventBus {
   using Handler = std::function<void(const Event&)>;
 
   void subscribe(Handler handler) { handlers_.push_back(std::move(handler)); }
-  void publish(Event e) { queue_.push_back(std::move(e)); }
+  /// Queues an event of any alternative type. Built in place (no temporary variant to move around).
+  template <class E>
+  void publish(E&& e) {
+    if constexpr (std::is_same_v<std::decay_t<E>, Event>) {
+      queue_.push_back(std::forward<E>(e));
+    } else {
+      queue_.emplace_back(std::in_place_type<std::decay_t<E>>, std::forward<E>(e));
+    }
+  }
 
   /// Delivers everything queued, including events published by handlers while dispatching.
   void dispatch() {

@@ -3,6 +3,7 @@
 #include <array>
 #include <deque>
 #include <optional>
+#include <random>
 #include <span>
 #include <string>
 #include <variant>
@@ -50,9 +51,29 @@ struct Build {
   double timer = 0.0;
 };
 
+/// What an attack is aimed at.
+struct Target {
+  enum class Kind { Unit, Building };
+  Kind kind = Kind::Unit;
+  EntityId id;
+};
+
+/// Chase a target and strike it until it is gone. `resume` is where an attack-move was heading.
+struct Attack {
+  Target target;
+  std::optional<Point> resume;
+  double retry = 0.0;  // time since the route to a moving target was last planned
+};
+
+/// Walk to a point and fight whatever enemy comes into sight on the way.
+struct AttackMove {
+  Point dest{};
+  double scan = 0.0;
+};
+
 }  // namespace order
 
-using Order = std::variant<order::Idle, order::Harvest, order::Build>;
+using Order = std::variant<order::Idle, order::Harvest, order::Build, order::Attack, order::AttackMove>;
 
 // ---- entities ---------------------------------------------------------------
 
@@ -74,6 +95,9 @@ struct Unit {
 
   // work
   Order order;
+  double cooldown = 0.0;      // time until the next strike
+  double scan_timer = 0.0;    // time until an idle unit looks around again
+  double attack_flash = 0.0;  // > 0 while the strike animation should play
   Cargo cargo = Cargo::None;
   int carrying = 0;
   bool hidden = false;  // inside a gold mine
@@ -86,6 +110,13 @@ struct Unit {
   [[nodiscard]] bool locked() const { return std::holds_alternative<order::Build>(order); }
   /// Hammering or chopping (selects the work animation).
   [[nodiscard]] bool working() const;
+  [[nodiscard]] bool attacking() const { return attack_flash > 0.0; }
+};
+
+/// A unit waiting to be trained in a building.
+struct TrainItem {
+  const UnitDef* unit = nullptr;
+  double progress = 0.0;  // seconds
 };
 
 struct Building {
@@ -96,6 +127,8 @@ struct Building {
   double progress = 0.0;  // seconds of work done
   bool complete = false;
   EntityId builder;  // unit currently working on it
+  int hp = 1;
+  std::vector<TrainItem> queue;  // the front one is being trained
 };
 
 struct Mine {
@@ -114,6 +147,10 @@ struct WorldConfig {
   double build_speed = 1.0;   // construction time divisor (testing)
   double retry_delay = 0.5;   // seconds before re-planning a blocked route
   int lumber_per_tree = 100;
+  double train_speed = 1.0;   // training time divisor (testing)
+  int max_queue = 5;
+  double scan_interval = 0.3; // how often idle fighters look for enemies
+  unsigned seed = 1;          // damage rolls are reproducible for a given seed
 };
 
 /// Outcome of an order. `message` is meant for the player.
@@ -149,6 +186,13 @@ class World {
   /// Pays for and starts a building; the nearest free unit among `candidates` goes to build it.
   Result order_build(PlayerId owner, std::span<const EntityId> candidates, const BuildingDef& def, Point origin);
   Result order_resume_build(std::span<const EntityId> units, EntityId building);
+  /// Attack the enemy unit or building on `tile`; on open ground, attack-move there.
+  Result order_attack(std::span<const EntityId> units, Point tile);
+  /// Walk to `tile` and engage any enemy met on the way.
+  Result order_attack_move(std::span<const EntityId> units, Point tile);
+  Result order_train(PlayerId owner, EntityId building, const UnitDef& unit);
+  /// Takes the `index`-th queued unit out of the queue and refunds its price.
+  Result order_cancel_train(PlayerId owner, EntityId building, std::size_t index);
 
   void kill_unit(EntityId id);
 
@@ -162,6 +206,8 @@ class World {
   [[nodiscard]] const Grid& grid(MoveClass c) const { return layer(c).blocked; }
   [[nodiscard]] PlaceStatus placement_status(const BuildingDef& def, Point origin) const;
   [[nodiscard]] EntityId building_at(Point tile) const;
+  [[nodiscard]] EntityId unit_at(Point tile) const;  // visible unit standing on (or stepping onto) the tile
+  [[nodiscard]] static bool is_enemy(PlayerId a, PlayerId b) { return a != b && a != kNoPlayer && b != kNoPlayer; }
   [[nodiscard]] int mine_at(Point tile) const;  // -1 if none (depleted mines do not count)
   [[nodiscard]] std::vector<Point> depot_tiles(PlayerId owner) const;
   [[nodiscard]] bool has_assets(PlayerId owner) const;
@@ -169,6 +215,7 @@ class World {
 
   [[nodiscard]] Player& player(PlayerId id) { return players_.at(static_cast<std::size_t>(id)); }
   [[nodiscard]] const Player& player(PlayerId id) const { return players_.at(static_cast<std::size_t>(id)); }
+  [[nodiscard]] EntityStore<Building>& buildings() { return buildings_; }
   [[nodiscard]] EntityStore<Unit>& units() { return units_; }
   [[nodiscard]] const EntityStore<Unit>& units() const { return units_; }
   [[nodiscard]] const EntityStore<Building>& buildings() const { return buildings_; }
@@ -210,6 +257,20 @@ class World {
   void fell_tree(Point tile);
   void exhaust_mine(int index);
   void free_units(std::span<const EntityId> in, std::vector<EntityId>& out) const;
+  std::vector<std::optional<Point>> move_group(const std::vector<EntityId>& movers, Point target);
+
+  // combat and training (combat.cpp)
+  void update_attack(Unit& u, order::Attack& a, double dt);
+  void update_attack_move(Unit& u, order::AttackMove& m, double dt);
+  void auto_acquire(Unit& u, double dt);
+  [[nodiscard]] std::optional<order::Target> find_target(const Unit& u) const;
+  [[nodiscard]] bool target_tiles(const order::Target& t, std::vector<Point>& out) const;
+  void begin_attack(Unit& u, const order::Target& target, std::optional<Point> resume);
+  void end_attack(Unit& u, std::optional<Point> resume);
+  void strike(Unit& attacker, const order::Target& target);
+  void destroy_building(EntityId id);
+  void update_training(double dt);
+  [[nodiscard]] std::optional<Point> free_spawn_tile(const Building& b, MoveClass cls) const;
 
   WorldConfig config_;
   std::array<Layer, 3> layers_;
@@ -219,6 +280,7 @@ class World {
   TreeField trees_;
   std::vector<Player> players_;
   EventBus events_;
+  std::mt19937 rng_;
 };
 
 }  // namespace myrts

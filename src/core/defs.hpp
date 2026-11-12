@@ -50,10 +50,14 @@ struct UnitDef {
   UnitStats stats;
   Cost cost;
   double train_seconds = 0;
+  double attack_seconds = 1.5;           // time between two strikes
+  bool aggressive = true;                // attacks enemies it sees on its own (workers do not)
   std::string sprite;                    // path of the sprite definition (json)
   std::vector<std::string> commands;     // command ids offered in the panel
   std::optional<WorkerDef> worker;       // gathers resources
   std::vector<std::string> builds;       // building ids this unit can construct
+
+  [[nodiscard]] bool can_attack() const { return stats.damage_max > 0; }
 };
 
 /// Static data shared by every building of a kind. Loaded from assets/data/buildings.json.
@@ -64,6 +68,8 @@ struct BuildingDef {
   int size = 1;  // footprint in tiles (square)
   Cost cost;
   double build_seconds = 1.0;
+  int hp = 400;
+  int armor = 0;
   bool is_depot = false;  // accepts delivered gold and lumber
   std::string sprite;               // finished building (png)
   std::string sprite_construction;  // while being built (png)

@@ -14,10 +14,18 @@ constexpr float kEdgeScrollMargin = 6.0f;
 constexpr int kInitialUnits = 8;
 constexpr unsigned kGrassGid = 191;       // replaces a felled tree
 constexpr int kGoldPerMine = 10000;
-constexpr myrts::Point kStartHall{1, 6};  // the Great Hall the player starts with
-constexpr myrts::Point kMineOrigin{22, 6};
 constexpr int kMineSize = 3;
 constexpr myrts::Stock kStartingStock{2000, 1000, 0};
+
+// Start positions (tiles) on assets/tiles/mapa.tmx. The player is in the west, the Alliance in the north-east.
+constexpr myrts::Point kPlayerHall{1, 6};
+constexpr myrts::Point kPlayerMine{6, 0};
+constexpr myrts::Point kPlayerUnits{3, 3};
+constexpr myrts::Point kEnemyHall{19, 0};
+constexpr myrts::Point kEnemyBarracks{13, 0};
+constexpr myrts::Point kEnemyMine{16, 0};
+constexpr myrts::Point kEnemyUnits{18, 4};
+constexpr myrts::Stock kEnemyStock{2000, 0, 0};
 }  // namespace
 
 // ---- setup ------------------------------------------------------------------------
@@ -30,8 +38,12 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   const myrts::Registry& registry = *ctx.registry;
 
   const myrts::UnitDef* peon = registry.unit("orc_peon");
+  const myrts::UnitDef* peasant = registry.unit("alliance_peasant");
   const myrts::BuildingDef* hall = registry.building("great_hall");
-  if (!peon || !hall) return std::unexpected("game data is missing orc_peon or great_hall (assets/data)");
+  const myrts::BuildingDef* town_hall = registry.building("alliance_town_hall");
+  const myrts::BuildingDef* enemy_barracks = registry.building("alliance_barracks");
+  if (!peon || !hall || !peasant || !town_hall || !enemy_barracks)
+    return std::unexpected("game data is missing the starting units or buildings (assets/data)");
 
   init_tilemap_engine();
   game->map_.reset(tmx_load("tiles/mapa.tmx"));
@@ -41,14 +53,23 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
 
   myrts::WorldConfig config;
   config.tile_size = game->tile_size_;
+  // Testing aids: speed up construction and training.
   if (const char* speed = std::getenv("MYRTS_BUILD_SPEED")) config.build_speed = std::max(0.01, std::atof(speed));
+  if (const char* speed = std::getenv("MYRTS_TRAIN_SPEED")) config.train_speed = std::max(0.01, std::atof(speed));
   game->world_ = std::make_unique<myrts::World>(config, get_collision_grid(map), get_water_grid(map));
   myrts::World& world = *game->world_;
 
   game->local_player_ = world.add_player("Player", "orcs", kStartingStock);
   for (const auto& tree : find_tree_tiles(map)) world.add_tree(tree, config.lumber_per_tree);
-  world.add_building(*hall, game->local_player_, kStartHall, true);
-  world.add_mine(kMineOrigin, kMineSize, kGoldPerMine);
+  world.add_building(*hall, game->local_player_, kPlayerHall, true);
+  world.add_mine(kPlayerMine, kMineSize, kGoldPerMine);
+
+  // The Alliance: a computer-controlled opponent with its own base, mine and workers.
+  const myrts::PlayerId enemy = world.add_player("Alliance", "alliance", kEnemyStock);
+  world.add_building(*town_hall, enemy, kEnemyHall, true);
+  world.add_building(*enemy_barracks, enemy, kEnemyBarracks, true);
+  world.add_mine(kEnemyMine, kMineSize, kGoldPerMine);
+  game->ais_.push_back(std::make_unique<myrts::Ai>(world, registry, enemy));
 
   const auto world_w = static_cast<float>(map->width * map->tile_width);
   const auto world_h = static_cast<float>(map->height * map->tile_height);
@@ -64,12 +85,18 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   game->redraw_minimap_bitmap();
 
   // Spawn a group of units in distinct walkable tiles near the top-left corner.
-  const std::vector<myrts::Point> start(kInitialUnits, myrts::Point{3, 3});
-  const auto spots = myrts::assign_destinations(world.grid(myrts::MoveClass::Land), nullptr, start, {3, 3});
+  const std::vector<myrts::Point> start(kInitialUnits, kPlayerUnits);
+  const auto spots = myrts::assign_destinations(world.grid(myrts::MoveClass::Land), nullptr, start, kPlayerUnits);
   for (const auto& spot : spots)
     if (spot) world.spawn_unit(*peon, game->local_player_, *spot);
 
-  game->camera_.center_on(static_cast<float>(3 * game->tile_size_), static_cast<float>(3 * game->tile_size_));
+  const std::vector<myrts::Point> enemy_start(2, kEnemyUnits);
+  const auto enemy_spots = myrts::assign_destinations(world.grid(myrts::MoveClass::Land), nullptr, enemy_start, kEnemyUnits);
+  for (const auto& spot : enemy_spots)
+    if (spot) world.spawn_unit(*peasant, enemy, *spot);
+
+  game->camera_.center_on(static_cast<float>(kPlayerUnits.x * game->tile_size_),
+                          static_cast<float>(kPlayerUnits.y * game->tile_size_));
   game->subscribe_to_world();
   game->register_commands();
   world.events().dispatch();  // spawn / placement events of the initial setup
@@ -82,6 +109,9 @@ void Game::subscribe_to_world() {
       std::erase(selected_, d.unit);
       anims_.erase(d.unit);
       if (selected_.empty()) close_build_menu();
+    });
+    myrts::on_event<myrts::ev::BuildingDestroyed>(e, [&](const myrts::ev::BuildingDestroyed& d) {
+      if (selected_building_ == d.building) selected_building_ = myrts::kNoEntity;
     });
     myrts::on_event<myrts::ev::TreeFelled>(e, [&](const myrts::ev::TreeFelled& t) {
       replace_tree_tile(map_.get(), t.tile, kGrassGid);
@@ -99,6 +129,7 @@ void Game::register_commands() {
   instant_commands_["stop"] = [this] { apply(world_->order_stop(selected_)); };
   targeted_commands_["move"] = [this](myrts::Point t) { apply(world_->order_move(selected_, t)); };
   targeted_commands_["harvest"] = [this](myrts::Point t) { apply(world_->order_harvest(selected_, t)); };
+  targeted_commands_["attack"] = [this](myrts::Point t) { apply(world_->order_attack(selected_, t)); };
 }
 
 void Game::redraw_minimap_bitmap() {
@@ -135,7 +166,13 @@ std::optional<myrts::Outcome> Game::outcome() const { return myrts::evaluate_out
 void Game::select_only(std::vector<myrts::EntityId> ids) {
   close_build_menu();
   selected_ = std::move(ids);
+  selected_building_ = myrts::kNoEntity;
   awaiting_target_ = nullptr;
+}
+
+void Game::select_building(myrts::EntityId id) {
+  select_only({});
+  selected_building_ = id;
 }
 
 void Game::toggle_selected(myrts::EntityId id) {
@@ -150,6 +187,15 @@ void Game::toggle_selected(myrts::EntityId id) {
 void Game::close_build_menu() {
   build_menu_ = false;
   placing_ = nullptr;
+}
+
+std::vector<const myrts::UnitDef*> Game::current_train_options() const {
+  std::vector<const myrts::UnitDef*> out;
+  const myrts::Building* b = world_->buildings().get(selected_building_);
+  if (!b || !b->complete) return out;
+  for (const auto& id : b->def->trains)
+    if (const auto* def = registry_->unit(id)) out.push_back(def);
+  return out;
 }
 
 std::vector<const myrts::CommandDef*> Game::current_commands() const {
@@ -242,6 +288,7 @@ void Game::try_place_building(myrts::Point origin) {
 std::string Game::unit_animation(const myrts::Unit& u, const SpriteDef& sprite) const {
   const std::string dir = myrts::facing_name(u.facing);
   const std::string base = u.moving ? "walk_" : "idle_";
+  if (u.attacking() && !u.moving) return pick_animation(sprite, {"attack_" + dir, "chop_" + dir, base + dir});
   if (u.working() && !u.moving) return pick_animation(sprite, {"chop_" + dir, base + dir});
   if (u.carrying > 0) {
     const std::string carried = base + (u.cargo == myrts::Cargo::Gold ? "gold_" : "wood_") + dir;
@@ -268,6 +315,7 @@ void Game::update(double dt) {
     camera_.move(dx * step, dy * step);
   }
 
+  for (auto& ai : ais_) ai->update(dt);
   world_->update(dt);
 
   world_->units().for_each([&](const myrts::Unit& u) {
