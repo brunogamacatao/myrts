@@ -71,6 +71,43 @@ void draw_command_glyph(Command c, const Rect& r, float alpha) {
   }
 }
 
+/// Command panel while the build menu is open: one button per building plus a cancel button.
+void draw_build_menu(ALLEGRO_FONT* font, const HudData& hud) {
+  for (int slot = 0; slot < kButtonSlots; ++slot) {
+    const Rect r = button_rect(slot);
+    const auto kind = build_menu_slot(slot);
+    const bool has = kind || slot == kBuildMenuCancel;
+    const bool hovered = has && r.contains(hud.mouse_x, hud.mouse_y);
+    draw_bevel(r, !has, has ? (hovered ? al_map_rgb(100, 94, 86) : al_map_rgb(64, 60, 56)) : kInset);
+    if (!has) continue;
+    if (!kind) {
+      draw_command_glyph(Command::Attack, r, 1.0f);  // crossed swords double as "cancel"
+      if (hovered) draw_text(font, kPanelW / 2.0f, 552, ALLEGRO_ALIGN_CENTER, "Cancel");
+      continue;
+    }
+    const auto spec = myrts::building_spec(*kind);
+    const bool affordable = myrts::can_afford(hud.resources, spec.cost);
+    if (hud.art) {
+      ALLEGRO_BITMAP* bmp = hud.art->finished(*kind);
+      const auto bw = static_cast<float>(al_get_bitmap_width(bmp));
+      const auto bh = static_cast<float>(al_get_bitmap_height(bmp));
+      const float scale = std::min((r.w - 6) / bw, (r.h - 6) / bh);
+      const float alpha = affordable ? 1.0f : 0.35f;
+      al_draw_tinted_scaled_bitmap(bmp, al_map_rgba_f(alpha, alpha, alpha, alpha), 0, 0, bw, bh,
+                                   r.x + (r.w - bw * scale) / 2, r.y + (r.h - bh * scale) / 2, bw * scale,
+                                   bh * scale, 0);
+    }
+    if (hud.placing == kind) al_draw_rectangle(r.x + 2, r.y + 2, r.x + r.w - 2, r.y + r.h - 2, kGreen, 2);
+    if (hovered) {
+      draw_text(font, kPanelW / 2.0f, 552, ALLEGRO_ALIGN_CENTER, spec.name,
+                affordable ? kText : al_map_rgb(230, 80, 60));
+      draw_text(font, kPanelW / 2.0f, 566, ALLEGRO_ALIGN_CENTER,
+                std::to_string(spec.cost.gold) + "g " + std::to_string(spec.cost.lumber) + "w " +
+                    std::to_string(static_cast<int>(spec.build_seconds)) + "s");
+    }
+  }
+}
+
 void draw_resource(ALLEGRO_FONT* font, float x, int kind, int value) {
   const float y = 12;
   switch (kind) {
@@ -165,6 +202,11 @@ void draw_unit_info(ALLEGRO_FONT* font, const HudData& hud) {
 
 }  // namespace
 
+std::optional<myrts::BuildingKind> build_menu_slot(int slot) {
+  if (slot < 0 || static_cast<std::size_t>(slot) >= std::size(myrts::kAllBuildingKinds)) return std::nullopt;
+  return myrts::kAllBuildingKinds[slot];
+}
+
 Rect button_rect(int slot) {
   constexpr float kSize = 44, kGap = 4;
   const float left = (kPanelW - (kButtonCols * kSize + (kButtonCols - 1) * kGap)) / 2;
@@ -195,7 +237,9 @@ void draw_hud(ALLEGRO_FONT* font, const HudData& hud) {
 
   // Command buttons (only when something is selected)
   const auto commands = panel_commands(hud.units, hud.selected);
-  for (int slot = 0; slot < kButtonSlots; ++slot) {
+  const bool show_commands = !hud.build_menu;
+  if (hud.build_menu) draw_build_menu(font, hud);
+  for (int slot = 0; show_commands && slot < kButtonSlots; ++slot) {
     const Rect r = button_rect(slot);
     const bool has = static_cast<std::size_t>(slot) < commands.size();
     const bool hovered = has && r.contains(hud.mouse_x, hud.mouse_y);

@@ -11,6 +11,8 @@
 #include "core/occupancy.hpp"
 #include "sprite.hpp"
 
+enum class Cargo { None, Lumber, Gold };
+
 enum class Command { Move, Stop, Attack, Repair, Harvest, Build };
 
 struct UnitStats {
@@ -35,7 +37,9 @@ struct UnitType {
 
 std::expected<std::shared_ptr<const UnitType>, std::string> load_unit_type(const std::string& filename);
 
-constexpr bool is_implemented(Command c) { return c == Command::Move || c == Command::Stop; }
+constexpr bool is_implemented(Command c) {
+  return c == Command::Move || c == Command::Stop || c == Command::Harvest || c == Command::Build;
+}
 const char* command_label(Command c);
 
 class Unit {
@@ -55,7 +59,17 @@ class Unit {
   [[nodiscard]] myrts::Rect box() const;
   [[nodiscard]] const AnimationState& animation() const { return anim_; }
 
+  [[nodiscard]] bool is_idle() const { return !moving_ && path_.empty(); }
+
   bool selected = false;
+  Cargo cargo = Cargo::None;
+  int carrying = 0;      // amount of `cargo` being carried back to a depot
+  bool hidden = false;   // inside a gold mine: neither drawn nor selectable
+
+  /// Plays the chopping animation instead of idle (only meaningful while standing still).
+  void set_chopping(bool chopping) { chopping_ = chopping; }
+  /// Turns towards a neighbouring tile.
+  void face_tile(myrts::Point target);
 
   /// `path` must start at anchor(); the unit finishes its current step, then follows it.
   void set_path(std::deque<myrts::Point> path);
@@ -83,4 +97,5 @@ class Unit {
   std::deque<myrts::Point> path_;  // tiles still to visit after the current step
   myrts::Point goal_{};
   double blocked_time_ = 0.0;
+  bool chopping_ = false;
 };

@@ -196,3 +196,46 @@ myrts::Grid get_collision_grid(const tmx_map *map) {
   mark_blocked_cells(map, map->ly_head, grid);
   return grid;
 }
+
+// tree helpers
+
+static bool tile_is_tree(const tmx_map *map, const tmx_layer *layer, unsigned int x, unsigned int y) {
+  const unsigned int gid = layer->content.gids[y * map->width + x] & TMX_FLIP_BITS_REMOVAL;
+  if (gid == 0 || gid >= map->tilecount) return false;
+  const tmx_tile *tile = map->tiles[gid];
+  return tile && prop_is_true(tile->properties, "tree");
+}
+
+static void collect_trees(const tmx_map *map, const tmx_layer *layers, std::vector<myrts::Point> &out) {
+  for (const tmx_layer *layer = layers; layer; layer = layer->next) {
+    if (layer->type == L_GROUP) {
+      collect_trees(map, layer->content.group_head, out);
+    } else if (layer->type == L_LAYER) {
+      for (unsigned int y = 0; y < map->height; ++y)
+        for (unsigned int x = 0; x < map->width; ++x)
+          if (tile_is_tree(map, layer, x, y)) out.push_back({static_cast<int>(x), static_cast<int>(y)});
+    }
+  }
+}
+
+std::vector<myrts::Point> find_tree_tiles(const tmx_map *map) {
+  std::vector<myrts::Point> out;
+  if (map) collect_trees(map, map->ly_head, out);
+  return out;
+}
+
+static void clear_trees_at(const tmx_map *map, tmx_layer *layers, myrts::Point p, unsigned int gid) {
+  for (tmx_layer *layer = layers; layer; layer = layer->next) {
+    if (layer->type == L_GROUP) {
+      clear_trees_at(map, layer->content.group_head, p, gid);
+    } else if (layer->type == L_LAYER &&
+               tile_is_tree(map, layer, static_cast<unsigned int>(p.x), static_cast<unsigned int>(p.y))) {
+      layer->content.gids[static_cast<unsigned int>(p.y) * map->width + static_cast<unsigned int>(p.x)] = gid;
+    }
+  }
+}
+
+void replace_tree_tile(tmx_map *map, myrts::Point p, unsigned int gid) {
+  if (map && p.x >= 0 && p.y >= 0 && p.x < static_cast<int>(map->width) && p.y < static_cast<int>(map->height))
+    clear_trees_at(map, map->ly_head, p, gid);
+}

@@ -102,6 +102,10 @@ void Unit::face(float dx, float dy) {
   if (!dir.empty()) facing_ = dir;
 }
 
+void Unit::face_tile(myrts::Point target) {
+  face(static_cast<float>(target.x - tile_.x), static_cast<float>(target.y - tile_.y));
+}
+
 void Unit::begin_step(myrts::Point next) {
   next_ = next;
   moving_ = true;
@@ -158,6 +162,9 @@ void Unit::update(double dt, const myrts::Grid& grid, myrts::Occupancy& occupanc
     }
   }
 
-  set_animation(anim_, std::string(moving_ ? "walk_" : "idle_") + facing_);
+  std::string prefix = moving_ ? "walk_" : "idle_";
+  if (carrying > 0) prefix += cargo == Cargo::Gold ? "gold_" : "wood_";
+  if (chopping_ && !moving_) prefix = "chop_";
+  set_animation(anim_, prefix + facing_);
   update_animation(*type_->sprite, anim_, dt);
 }

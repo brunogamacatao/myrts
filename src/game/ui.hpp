@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "building_art.hpp"
+#include "core/building.hpp"
 #include "core/geometry.hpp"
 #include "unit.hpp"
 
@@ -26,11 +28,7 @@ inline constexpr int kButtonCols = 3;
 inline constexpr int kButtonRows = 2;
 inline constexpr int kButtonSlots = kButtonCols * kButtonRows;
 
-struct Resources {
-  int gold = 6003;
-  int lumber = 18868;
-  int oil = 30200;
-};
+using Resources = myrts::Stock;
 
 struct HudData {
   const Resources& resources;
@@ -43,12 +41,19 @@ struct HudData {
   bool awaiting_target;
   float mouse_x;
   float mouse_y;
+  bool build_menu = false;  // command panel shows the buildings a peon can construct
+  const BuildingArt* art = nullptr;
+  std::optional<myrts::BuildingKind> placing;  // building being positioned
 };
 
 /// Rectangle of a command button slot (0..kButtonSlots-1), in screen coordinates.
 myrts::Rect button_rect(int slot);
 /// Slot under the point, if any.
 std::optional<int> button_at(float x, float y);
+/// Building offered in a build-menu slot (slot kBuildMenuCancel closes the menu).
+std::optional<myrts::BuildingKind> build_menu_slot(int slot);
+inline constexpr int kBuildMenuCancel = 5;
+
 /// Commands to offer for the current selection (those of the first selected unit's type).
 std::vector<Command> panel_commands(const std::vector<Unit>& units, std::span<const int> selected);
 
