@@ -101,3 +101,26 @@ TEST_CASE("A* finds an optimal path", "[astar]") {
     REQUIRE(std::abs(path[i].y - path[i - 1].y) <= 1);
   }
 }
+
+TEST_CASE("A* avoids extra blocked cells", "[astar]") {
+  Grid grid(5, 3);
+  Grid extra(5, 3);
+  extra.set_blocked({2, 0});
+  extra.set_blocked({2, 1});  // gap left at y=2
+
+  auto path = a_star(grid, {0, 0}, {4, 0}, &extra);
+  REQUIRE_FALSE(path.empty());
+  for (auto p : path) REQUIRE(extra.is_walkable(p));
+
+  extra.set_blocked({2, 2});
+  REQUIRE(a_star(grid, {0, 0}, {4, 0}, &extra).empty());
+}
+
+TEST_CASE("A* ignores extra blockers on the start cell but not the goal", "[astar]") {
+  Grid grid(3, 1);
+  Grid extra(3, 1);
+  extra.set_blocked({0, 0});
+  REQUIRE(a_star(grid, {0, 0}, {2, 0}, &extra).size() == 3);
+  extra.set_blocked({2, 0});
+  REQUIRE(a_star(grid, {0, 0}, {2, 0}, &extra).empty());
+}

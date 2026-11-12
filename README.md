@@ -29,8 +29,26 @@ Without vcpkg, use `--preset debug-system` (needs `liballegro5-dev`, `libxml2-de
 
 Tests: `cmake --preset tests-only && cmake --build --preset tests-only && ctest --preset tests-only`
 
+## Controls
+| Input | Action |
+|---|---|
+| Left click on a unit | Select it (Shift toggles in/out of the selection) |
+| Left drag in the viewport | Box-select units (green rectangle) |
+| Left click on ground / right click | Move the selected units (they get distinct, non-overlapping destinations) |
+| Move button (`M`) then click | Move to the clicked tile; `S` / Stop button halts the units |
+| Click or drag on the minimap | Center the camera there |
+| Arrow keys / mouse at the screen edge | Scroll the viewport |
+| `Esc` | Cancel the pending command, then clear the selection, then quit |
+
 ## Layout
-- `src/core/` – pure logic (grid, A*), unit tested
-- `src/game/` – Allegro/Tiled front-end
-- `assets/` – sprites and maps
+- `src/core/` – pure logic, unit tested: `Grid`, A* (`pathfinding`), group destinations (`formation`), tile
+  reservations (`occupancy`), camera/minimap math (`geometry`), picking (`selection`)
+- `src/game/` – Allegro/Tiled front-end: `Game` (state, input, rendering), `Unit`/`UnitType`, `SpriteDef`, HUD (`ui`)
+- `assets/` – sprites, maps and unit definitions (`units/*.json`: stats, speed, commands)
 - `tests/` – Catch2 tests
+
+## Group movement
+A* stays single-agent. For a group order, `assign_destinations` picks the closest free, connected tiles around
+the target and pairs them with units; each unit then runs A* to its own tile. While moving, units reserve
+their current and next tile in `Occupancy`; a unit whose next tile is taken waits briefly and then re-plans
+around the tiles held by others.

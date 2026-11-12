@@ -1,260 +1,80 @@
-#include <cmath>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <deque>
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_font.h>
 #include <allegro5/allegro_image.h>
 #include <allegro5/allegro_primitives.h>
-#include <string>
-#include "sprite.hpp"
-#include "tilemap.hpp"
-#include "core/pathfinding.hpp"
 
-constexpr int WIDTH = 800;
-constexpr int HEIGHT = 600;
-constexpr double FPS = 60.0;
+#include <cstdio>
+#include <cstdlib>
 
-struct t_mouse {
-  int x;
-  int y;
-  int mouse_pressed_x;
-  int mouse_pressed_y;
-  int mouse_released_x;
-  int mouse_released_y;
-  bool is_pressed;
-};
+#include "game.hpp"
+#include "ui.hpp"
 
-using myrts::Point;
+namespace {
+constexpr double kFps = 60.0;
 
-// globals
-double last_update_time;
-bool running = true;
-std::string status = "";
-
-ALLEGRO_TIMER* timer;
-ALLEGRO_EVENT_QUEUE* queue;
-ALLEGRO_DISPLAY* disp;
-ALLEGRO_FONT* font;
-sprite character;
-tmx_map *map;
-t_mouse mouse = {0, 0, 0, 0, 0, 0, false};
-
-// input handling globals
-bool key[ALLEGRO_KEY_MAX] = {};
-
-// functions
-void init();
-void paint(double delta_time);
-void destroy();
-
-// mouse functions
-void process_mouse();
-void mouse_pressed();
-void mouse_released();
-
-// fixed map just for testing purposes
-std::deque<Point> path;
-myrts::Grid collisions_grid;
+void must_init(bool ok, const char* what) {
+  if (ok) return;
+  std::fprintf(stderr, "couldn't initialize %s\n", what);
+  std::exit(EXIT_FAILURE);
+}
+}  // namespace
 
 int main() {
-  double delta_time;
-  bool redraw = true;
-
-  init();
-
-  ALLEGRO_EVENT event;
-  last_update_time = al_get_time();
-
-  al_start_timer(timer);
-
-  while(running) {
-    al_wait_for_event(queue, &event);
-
-    switch(event.type) {
-      case ALLEGRO_EVENT_TIMER:
-        redraw = true;
-        break;
-      case ALLEGRO_EVENT_KEY_DOWN:
-        key[event.keyboard.keycode] = true;
-        break;
-      case ALLEGRO_EVENT_KEY_UP:
-        key[event.keyboard.keycode] = false;
-        break;
-      case ALLEGRO_EVENT_MOUSE_AXES:
-        mouse.x = event.mouse.x;
-        mouse.y = event.mouse.y;
-        break;
-      case ALLEGRO_EVENT_MOUSE_BUTTON_DOWN:
-        if (!mouse.is_pressed) {
-          mouse.is_pressed = true;
-          mouse.mouse_pressed_x = event.mouse.x;
-          mouse.mouse_pressed_y = event.mouse.y;
-          mouse_pressed();
-        }
-        break;
-      case ALLEGRO_EVENT_MOUSE_BUTTON_UP:
-        mouse.is_pressed = false;
-        mouse.mouse_released_x = event.mouse.x;
-        mouse.mouse_released_y = event.mouse.y;
-        mouse_released();
-        break;
-      case ALLEGRO_EVENT_DISPLAY_CLOSE:
-        running = false;
-        break;
-    }
-
-    if (redraw && al_is_event_queue_empty(queue)) {
-      delta_time = al_get_time() - last_update_time;
-      last_update_time = al_get_time();
-      paint(delta_time);
-      redraw = false;
-    }
-  }
-
-  destroy();
-
-  return EXIT_SUCCESS;
-}
-
-void must_init(bool test, const char *description) {
-  if(test) return;
-
-  std::fprintf(stderr, "couldn't initialize %s\n", description);
-  std::exit(1);
-}
-
-void init() {
   must_init(al_init(), "allegro");
   must_init(al_install_keyboard(), "keyboard");
   must_init(al_install_mouse(), "mouse");
   must_init(al_init_image_addon(), "image addon");
-
   must_init(al_init_primitives_addon(), "primitives addon");
 
-  timer = al_create_timer(1.0 / FPS);
+  ALLEGRO_TIMER* timer = al_create_timer(1.0 / kFps);
+  ALLEGRO_EVENT_QUEUE* queue = al_create_event_queue();
+  ALLEGRO_DISPLAY* display = al_create_display(ui::kWidth, ui::kHeight);
+  ALLEGRO_FONT* font = al_create_builtin_font();
   must_init(timer, "timer");
-  queue = al_create_event_queue();
   must_init(queue, "event queue");
-  disp  = al_create_display(WIDTH, HEIGHT);
-  must_init(disp, "display");
-  font  = al_create_builtin_font();
+  must_init(display, "display");
   must_init(font, "font");
+  al_set_window_title(display, "myrts");
 
-  init_tilemap_engine();
-
-  // loading resources
-  auto loaded = load_sprite_from_json("sprites/orcs_peon.json");
-  if (!loaded) {
-    std::fprintf(stderr, "couldn't load sprite: %s\n", loaded.error().c_str());
-    std::exit(1);
-  }
-  character = std::move(*loaded);
-
-  map = tmx_load("tiles/mapa.tmx");
-  if (!map) {
-    tmx_perror("couldn't load map");
-    std::exit(1);
-  }
-  collisions_grid = get_collision_grid(map);
-
-  // registering engines
   al_register_event_source(queue, al_get_keyboard_event_source());
   al_register_event_source(queue, al_get_mouse_event_source());
-  al_register_event_source(queue, al_get_display_event_source(disp));
+  al_register_event_source(queue, al_get_display_event_source(display));
   al_register_event_source(queue, al_get_timer_event_source(timer));
-}
 
-void paint(double delta_time) {
-  al_clear_to_color(al_map_rgb(0, 0, 0));
-
-  if (map) {
-    render_map(map);
+  auto game = Game::create(font);
+  if (!game) {
+    std::fprintf(stderr, "couldn't start game: %s\n", game.error().c_str());
+    return EXIT_FAILURE;
   }
 
-  // BEGIN simple movement
-  if (!path.empty()) {
-    const Point goal = path.front();
+  bool redraw = true;
+  double last_time = al_get_time();
+  al_start_timer(timer);
 
-    const int dest_x = goal.x * static_cast<int>(map->tile_width);
-    const int dest_y = goal.y * static_cast<int>(map->tile_height);
+  while ((*game)->running()) {
+    ALLEGRO_EVENT event;
+    al_wait_for_event(queue, &event);
 
-    if (static_cast<int>(character.x) == dest_x && static_cast<int>(character.y) == dest_y) {
-      path.pop_front();
+    if (event.type == ALLEGRO_EVENT_TIMER) {
+      const double now = al_get_time();
+      (*game)->update(now - last_time);
+      last_time = now;
+      redraw = true;
     } else {
-      character.direction = "";
-      if (character.y < dest_y) {
-        character.y++;
-        character.direction += "_down";
-      } else if (character.y > dest_y) {
-        character.y--;
-        character.direction += "_up";
-      }
-      if (character.x < dest_x) {
-        character.x++;
-        character.direction += "_right";
-      } else if (character.x > dest_x) {
-        character.x--;
-        character.direction += "_left";
-      }
-      character.current_animation = "walk" + character.direction;
+      (*game)->handle_event(event);
     }
-  } else {
-    character.current_animation = "idle" + character.direction;
-  }
-  // END simple movement
 
-  if(key[ALLEGRO_KEY_ESCAPE]) {
-    running = false;
-  } 
-
-  process_mouse();
-
-  draw_sprite(character, delta_time);
-  al_draw_text(font, al_map_rgb(255, 255, 255), 0, 0, 0, status.c_str());
-
-  al_flip_display();
-}
-
-void destroy() {
-  if (map) {
-    destroy_map(map);
+    if (redraw && al_is_event_queue_empty(queue)) {
+      (*game)->draw();
+      al_flip_display();
+      redraw = false;
+    }
   }
 
+  game->reset();  // free game resources while Allegro is still initialised
   al_destroy_font(font);
-  al_destroy_display(disp);
+  al_destroy_display(display);
   al_destroy_timer(timer);
   al_destroy_event_queue(queue);
-}
-
-Point get_tile_coordinates() {
-  return {mouse.x / static_cast<int>(map->tile_width), mouse.y / static_cast<int>(map->tile_height)};
-}
-
-void process_mouse() {
-  if (!map) return;
-
-  // fetching the tile based on mouse coordinates
-  const Point tile_coords = get_tile_coordinates();
-
-  status = "X: " + std::to_string(mouse.x) + " - Y: " + std::to_string(mouse.y);
-  status += " [tile x: " + std::to_string(tile_coords.x) + ", y: " + std::to_string(tile_coords.y) + "]";
-}
-
-void mouse_pressed() {
-  if (!map) return;
-
-  const Point goal = get_tile_coordinates();
-
-  // path starts at the tile the character currently occupies
-  const Point start{
-      static_cast<int>(std::lround(character.x / map->tile_width)),
-      static_cast<int>(std::lround(character.y / map->tile_height))};
-
-  path = myrts::a_star(collisions_grid, start, goal);
-}
-
-void mouse_released() {
-
+  return EXIT_SUCCESS;
 }

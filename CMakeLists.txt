@@ -25,7 +25,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 # ---- core: pure logic, no graphics dependencies --------------------------
-add_library(myrts_core STATIC src/core/pathfinding.cpp)
+add_library(myrts_core STATIC
+  src/core/pathfinding.cpp
+  src/core/formation.cpp)
 target_include_directories(myrts_core PUBLIC src)
 target_compile_features(myrts_core PUBLIC cxx_std_23)
 target_link_libraries(myrts_core PRIVATE myrts_warnings)
@@ -52,7 +54,10 @@ if(MYRTS_BUILD_GAME)
   add_executable(myrts
     src/game/main.cpp
     src/game/sprite.cpp
-    src/game/tilemap.cpp)
+    src/game/tilemap.cpp
+    src/game/unit.cpp
+    src/game/ui.cpp
+    src/game/game.cpp)
   target_link_libraries(myrts PRIVATE
     myrts_core myrts_warnings nlohmann_json::nlohmann_json tmx ${MYRTS_ALLEGRO_LIBS})
 
@@ -66,7 +71,11 @@ endif()
 if(MYRTS_BUILD_TESTS)
   enable_testing()
   FetchContent_MakeAvailable(Catch2)
-  add_executable(myrts_tests tests/pathfinding_test.cpp)
+  add_executable(myrts_tests
+    tests/pathfinding_test.cpp
+    tests/formation_test.cpp
+    tests/occupancy_test.cpp
+    tests/geometry_test.cpp)
   target_link_libraries(myrts_tests PRIVATE myrts_core myrts_warnings Catch2::Catch2WithMain)
   if(catch2_SOURCE_DIR)
     list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)  # FetchContent fallback

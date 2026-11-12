@@ -32,8 +32,12 @@ struct OpenNode {
 
 }  // namespace
 
-std::deque<Point> a_star(const Grid& grid, Point start, Point goal) {
-  if (grid.is_blocked(start) || grid.is_blocked(goal)) return {};
+std::deque<Point> a_star(const Grid& grid, Point start, Point goal, const Grid* extra_blocked) {
+  const auto blocked = [&](Point p) {
+    return grid.is_blocked(p) || (extra_blocked != nullptr && extra_blocked->is_blocked(p));
+  };
+
+  if (grid.is_blocked(start) || blocked(goal)) return {};
   if (start == goal) return {start};
 
   const std::size_t cells = static_cast<std::size_t>(grid.width()) * static_cast<std::size_t>(grid.height());
@@ -71,11 +75,10 @@ std::deque<Point> a_star(const Grid& grid, Point start, Point goal) {
     const Point current = to_point(ci);
     for (const Point d : kDirections) {
       const Point nb{current.x + d.x, current.y + d.y};
-      if (grid.is_blocked(nb)) continue;
+      if (blocked(nb)) continue;
 
       const bool diagonal = d.x != 0 && d.y != 0;
-      if (diagonal && (grid.is_blocked({current.x + d.x, current.y}) ||
-                       grid.is_blocked({current.x, current.y + d.y}))) {
+      if (diagonal && (blocked({current.x + d.x, current.y}) || blocked({current.x, current.y + d.y}))) {
         continue;  // no corner cutting
       }
 

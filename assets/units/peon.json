@@ -1,0 +1,9 @@
+{
+  "name": "Peon",
+  "level": 1,
+  "hp": 30,
+  "sprite": "sprites/orcs_peon.json",
+  "move_speed": 72,
+  "stats": { "armor": 0, "damage_min": 3, "damage_max": 9, "range": 1, "sight": 4, "speed": 10 },
+  "commands": ["move", "stop", "attack", "repair", "harvest", "build"]
+}

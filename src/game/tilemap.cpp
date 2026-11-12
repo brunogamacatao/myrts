@@ -131,8 +131,8 @@ void draw_all_layers(tmx_map *map, tmx_layer *layers) {
 	}
 }
 
+/// Draws every layer; the caller is responsible for clearing the target first.
 void render_map(tmx_map *map) {
-	al_clear_to_color(int_to_al_color(map->backgroundcolor));
 	draw_all_layers(map, map->ly_head);
 }
 

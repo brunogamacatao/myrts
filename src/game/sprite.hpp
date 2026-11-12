@@ -2,12 +2,13 @@
 
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_image.h>
-#include <map>
-#include <vector>
-#include <expected>
-#include <string>
 
-// types
+#include <expected>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
+
 struct s_frame {
   int x;
   int y;
@@ -15,24 +16,46 @@ struct s_frame {
   int height;
 };
 
+/// Immutable animation description (shared by every unit using the sprite).
 struct s_animation {
   std::vector<s_frame> frames;
-  int current_frame;
-  int n_frames;
-  double delay;
-  double elapsed_time;
-  bool flip_horizontal;
+  double delay = 0.2;
+  bool flip_horizontal = false;
 };
 
-struct sprite {
-  ALLEGRO_BITMAP* spritesheet;
-  double x;
-  double y;
-  std::string direction;
-  std::string current_animation;
+/// Spritesheet + animations. Loaded once and shared between units.
+struct SpriteDef {
+  ALLEGRO_BITMAP* spritesheet = nullptr;
+  std::string default_animation;
   std::map<std::string, s_animation> animations;
+
+  SpriteDef() = default;
+  SpriteDef(const SpriteDef&) = delete;
+  SpriteDef& operator=(const SpriteDef&) = delete;
+  ~SpriteDef() {
+    if (spritesheet) al_destroy_bitmap(spritesheet);
+  }
 };
 
-void draw_sprite(sprite& sprite, double delta_time);
+/// Per-unit playback state.
+struct AnimationState {
+  std::string current;
+  int frame = 0;
+  double elapsed = 0.0;
+};
+
 /// Loads a sprite definition; returns an error message on failure.
-std::expected<sprite, std::string> load_sprite_from_json(const std::string& filename);
+std::expected<std::shared_ptr<SpriteDef>, std::string> load_sprite_def(const std::string& filename);
+
+/// Switches animation (restarting it only if it actually changed).
+void set_animation(AnimationState& state, const std::string& name);
+void update_animation(const SpriteDef& def, AnimationState& state, double delta_time);
+
+/// Frame currently shown, or nullptr if the animation is unknown.
+const s_frame* current_frame(const SpriteDef& def, const AnimationState& state);
+
+/// Draws the current frame centred at (cx, cy) in the current target's coordinates.
+void draw_sprite_centered(const SpriteDef& def, const AnimationState& state, float cx, float cy);
+
+/// Draws the current frame scaled down (never up) to fit the box, centred in it.
+void draw_sprite_fit(const SpriteDef& def, const AnimationState& state, float bx, float by, float bw, float bh);
