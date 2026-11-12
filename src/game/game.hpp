@@ -76,6 +76,8 @@ class Game {
   void try_place_building(myrts::Point origin);
   [[nodiscard]] std::vector<const myrts::CommandDef*> current_commands() const;
   [[nodiscard]] std::vector<const myrts::BuildingDef*> current_build_options() const;
+  /// The build-menu buttons that fit in one page (and whether more pages exist).
+  [[nodiscard]] std::vector<const myrts::BuildingDef*> build_page(bool* has_more = nullptr) const;
   [[nodiscard]] std::vector<const myrts::UnitDef*> current_train_options() const;
   [[nodiscard]] myrts::Point placement_origin(const myrts::BuildingDef& def, myrts::Point cursor_tile) const;
   [[nodiscard]] std::string unit_animation(const myrts::Unit& u, const SpriteDef& sprite) const;
@@ -91,6 +93,8 @@ class Game {
   [[nodiscard]] bool shift_down() const;
   [[nodiscard]] std::optional<myrts::Point> tile_at_world(myrts::Vec2 w) const;
   [[nodiscard]] myrts::Rect unit_box(const myrts::Unit& u) const;
+  /// How far a flying unit is drawn above the ground (its shadow stays on the ground).
+  static float lift_of(const myrts::UnitDef& def) { return def.move_class == myrts::MoveClass::Air ? 14.0f : 0.0f; }
   /// Selectable units (own, not hidden in a mine); box ids are positions in `ids`.
   void selectable_units(std::vector<myrts::EntityId>& ids, std::vector<myrts::SelectBox>& boxes) const;
 
@@ -129,6 +133,7 @@ class Game {
   std::unordered_map<std::string, std::function<void(myrts::Point)>> targeted_commands_;
   const myrts::CommandDef* awaiting_target_ = nullptr;  // command waiting for its target click
   bool build_menu_ = false;                              // panel shows the buildings to construct
+  int build_page_ = 0;                                   // which page of the build menu
   const myrts::BuildingDef* placing_ = nullptr;          // building being positioned
 
   // mouse / keyboard state

@@ -18,7 +18,8 @@ std::optional<myrts::Point> Game::tile_at_world(myrts::Vec2 w) const {
 
 myrts::Rect Game::unit_box(const myrts::Unit& u) const {
   const auto s = static_cast<float>(tile_size_);
-  return {u.x - s / 2, u.y - s / 2, s, s};
+  const float lift = lift_of(*u.def);
+  return {u.x - s / 2, u.y - lift - s / 2, s, s};
 }
 
 void Game::selectable_units(std::vector<myrts::EntityId>& ids, std::vector<myrts::SelectBox>& boxes) const {
@@ -188,10 +189,14 @@ void Game::on_mouse_down(const ALLEGRO_EVENT& e) {
       const auto options = current_train_options();
       if (index < options.size()) apply(world_->order_train(local_player_, selected_building_, *options[index]));
     } else if (build_menu_) {
-      const auto options = current_build_options();
+      bool more = false;
+      const auto options = build_page(&more);
       if (*slot == ui::kBuildMenuCancel) {
         close_build_menu();
         message_.clear();
+      } else if (more && *slot == ui::kBuildNextPage) {
+        ++build_page_;
+        placing_ = nullptr;
       } else if (index < options.size()) {
         start_placing(*options[index]);
       }

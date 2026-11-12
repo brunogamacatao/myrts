@@ -1,5 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <filesystem>
+#include <fstream>
+#include <nlohmann/json.hpp>
+#include <set>
+
 #include "core/defs.hpp"
 
 using namespace myrts;
@@ -94,5 +99,64 @@ TEST_CASE("The shipped game data is consistent") {
   CHECK(barracks->cost == Cost{700, 450, 0});
   CHECK(barracks->build_seconds == 200.0);
   REQUIRE(r->unit("orc_peon"));
-  CHECK(r->unit("orc_peon")->builds.size() == 3);
+  CHECK(r->unit("orc_peon")->builds.size() == 7);
+}
+
+TEST_CASE("Every sprite named by the shipped data exists and can animate") {
+  namespace fs = std::filesystem;
+  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  const auto r = Registry::load_directory((assets / "data").string());
+  REQUIRE(r);
+
+  for (const auto& u : r->units()) {
+    INFO("unit " << u.id);
+    const fs::path file = assets / u.sprite;
+    REQUIRE(fs::exists(file));
+    std::ifstream in(file);
+    const auto sprite = nlohmann::json::parse(in);
+    CHECK(fs::exists(assets / sprite.at("spritesheet").get<std::string>()));
+
+    std::set<std::string> names;
+    for (const auto& a : sprite.at("animations")) {
+      names.insert(a.at("name").get<std::string>());
+      CHECK_FALSE(a.at("frames").empty());
+    }
+    // The game always asks for these; every direction must exist (left ones are mirrored copies).
+    for (const char* dir : {"up", "up_right", "right", "down_right", "down", "down_left", "left", "up_left"}) {
+      CHECK(names.contains(std::string("idle_") + dir));
+      CHECK(names.contains(std::string("walk_") + dir));
+      if (u.can_attack()) {
+        const bool has_attack = names.contains(std::string("attack_") + dir);
+        const bool has_walk = names.contains(std::string("walk_") + dir);  // fallback when there is no attack art
+        CHECK((has_attack || has_walk));
+      }
+    }
+  }
+  for (const auto& b : r->buildings()) {
+    INFO("building " << b.id);
+    CHECK(fs::exists(assets / b.sprite));
+    CHECK(fs::exists(assets / b.sprite_construction));
+  }
+}
+
+TEST_CASE("Every unit in the shipped data can actually be obtained") {
+  const auto r = Registry::load_directory(MYRTS_SOURCE_DIR "/assets/data");
+  REQUIRE(r);
+  std::set<std::string> trainable;
+  for (const auto& b : r->buildings())
+    for (const auto& u : b.trains) trainable.insert(u);
+  // Starting units are placed by the game; everything else has to come out of some building.
+  const std::set<std::string> starting{"orc_peon", "alliance_peasant"};
+  for (const auto& u : r->units()) {
+    INFO("unit " << u.id);
+    CHECK((trainable.contains(u.id) || starting.contains(u.id)));
+  }
+  // ...and every building can be built by somebody of its faction.
+  std::set<std::string> buildable;
+  for (const auto& u : r->units())
+    for (const auto& b : u.builds) buildable.insert(b);
+  for (const auto& b : r->buildings()) {
+    INFO("building " << b.id);
+    CHECK(buildable.contains(b.id));
+  }
 }

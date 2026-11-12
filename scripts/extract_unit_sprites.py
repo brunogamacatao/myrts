@@ -56,6 +56,21 @@ UNITS = {
         "walk_wood": range(17, 22),
     },
 }
+# New sheets. "death_sequence" is a row whose sprites are the frames of one death animation shared by every
+# direction (mages, death knights, dragons, gryphons). Vehicles and flyers only have movement frames.
+UNITS.update({
+    "orcs_troll_axethrower": {"sheet": "wc2_orc_troll_axethrower.png", "walk": range(0, 5), "attack": range(5, 9), "fall": 9, "corpse": 10},
+    "orcs_ogre": {"sheet": "wc2_orc_ogre.png", "walk": range(0, 5), "attack": range(5, 9), "fall": 10, "corpse": 11},
+    "orcs_death_knight": {"sheet": "wc2_orc_death_knight.png", "walk": range(0, 5), "attack": range(5, 9), "death_sequence": 9},
+    "orcs_dragon": {"sheet": "wc2_orc_dragon.png", "walk": range(0, 4), "attack": range(4, 5), "death_sequence": 5},
+    "orcs_zeppelin": {"sheet": "wc2_orc_goblin_zeppelin.png", "walk": range(0, 2)},
+    "orcs_catapult": {"sheet": "wc2_orc_catapult.png", "walk": range(0, 4)},
+    "human_archer": {"sheet": "wc2_human_elven_archer.png", "walk": range(0, 5), "attack": range(5, 7), "fall": 7, "corpse": 8},
+    "human_knight": {"sheet": "wc2_human_knight.png", "walk": range(0, 5), "attack": range(5, 9), "fall": 9, "corpse": 10},
+    "human_mage": {"sheet": "wc2_human_mage.png", "walk": range(0, 5), "attack": range(5, 9), "death_sequence": 9},
+    "human_gryphon": {"sheet": "wc2_human_gryphon_rider.png", "walk": range(0, 4), "attack": range(4, 7), "death_sequence": 7},
+    "human_ballista": {"sheet": "wc2_human_ballista.png", "walk": range(0, 4)},
+})
 FPS = {"walk": 5, "attack": 8, "chop": 6, "walk_gold": 5, "walk_wood": 5, "death": 4}
 
 
@@ -95,11 +110,17 @@ def build(name, spec, directory):
     alpha = im.split()[3].load()
     rows = bands([any(alpha[x, y] > 0 for x in range(width)) for y in range(height)])
     animated = {k: v for k, v in spec.items() if isinstance(v, range)}
-    row_ids = {i for v in animated.values() for i in v} | {spec["fall"]}
+    row_ids = {i for v in animated.values() for i in v} | ({spec["fall"]} if "fall" in spec else set())
     columns = {r: row_columns(alpha, width, rows[r]) for r in row_ids}
-    # The body sprite is the first thing in the "corpse" row (one pose for every direction).
-    corpse_cols = bands([any(alpha[x, y] > 0 for y in range(*rows[spec["corpse"]])) for x in range(width)], min_width=4)
-    corpse = frame_box(alpha, corpse_cols[0], rows[spec["corpse"]])
+    corpse = None
+    if "corpse" in spec:  # the body sprite is the first thing in the "corpse" row (one pose for every direction)
+        corpse_cols = bands([any(alpha[x, y] > 0 for y in range(*rows[spec["corpse"]])) for x in range(width)], min_width=4)
+        corpse = frame_box(alpha, corpse_cols[0], rows[spec["corpse"]])
+    sequence = None
+    if "death_sequence" in spec:  # every sprite of the row, in order
+        r = rows[spec["death_sequence"]]
+        seq_cols = bands([any(alpha[x, y] > 0 for y in range(*r)) for x in range(width)], min_width=4)
+        sequence = [frame_box(alpha, c, r) for c in seq_cols]
 
     def frames(kind, d):
         return [frame_box(alpha, columns[r][d], rows[r]) for r in spec[kind]]
@@ -107,12 +128,17 @@ def build(name, spec, directory):
     animations = []
 
     def add_death(d):
-        fall = frame_box(alpha, columns[spec["fall"]][d], rows[spec["fall"]])
+        if sequence is not None:
+            death_frames = sequence
+        elif corpse is not None:
+            death_frames = [frame_box(alpha, columns[spec["fall"]][d], rows[spec["fall"]]), corpse]
+        else:
+            return
         variants = [(DIRS[d], False)]
         if "right" in DIRS[d]:
             variants.append((DIRS[d].replace("right", "left"), True))
         for direction, flip in variants:
-            a = {"name": f"death_{direction}", "fps": FPS["death"], "loop": False, "frames": [fall, corpse]}
+            a = {"name": f"death_{direction}", "fps": FPS["death"], "loop": False, "frames": death_frames}
             if flip:
                 a["flip_horizontal"] = True
             animations.append(a)

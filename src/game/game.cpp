@@ -26,6 +26,8 @@ constexpr myrts::Point kPlayerUnits{3, 3};
 constexpr myrts::Point kEnemyHall{19, 0};
 constexpr myrts::Point kEnemyBarracks{13, 0};
 constexpr myrts::Point kEnemyMine{16, 0};
+constexpr myrts::Point kEnemyStables{9, 0};
+constexpr myrts::Point kEnemyAviary{22, 6};
 constexpr myrts::Point kEnemyUnits{18, 4};
 constexpr myrts::Stock kEnemyStock{1000, 300, 0};
 }  // namespace
@@ -44,7 +46,9 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   const myrts::BuildingDef* hall = registry.building("great_hall");
   const myrts::BuildingDef* town_hall = registry.building("alliance_town_hall");
   const myrts::BuildingDef* enemy_barracks = registry.building("alliance_barracks");
-  if (!peon || !hall || !peasant || !town_hall || !enemy_barracks)
+  const myrts::BuildingDef* enemy_stables = registry.building("alliance_stables");
+  const myrts::BuildingDef* enemy_aviary = registry.building("alliance_aviary");
+  if (!peon || !hall || !peasant || !town_hall || !enemy_barracks || !enemy_stables || !enemy_aviary)
     return std::unexpected("game data is missing the starting units or buildings (assets/data)");
 
   init_tilemap_engine();
@@ -70,6 +74,8 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   const myrts::PlayerId enemy = world.add_player("Alliance", "alliance", kEnemyStock);
   world.add_building(*town_hall, enemy, kEnemyHall, true);
   world.add_building(*enemy_barracks, enemy, kEnemyBarracks, true);
+  world.add_building(*enemy_stables, enemy, kEnemyStables, true);
+  world.add_building(*enemy_aviary, enemy, kEnemyAviary, true);
   world.add_mine(kEnemyMine, kMineSize, kGoldPerMine);
   myrts::AiConfig ai_config;
   if (const char* delay = std::getenv("MYRTS_AI_DELAY")) ai_config.start_delay = std::max(0.0, std::atof(delay));
@@ -99,8 +105,18 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   for (const auto& spot : enemy_spots)
     if (spot) world.spawn_unit(*peasant, enemy, *spot);
 
-  game->camera_.center_on(static_cast<float>(kPlayerUnits.x * game->tile_size_),
-                          static_cast<float>(kPlayerUnits.y * game->tile_size_));
+  myrts::Point focus = kPlayerUnits;
+  if (std::getenv("MYRTS_ROSTER")) {  // testing aid: one of every unit type, in the pocket south of the walls
+    int n = 0;
+    for (const myrts::UnitDef& def : registry.units()) {
+      if (def.worker) continue;
+      const myrts::Point tile{8 + (n % 8), 10 + (n / 8) * 2};
+      world.spawn_unit(def, game->local_player_, tile);
+      ++n;
+    }
+    focus = {12, 11};
+  }
+  game->camera_.center_on(static_cast<float>(focus.x * game->tile_size_), static_cast<float>(focus.y * game->tile_size_));
   game->subscribe_to_world();
   game->register_commands();
   world.events().dispatch();  // spawn / placement events of the initial setup
@@ -195,7 +211,22 @@ void Game::toggle_selected(myrts::EntityId id) {
   }
 }
 
+std::vector<const myrts::BuildingDef*> Game::build_page(bool* has_more) const {
+  const auto all = current_build_options();
+  constexpr std::size_t kFitsWithoutPaging = ui::kButtonSlots - 1;  // everything but the cancel button
+  const bool paged = all.size() > kFitsWithoutPaging;
+  if (has_more) *has_more = paged;
+  if (!paged) return all;
+  constexpr std::size_t kPerPage = ui::kButtonSlots - 2;  // minus "next page" and "cancel"
+  const std::size_t pages = (all.size() + kPerPage - 1) / kPerPage;
+  const std::size_t page = static_cast<std::size_t>(build_page_) % pages;
+  const std::size_t begin = page * kPerPage;
+  return {all.begin() + static_cast<std::ptrdiff_t>(begin),
+          all.begin() + static_cast<std::ptrdiff_t>(std::min(all.size(), begin + kPerPage))};
+}
+
 void Game::close_build_menu() {
+  build_page_ = 0;
   build_menu_ = false;
   placing_ = nullptr;
 }

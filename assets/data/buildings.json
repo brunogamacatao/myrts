@@ -7,12 +7,17 @@
       "size": 4,
       "hp": 1200,
       "food": 10,
-      "cost": {"gold": 1200, "lumber": 800},
+      "cost": {
+        "gold": 1200,
+        "lumber": 800
+      },
       "build_seconds": 255,
       "is_depot": true,
       "sprite": "buildings/great_hall.png",
       "sprite_construction": "buildings/great_hall_construction.png",
-      "trains": ["orc_peon"]
+      "trains": [
+        "orc_peon"
+      ]
     },
     {
       "id": "pig_farm",
@@ -21,7 +26,10 @@
       "size": 2,
       "hp": 400,
       "food": 4,
-      "cost": {"gold": 500, "lumber": 250},
+      "cost": {
+        "gold": 500,
+        "lumber": 250
+      },
       "build_seconds": 100,
       "sprite": "buildings/pig_farm.png",
       "sprite_construction": "buildings/pig_farm_construction.png"
@@ -32,11 +40,17 @@
       "faction": "orcs",
       "size": 3,
       "hp": 800,
-      "cost": {"gold": 700, "lumber": 450},
+      "cost": {
+        "gold": 700,
+        "lumber": 450
+      },
       "build_seconds": 200,
       "sprite": "buildings/barracks.png",
       "sprite_construction": "buildings/barracks_construction.png",
-      "trains": ["orc_grunt"]
+      "trains": [
+        "orc_grunt",
+        "orc_troll_axethrower"
+      ]
     },
     {
       "id": "alliance_town_hall",
@@ -45,12 +59,17 @@
       "size": 4,
       "hp": 1200,
       "food": 10,
-      "cost": {"gold": 1200, "lumber": 800},
+      "cost": {
+        "gold": 1200,
+        "lumber": 800
+      },
       "build_seconds": 255,
       "is_depot": true,
       "sprite": "buildings/alliance_town_hall.png",
       "sprite_construction": "buildings/alliance_town_hall_construction.png",
-      "trains": ["alliance_peasant"]
+      "trains": [
+        "alliance_peasant"
+      ]
     },
     {
       "id": "alliance_farm",
@@ -59,7 +78,10 @@
       "size": 2,
       "hp": 400,
       "food": 4,
-      "cost": {"gold": 500, "lumber": 250},
+      "cost": {
+        "gold": 500,
+        "lumber": 250
+      },
       "build_seconds": 100,
       "sprite": "buildings/alliance_farm.png",
       "sprite_construction": "buildings/alliance_farm_construction.png"
@@ -70,11 +92,154 @@
       "faction": "alliance",
       "size": 3,
       "hp": 800,
-      "cost": {"gold": 700, "lumber": 450},
+      "cost": {
+        "gold": 700,
+        "lumber": 450
+      },
       "build_seconds": 200,
       "sprite": "buildings/alliance_barracks.png",
       "sprite_construction": "buildings/alliance_barracks_construction.png",
-      "trains": ["alliance_footman"]
+      "trains": [
+        "alliance_footman",
+        "alliance_archer"
+      ]
+    },
+    {
+      "id": "ogre_mound",
+      "name": "Ogre Mound",
+      "faction": "orcs",
+      "size": 3,
+      "hp": 800,
+      "cost": {
+        "gold": 1000,
+        "lumber": 400
+      },
+      "build_seconds": 150,
+      "sprite": "buildings/ogre_mound.png",
+      "sprite_construction": "buildings/ogre_mound_construction.png",
+      "trains": [
+        "orc_ogre",
+        "orc_catapult"
+      ]
+    },
+    {
+      "id": "temple_of_the_damned",
+      "name": "Temple of the Damned",
+      "faction": "orcs",
+      "size": 3,
+      "hp": 800,
+      "cost": {
+        "gold": 1200,
+        "lumber": 500
+      },
+      "build_seconds": 200,
+      "sprite": "buildings/temple.png",
+      "sprite_construction": "buildings/temple_construction.png",
+      "trains": [
+        "orc_death_knight"
+      ]
+    },
+    {
+      "id": "dragon_roost",
+      "name": "Dragon Roost",
+      "faction": "orcs",
+      "size": 3,
+      "hp": 800,
+      "cost": {
+        "gold": 1400,
+        "lumber": 600
+      },
+      "build_seconds": 250,
+      "sprite": "buildings/dragon_roost.png",
+      "sprite_construction": "buildings/dragon_roost_construction.png",
+      "trains": [
+        "orc_dragon"
+      ]
+    },
+    {
+      "id": "alchemist",
+      "name": "Alchemist",
+      "faction": "orcs",
+      "size": 3,
+      "hp": 700,
+      "cost": {
+        "gold": 1000,
+        "lumber": 500
+      },
+      "build_seconds": 150,
+      "sprite": "buildings/alchemist.png",
+      "sprite_construction": "buildings/alchemist_construction.png",
+      "trains": [
+        "orc_zeppelin"
+      ]
+    },
+    {
+      "id": "alliance_stables",
+      "name": "Stables",
+      "faction": "alliance",
+      "size": 3,
+      "hp": 800,
+      "cost": {
+        "gold": 1000,
+        "lumber": 400
+      },
+      "build_seconds": 150,
+      "sprite": "buildings/alliance_stables.png",
+      "sprite_construction": "buildings/alliance_stables_construction.png",
+      "trains": [
+        "alliance_knight"
+      ]
+    },
+    {
+      "id": "alliance_mage_tower",
+      "name": "Mage Tower",
+      "faction": "alliance",
+      "size": 3,
+      "hp": 800,
+      "cost": {
+        "gold": 1200,
+        "lumber": 500
+      },
+      "build_seconds": 200,
+      "sprite": "buildings/alliance_mage_tower.png",
+      "sprite_construction": "buildings/alliance_mage_tower_construction.png",
+      "trains": [
+        "alliance_mage"
+      ]
+    },
+    {
+      "id": "alliance_aviary",
+      "name": "Gryphon Aviary",
+      "faction": "alliance",
+      "size": 3,
+      "hp": 800,
+      "cost": {
+        "gold": 1400,
+        "lumber": 600
+      },
+      "build_seconds": 250,
+      "sprite": "buildings/alliance_aviary.png",
+      "sprite_construction": "buildings/alliance_aviary_construction.png",
+      "trains": [
+        "alliance_gryphon"
+      ]
+    },
+    {
+      "id": "alliance_blacksmith",
+      "name": "Blacksmith",
+      "faction": "alliance",
+      "size": 3,
+      "hp": 700,
+      "cost": {
+        "gold": 1000,
+        "lumber": 500
+      },
+      "build_seconds": 150,
+      "sprite": "buildings/alliance_blacksmith.png",
+      "sprite_construction": "buildings/alliance_blacksmith_construction.png",
+      "trains": [
+        "alliance_ballista"
+      ]
     }
   ]
 }

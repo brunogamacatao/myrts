@@ -57,6 +57,7 @@ UnitDef parse_unit(const json& j) {
   u.food = j.value("food", u.food);
   if (u.food < 0) throw std::runtime_error("unit '" + u.id + "': food must be >= 0");
   u.attack_seconds = j.value("attack_seconds", u.attack_seconds);
+  u.siege_multiplier = j.value("siege_multiplier", u.siege_multiplier);
   if (u.attack_seconds <= 0) throw std::runtime_error("unit '" + u.id + "': attack_seconds must be > 0");
   u.sprite = j.at("sprite").get<std::string>();
   u.commands = parse_strings(j, "commands");

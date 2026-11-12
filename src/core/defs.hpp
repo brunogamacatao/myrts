@@ -52,6 +52,7 @@ struct UnitDef {
   double train_seconds = 0;
   int food = 1;                          // food this unit eats while alive (or waits in a training queue)
   double attack_seconds = 1.5;           // time between two strikes
+  double siege_multiplier = 1.0;         // damage multiplier against buildings (catapults, ballistas)
   bool aggressive = true;                // attacks enemies it sees on its own (workers do not)
   std::string sprite;                    // path of the sprite definition (json)
   std::vector<std::string> commands;     // command ids offered in the panel

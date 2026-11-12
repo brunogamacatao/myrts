@@ -9,13 +9,42 @@
       "move_speed": 72,
       "move_class": "land",
       "sprite": "sprites/orcs_peon.json",
-      "stats": {"armor": 0, "damage_min": 3, "damage_max": 9, "range": 1, "sight": 4, "speed": 10},
+      "stats": {
+        "armor": 0,
+        "damage_min": 3,
+        "damage_max": 9,
+        "range": 1,
+        "sight": 4,
+        "speed": 10
+      },
       "attack_seconds": 1.5,
-      "cost": {"gold": 400},
+      "cost": {
+        "gold": 400
+      },
       "train_seconds": 45,
-      "commands": ["move", "stop", "attack", "repair", "harvest", "build"],
-      "worker": {"lumber_per_trip": 10, "gold_per_trip": 100, "chop_seconds": 3.0, "mine_seconds": 2.5},
-      "builds": ["great_hall", "pig_farm", "barracks"]
+      "commands": [
+        "move",
+        "stop",
+        "attack",
+        "repair",
+        "harvest",
+        "build"
+      ],
+      "worker": {
+        "lumber_per_trip": 10,
+        "gold_per_trip": 100,
+        "chop_seconds": 3.0,
+        "mine_seconds": 2.5
+      },
+      "builds": [
+        "great_hall",
+        "pig_farm",
+        "barracks",
+        "ogre_mound",
+        "temple_of_the_damned",
+        "dragon_roost",
+        "alchemist"
+      ]
     },
     {
       "id": "orc_grunt",
@@ -26,11 +55,24 @@
       "move_speed": 72,
       "move_class": "land",
       "sprite": "sprites/orcs_grunt.json",
-      "stats": {"armor": 0, "damage_min": 4, "damage_max": 9, "range": 1, "sight": 5, "speed": 10},
+      "stats": {
+        "armor": 0,
+        "damage_min": 4,
+        "damage_max": 9,
+        "range": 1,
+        "sight": 5,
+        "speed": 10
+      },
       "attack_seconds": 1.2,
-      "cost": {"gold": 600},
+      "cost": {
+        "gold": 600
+      },
       "train_seconds": 60,
-      "commands": ["move", "stop", "attack"]
+      "commands": [
+        "move",
+        "stop",
+        "attack"
+      ]
     },
     {
       "id": "alliance_peasant",
@@ -41,13 +83,42 @@
       "move_speed": 72,
       "move_class": "land",
       "sprite": "sprites/human_peasant.json",
-      "stats": {"armor": 0, "damage_min": 3, "damage_max": 9, "range": 1, "sight": 4, "speed": 10},
+      "stats": {
+        "armor": 0,
+        "damage_min": 3,
+        "damage_max": 9,
+        "range": 1,
+        "sight": 4,
+        "speed": 10
+      },
       "attack_seconds": 1.5,
-      "cost": {"gold": 400},
+      "cost": {
+        "gold": 400
+      },
       "train_seconds": 45,
-      "commands": ["move", "stop", "attack", "repair", "harvest", "build"],
-      "worker": {"lumber_per_trip": 10, "gold_per_trip": 100, "chop_seconds": 3.0, "mine_seconds": 2.5},
-      "builds": ["alliance_town_hall", "alliance_farm", "alliance_barracks"]
+      "commands": [
+        "move",
+        "stop",
+        "attack",
+        "repair",
+        "harvest",
+        "build"
+      ],
+      "worker": {
+        "lumber_per_trip": 10,
+        "gold_per_trip": 100,
+        "chop_seconds": 3.0,
+        "mine_seconds": 2.5
+      },
+      "builds": [
+        "alliance_town_hall",
+        "alliance_farm",
+        "alliance_barracks",
+        "alliance_stables",
+        "alliance_mage_tower",
+        "alliance_aviary",
+        "alliance_blacksmith"
+      ]
     },
     {
       "id": "alliance_footman",
@@ -58,11 +129,341 @@
       "move_speed": 72,
       "move_class": "land",
       "sprite": "sprites/human_footman.json",
-      "stats": {"armor": 2, "damage_min": 4, "damage_max": 9, "range": 1, "sight": 5, "speed": 10},
+      "stats": {
+        "armor": 2,
+        "damage_min": 4,
+        "damage_max": 9,
+        "range": 1,
+        "sight": 5,
+        "speed": 10
+      },
       "attack_seconds": 1.2,
-      "cost": {"gold": 600},
+      "cost": {
+        "gold": 600
+      },
       "train_seconds": 60,
-      "commands": ["move", "stop", "attack"]
+      "commands": [
+        "move",
+        "stop",
+        "attack"
+      ]
+    },
+    {
+      "id": "orc_troll_axethrower",
+      "name": "Troll Axethrower",
+      "faction": "orcs",
+      "level": 1,
+      "hp": 40,
+      "move_speed": 72,
+      "move_class": "land",
+      "sprite": "sprites/orcs_troll_axethrower.json",
+      "stats": {
+        "armor": 0,
+        "damage_min": 3,
+        "damage_max": 9,
+        "range": 4,
+        "sight": 6,
+        "speed": 10
+      },
+      "cost": {
+        "gold": 500
+      },
+      "train_seconds": 70,
+      "commands": [
+        "move",
+        "stop",
+        "attack"
+      ],
+      "attack_seconds": 1.4
+    },
+    {
+      "id": "orc_ogre",
+      "name": "Ogre",
+      "faction": "orcs",
+      "level": 1,
+      "hp": 90,
+      "move_speed": 64,
+      "move_class": "land",
+      "sprite": "sprites/orcs_ogre.json",
+      "stats": {
+        "armor": 3,
+        "damage_min": 6,
+        "damage_max": 13,
+        "range": 1,
+        "sight": 5,
+        "speed": 10
+      },
+      "cost": {
+        "gold": 800
+      },
+      "train_seconds": 90,
+      "commands": [
+        "move",
+        "stop",
+        "attack"
+      ],
+      "attack_seconds": 1.5,
+      "food": 2
+    },
+    {
+      "id": "orc_death_knight",
+      "name": "Death Knight",
+      "faction": "orcs",
+      "level": 1,
+      "hp": 60,
+      "move_speed": 72,
+      "move_class": "land",
+      "sprite": "sprites/orcs_death_knight.json",
+      "stats": {
+        "armor": 0,
+        "damage_min": 6,
+        "damage_max": 12,
+        "range": 5,
+        "sight": 6,
+        "speed": 10
+      },
+      "cost": {
+        "gold": 1000
+      },
+      "train_seconds": 120,
+      "commands": [
+        "move",
+        "stop",
+        "attack"
+      ],
+      "attack_seconds": 1.6,
+      "food": 2
+    },
+    {
+      "id": "orc_dragon",
+      "name": "Dragon",
+      "faction": "orcs",
+      "level": 1,
+      "hp": 120,
+      "move_speed": 120,
+      "move_class": "air",
+      "sprite": "sprites/orcs_dragon.json",
+      "stats": {
+        "armor": 4,
+        "damage_min": 8,
+        "damage_max": 16,
+        "range": 4,
+        "sight": 7,
+        "speed": 10
+      },
+      "cost": {
+        "gold": 1500
+      },
+      "train_seconds": 150,
+      "commands": [
+        "move",
+        "stop",
+        "attack"
+      ],
+      "attack_seconds": 1.6,
+      "food": 3
+    },
+    {
+      "id": "orc_zeppelin",
+      "name": "Goblin Zeppelin",
+      "faction": "orcs",
+      "level": 1,
+      "hp": 40,
+      "move_speed": 140,
+      "move_class": "air",
+      "sprite": "sprites/orcs_zeppelin.json",
+      "stats": {
+        "armor": 0,
+        "damage_min": 0,
+        "damage_max": 0,
+        "range": 0,
+        "sight": 10,
+        "speed": 10
+      },
+      "cost": {
+        "gold": 300
+      },
+      "train_seconds": 60,
+      "commands": [
+        "move",
+        "stop"
+      ]
+    },
+    {
+      "id": "orc_catapult",
+      "name": "Catapult",
+      "faction": "orcs",
+      "level": 1,
+      "hp": 110,
+      "move_speed": 44,
+      "move_class": "land",
+      "sprite": "sprites/orcs_catapult.json",
+      "stats": {
+        "armor": 0,
+        "damage_min": 20,
+        "damage_max": 40,
+        "range": 8,
+        "sight": 8,
+        "speed": 10
+      },
+      "cost": {
+        "gold": 900
+      },
+      "train_seconds": 100,
+      "commands": [
+        "move",
+        "stop",
+        "attack"
+      ],
+      "attack_seconds": 3.0,
+      "siege_multiplier": 2.0,
+      "food": 2,
+      "aggressive": true
+    },
+    {
+      "id": "alliance_archer",
+      "name": "Archer",
+      "faction": "alliance",
+      "level": 1,
+      "hp": 40,
+      "move_speed": 72,
+      "move_class": "land",
+      "sprite": "sprites/human_archer.json",
+      "stats": {
+        "armor": 0,
+        "damage_min": 3,
+        "damage_max": 9,
+        "range": 4,
+        "sight": 6,
+        "speed": 10
+      },
+      "cost": {
+        "gold": 500
+      },
+      "train_seconds": 70,
+      "commands": [
+        "move",
+        "stop",
+        "attack"
+      ],
+      "attack_seconds": 1.4
+    },
+    {
+      "id": "alliance_knight",
+      "name": "Knight",
+      "faction": "alliance",
+      "level": 1,
+      "hp": 90,
+      "move_speed": 100,
+      "move_class": "land",
+      "sprite": "sprites/human_knight.json",
+      "stats": {
+        "armor": 4,
+        "damage_min": 6,
+        "damage_max": 12,
+        "range": 1,
+        "sight": 5,
+        "speed": 10
+      },
+      "cost": {
+        "gold": 800
+      },
+      "train_seconds": 90,
+      "commands": [
+        "move",
+        "stop",
+        "attack"
+      ],
+      "attack_seconds": 1.4,
+      "food": 2
+    },
+    {
+      "id": "alliance_mage",
+      "name": "Mage",
+      "faction": "alliance",
+      "level": 1,
+      "hp": 60,
+      "move_speed": 72,
+      "move_class": "land",
+      "sprite": "sprites/human_mage.json",
+      "stats": {
+        "armor": 0,
+        "damage_min": 5,
+        "damage_max": 11,
+        "range": 5,
+        "sight": 6,
+        "speed": 10
+      },
+      "cost": {
+        "gold": 1200
+      },
+      "train_seconds": 120,
+      "commands": [
+        "move",
+        "stop",
+        "attack"
+      ],
+      "attack_seconds": 1.6,
+      "food": 2
+    },
+    {
+      "id": "alliance_gryphon",
+      "name": "Gryphon Rider",
+      "faction": "alliance",
+      "level": 1,
+      "hp": 100,
+      "move_speed": 130,
+      "move_class": "air",
+      "sprite": "sprites/human_gryphon.json",
+      "stats": {
+        "armor": 2,
+        "damage_min": 8,
+        "damage_max": 16,
+        "range": 2,
+        "sight": 7,
+        "speed": 10
+      },
+      "cost": {
+        "gold": 1500
+      },
+      "train_seconds": 150,
+      "commands": [
+        "move",
+        "stop",
+        "attack"
+      ],
+      "attack_seconds": 1.4,
+      "food": 3
+    },
+    {
+      "id": "alliance_ballista",
+      "name": "Ballista",
+      "faction": "alliance",
+      "level": 1,
+      "hp": 110,
+      "move_speed": 44,
+      "move_class": "land",
+      "sprite": "sprites/human_ballista.json",
+      "stats": {
+        "armor": 0,
+        "damage_min": 20,
+        "damage_max": 40,
+        "range": 8,
+        "sight": 8,
+        "speed": 10
+      },
+      "cost": {
+        "gold": 900
+      },
+      "train_seconds": 100,
+      "commands": [
+        "move",
+        "stop",
+        "attack"
+      ],
+      "attack_seconds": 3.0,
+      "siege_multiplier": 2.0,
+      "food": 2
     }
   ]
 }

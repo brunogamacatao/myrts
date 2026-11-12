@@ -28,6 +28,7 @@ inline constexpr int kButtonCols = 3;
 inline constexpr int kButtonRows = 2;
 inline constexpr int kButtonSlots = kButtonCols * kButtonRows;
 inline constexpr int kBuildMenuCancel = kButtonSlots - 1;  // last slot closes the build menu
+inline constexpr int kBuildNextPage = kButtonSlots - 2;    // shown instead of a building when there are more than fit
 
 // The HUD only sees small view-models filled in by the game every frame; it knows nothing about
 // the simulation.
@@ -101,7 +102,8 @@ struct HudData {
   float mouse_y;
   std::span<const CommandButton> commands;     // panel buttons, in slot order
   bool build_menu = false;                      // panel shows `build_options` instead of `commands`
-  std::span<const BuildOption> build_options;   // build-menu buttons, in slot order
+  std::span<const BuildOption> build_options;   // build-menu buttons of the current page, in slot order
+  bool build_has_more = false;                  // more pages exist: slot kBuildNextPage turns the page
   const BuildingCard* building = nullptr;       // a building is selected (instead of units)
   std::span<const TrainOption> train_options;   // its training buttons, in slot order
   int food_used = 0;

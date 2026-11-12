@@ -65,7 +65,7 @@ void Game::draw_world() {
     const auto sprite = sprites_.find(c.def);
     if (sprite == sprites_.end() || !sprite->second) continue;
     const float fade = std::clamp(static_cast<float>((kCorpseSeconds - c.age) / 5.0), 0.0f, 1.0f);
-    draw_sprite_centered(*sprite->second, c.anim, c.x, c.y, fade);
+    draw_sprite_centered(*sprite->second, c.anim, c.x, c.y - lift_of(*c.def), fade);
   }
 
   // The rally point of the selected building: a small flag.
@@ -76,25 +76,34 @@ void Game::draw_world() {
     al_draw_filled_triangle(fx, fy - 12, fx + 12, fy - 7, fx, fy - 2, al_map_rgb(60, 220, 60));
   }
 
-  // Units sorted by y so lower ones overlap higher ones.
-  std::vector<const myrts::Unit*> order;
-  order.reserve(world_->units().size());
+  // Units sorted by y so lower ones overlap higher ones; flyers go on top of everything on the ground.
+  std::vector<const myrts::Unit*> ground, air;
   world_->units().for_each([&](const myrts::Unit& u) {
-    if (!u.hidden) order.push_back(&u);
+    if (u.hidden) return;
+    (u.def->move_class == myrts::MoveClass::Air ? air : ground).push_back(&u);
   });
-  std::ranges::sort(order, [](const myrts::Unit* a, const myrts::Unit* b) { return a->y < b->y; });
-  for (const myrts::Unit* u : order) {
+  const auto by_y = [](const myrts::Unit* a, const myrts::Unit* b) { return a->y < b->y; };
+  std::ranges::sort(ground, by_y);
+  std::ranges::sort(air, by_y);
+
+  const auto draw_unit = [&](const myrts::Unit* u) {
+    const float lift = lift_of(*u->def);
+    if (lift > 0) {  // shadow on the ground under a flyer
+      al_draw_filled_ellipse(u->x, u->y + 6, 14, 6, al_map_rgba(0, 0, 0, 90));
+    }
     const auto sprite = sprites_.find(u->def);
     const auto anim = anims_.find(u->id);
     if (sprite != sprites_.end() && sprite->second && anim != anims_.end())
-      draw_sprite_centered(*sprite->second, anim->second, u->x, u->y);
+      draw_sprite_centered(*sprite->second, anim->second, u->x, u->y - lift);
     const bool selected = std::ranges::find(selected_, u->id) != selected_.end();
     if (selected) {
       const auto b = unit_box(*u);
       al_draw_rectangle(b.x + 2, b.y + 2, b.x + b.w - 2, b.y + b.h - 2, kSelectGreen, 1.5f);
     }
-    if (selected || u->hp < u->def->max_hp) draw_health_bar(u->x - 13, u->y - 21, 26, u->hp, u->def->max_hp);
-  }
+    if (selected || u->hp < u->def->max_hp) draw_health_bar(u->x - 13, u->y - lift - 21, 26, u->hp, u->def->max_hp);
+  };
+  for (const myrts::Unit* u : ground) draw_unit(u);
+  for (const myrts::Unit* u : air) draw_unit(u);
 
   if (placing_ && mouse_in_window_ && ui::kViewport.contains(mouse_x_, mouse_y_)) draw_placement_ghost();
 }
@@ -171,11 +180,12 @@ void Game::draw() {
   for (const myrts::CommandDef* c : current_commands()) commands.push_back({c, c == awaiting_target_});
   std::vector<ui::BuildOption> options;
   const myrts::Stock& stock = world_->player(local_player_).stock;
-  for (const myrts::BuildingDef* def : current_build_options())
+  bool more_pages = false;
+  for (const myrts::BuildingDef* def : build_page(&more_pages))
     options.push_back({def, art_.finished(*def), myrts::can_afford(stock, def->cost), def == placing_});
 
   const ui::HudData hud{stock,     cards,     dots,       minimap_bitmap_.get(), minimap_, camera_,
-                        message_,  mouse_x_,  mouse_y_,   commands,              build_menu_, options,
+                        message_,  mouse_x_,  mouse_y_,   commands,              build_menu_, options, more_pages,
                         building_card ? &*building_card : nullptr, train_options,
                         world_->food_used(local_player_), world_->food_cap(local_player_)};
   ui::draw_hud(font_, hud);

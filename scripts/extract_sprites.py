@@ -24,6 +24,15 @@ BUILDINGS = {
     "pig_farm": (337, 603, 64, 64),
     "barracks_construction": (14, 448, 92, 89),
     "barracks": (109, 441, 96, 96),
+    # production buildings of the Horde
+    "ogre_mound_construction": (18, 260, 88, 77),
+    "ogre_mound": (109, 242, 95, 96),
+    "temple_construction": (12, 152, 79, 79),
+    "temple": (108, 152, 94, 83),
+    "dragon_roost_construction": (212, 160, 93, 74),
+    "dragon_roost": (308, 144, 96, 96),
+    "alchemist_construction": (414, 170, 88, 70),
+    "alchemist": (504, 149, 94, 91),
 }
 HUMAN_BUILDINGS = {
     "alliance_town_hall_construction": (270, 154, 111, 95),
@@ -32,6 +41,15 @@ HUMAN_BUILDINGS = {
     "alliance_farm": (398, 4, 64, 64),
     "alliance_barracks_construction": (107, 370, 93, 82),
     "alliance_barracks": (105, 271, 95, 85),
+    # production buildings of the Alliance
+    "alliance_stables": (205, 264, 95, 88),
+    "alliance_stables_construction": (205, 353, 95, 88),
+    "alliance_mage_tower": (308, 264, 94, 96),
+    "alliance_mage_tower_construction": (308, 365, 87, 91),
+    "alliance_aviary": (408, 264, 94, 94),
+    "alliance_aviary_construction": (408, 360, 94, 95),
+    "alliance_blacksmith": (4, 264, 96, 96),
+    "alliance_blacksmith_construction": (4, 365, 96, 90),
 }
 MISC = {
     "gold_mine": (13, 12, 96, 89),

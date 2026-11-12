@@ -101,7 +101,7 @@ if(MYRTS_BUILD_TESTS)
     tests/world_test.cpp
     tests/combat_test.cpp)
   target_compile_definitions(myrts_tests PRIVATE MYRTS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
-  target_link_libraries(myrts_tests PRIVATE myrts_core myrts_warnings Catch2::Catch2WithMain)
+  target_link_libraries(myrts_tests PRIVATE myrts_core myrts_warnings nlohmann_json::nlohmann_json Catch2::Catch2WithMain)
   if(catch2_SOURCE_DIR)
     list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)  # FetchContent fallback
   endif()

@@ -237,7 +237,7 @@ void World::strike(Unit& attacker, const order::Target& target) {
 
   Building* b = buildings_.get(target.id);
   if (!b) return;
-  const int dmg = std::max(1, raw - b->def->armor);
+  const int dmg = std::max(1, static_cast<int>(static_cast<double>(raw) * attacker.def->siege_multiplier) - b->def->armor);
   b->hp -= dmg;
   events_.publish(ev::Attacked{attacker.id, target.id, true, dmg});
   if (b->hp <= 0) destroy_building(target.id);

@@ -50,13 +50,34 @@ tests/      Catch2 tests for src/core (scripts/test.sh).
 * The `Ai` builds a farm when food is nearly used up (cutting wood first if it has none), and holds its first attack
   until `start_delay` has passed.
 
+## The roster
+
+| | Horde (orcs) | Alliance |
+|---|---|---|
+| Workers | Peon | Peasant |
+| Barracks | Grunt, Troll Axethrower | Footman, Archer |
+| Siege / vehicles | Catapult (Ogre Mound), Goblin Zeppelin (Alchemist, air scout) | Ballista (Blacksmith) |
+| Heavy / elite | Ogre (Ogre Mound), Death Knight (Temple of the Damned) | Knight (Stables), Mage (Mage Tower) |
+| Air | Dragon (Dragon Roost) | Gryphon Rider (Gryphon Aviary) |
+
+Everything is data (`assets/data/units.json`, `buildings.json`). Behaviour differences come from a few fields: `move_class`
+(air units cross walls and are drawn lifted with a shadow), `stats.range` (ranged attackers), `siege_multiplier`
+(catapults and ballistas hit buildings much harder), `food`, and `aggressive`. Not implemented yet: naval units (needs a
+shipyard and a coast), Goblin Sappers, summoned Skeletons and spells.
+
+`MYRTS_ROSTER=1` spawns one of every unit type, which is a quick way to eyeball new sprites.
+
+The build menu pages itself when a worker can build more than five things.
+
 ## Adding content
 
 **A faction**: units and buildings tagged with its `faction`, plus a player for it in `Game::create` (and an `Ai` if it is
 computer-controlled). The Alliance (human) is the example: Peasant, Footman, Town Hall, Farm, Barracks.
 
 **A unit** (any faction): add an entry to `assets/data/units.json` and a sprite JSON under `assets/sprites/`
-(`scripts/extract_unit_sprites.py` builds them from the Spriters Resource sheets). Set `move_class`
+(`scripts/extract_unit_sprites.py` builds them from the Spriters Resource sheets: add the rows of each animation to
+`UNITS`). A test checks that every sprite exists and has idle/walk in all eight directions. Put the unit in some building's
+`trains` list so it can be obtained. Set `move_class`
 (`land`/`water`/`air`), `commands`, and optionally `worker` / `builds`. Missing carrying or work animations fall back to
 walk/idle. No C++ needed unless it needs a new behaviour.
 

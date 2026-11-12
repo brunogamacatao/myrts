@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "draw_util.hpp"
+
 namespace ui {
 namespace {
 
@@ -35,6 +37,14 @@ void draw_text(ALLEGRO_FONT* font, float x, float y, int align, const std::strin
                ALLEGRO_COLOR color = kText) {
   al_draw_text(font, kStoneDark, x + 1, y + 1, align, text.c_str());  // drop shadow
   al_draw_text(font, color, x, y, align, text.c_str());
+}
+
+/// Like draw_text, but shrinks long text so it fits in `max_width` pixels.
+void draw_text_fit(ALLEGRO_FONT* font, float x, float y, float max_width, int align, const std::string& text,
+                   ALLEGRO_COLOR color = kText) {
+  const float scale = fit_scale(font, text, 1.0f, max_width);
+  if (scale >= 1.0f) return draw_text(font, x, y, align, text, color);
+  draw_text_scaled(font, x, y + (1.0f - scale) * 4.0f, scale, align, text, color);
 }
 
 void draw_command_glyph(const std::string& icon, const Rect& r, float alpha) {
@@ -71,13 +81,19 @@ void draw_build_menu(ALLEGRO_FONT* font, const HudData& hud) {
   for (int slot = 0; slot < kButtonSlots; ++slot) {
     const Rect r = button_rect(slot);
     const bool is_cancel = slot == kBuildMenuCancel;
-    const BuildOption* opt =
-        static_cast<std::size_t>(slot) < hud.build_options.size() && !is_cancel ? &hud.build_options[static_cast<std::size_t>(slot)]
-                                                                                 : nullptr;
-    const bool has = opt || is_cancel;
+    const bool is_next = hud.build_has_more && slot == kBuildNextPage;
+    const BuildOption* opt = static_cast<std::size_t>(slot) < hud.build_options.size() && !is_cancel && !is_next
+                                 ? &hud.build_options[static_cast<std::size_t>(slot)]
+                                 : nullptr;
+    const bool has = opt || is_cancel || is_next;
     const bool hovered = has && r.contains(hud.mouse_x, hud.mouse_y);
     draw_bevel(r, !has, has ? (hovered ? al_map_rgb(100, 94, 86) : al_map_rgb(64, 60, 56)) : kInset);
     if (!has) continue;
+    if (is_next) {  // arrow to the next page
+      al_draw_filled_triangle(r.x + 14, r.y + 10, r.x + 14, r.y + r.h - 10, r.x + r.w - 12, r.y + r.h / 2, kText);
+      if (hovered) draw_text(font, kPanelW / 2.0f, 552, ALLEGRO_ALIGN_CENTER, "More buildings");
+      continue;
+    }
     if (is_cancel) {
       draw_command_glyph("cancel", r, 1.0f);
       if (hovered) draw_text(font, kPanelW / 2.0f, 552, ALLEGRO_ALIGN_CENTER, "Cancel");
@@ -95,8 +111,8 @@ void draw_build_menu(ALLEGRO_FONT* font, const HudData& hud) {
     }
     if (opt->placing) al_draw_rectangle(r.x + 2, r.y + 2, r.x + r.w - 2, r.y + r.h - 2, kGreen, 2);
     if (hovered) {
-      draw_text(font, kPanelW / 2.0f, 552, ALLEGRO_ALIGN_CENTER, def.name,
-                opt->affordable ? kText : al_map_rgb(230, 80, 60));
+      draw_text_fit(font, kPanelW / 2.0f, 552, kPanelW - 8, ALLEGRO_ALIGN_CENTER, def.name,
+                    opt->affordable ? kText : al_map_rgb(230, 80, 60));
       draw_text(font, kPanelW / 2.0f, 566, ALLEGRO_ALIGN_CENTER,
                 std::to_string(def.cost.gold) + "g " + std::to_string(def.cost.lumber) + "w " +
                     std::to_string(static_cast<int>(def.build_seconds)) + "s");
@@ -154,7 +170,7 @@ Rect queue_cell_rect(int i) {
 void draw_building_info(ALLEGRO_FONT* font, const HudData& hud) {
   const Rect& p = kInfoPanel;
   const BuildingCard& b = *hud.building;
-  draw_text(font, p.x + p.w / 2, p.y + 10, ALLEGRO_ALIGN_CENTER, b.name);
+  draw_text_fit(font, p.x + p.w / 2, p.y + 10, p.w - 8, ALLEGRO_ALIGN_CENTER, b.name);
 
   const float frac = static_cast<float>(b.hp) / static_cast<float>(b.max_hp);
   al_draw_filled_rectangle(p.x + 10, p.y + 30, p.x + p.w - 10, p.y + 38, kInset);
@@ -196,8 +212,8 @@ void draw_train_menu(ALLEGRO_FONT* font, const HudData& hud) {
     if (o.sprite && o.anim) draw_sprite_fit(*o.sprite, *o.anim, r.x + 3, r.y + 3, r.w - 6, r.h - 6);
     if (!o.affordable) al_draw_filled_rectangle(r.x + 1, r.y + 1, r.x + r.w - 1, r.y + r.h - 1, al_map_rgba_f(0, 0, 0, 0.55f));
     if (hovered) {
-      draw_text(font, kPanelW / 2.0f, 552, ALLEGRO_ALIGN_CENTER, "Train " + o.def->name,
-                o.affordable ? kText : al_map_rgb(230, 80, 60));
+      draw_text_fit(font, kPanelW / 2.0f, 552, kPanelW - 8, ALLEGRO_ALIGN_CENTER, "Train " + o.def->name,
+                    o.affordable ? kText : al_map_rgb(230, 80, 60));
       draw_text(font, kPanelW / 2.0f, 566, ALLEGRO_ALIGN_CENTER,
                 std::to_string(o.def->cost.gold) + "g " + std::to_string(static_cast<int>(o.def->train_seconds)) + "s");
     }

@@ -20,6 +20,10 @@ constexpr const char* kUnits = R"({"units":[
    "stats":{"armor":2,"damage_min":5,"damage_max":5,"range":1,"sight":5},"cost":{"gold":600},"train_seconds":20},
   {"id":"archer","name":"Archer","hp":10,"move_speed":96,"sprite":"s","attack_seconds":1.0,
    "stats":{"armor":0,"damage_min":3,"damage_max":3,"range":4,"sight":6},"cost":{"gold":500}},
+  {"id":"catapult","name":"Catapult","hp":40,"move_speed":48,"sprite":"s","attack_seconds":1.0,"siege_multiplier":3.0,
+   "stats":{"armor":0,"damage_min":4,"damage_max":4,"range":6,"sight":6},"cost":{"gold":900},"train_seconds":20,"food":2},
+  {"id":"dragon","name":"Dragon","hp":40,"move_speed":120,"move_class":"air","sprite":"s","attack_seconds":1.0,
+   "stats":{"armor":0,"damage_min":6,"damage_max":6,"range":3,"sight":6},"cost":{"gold":1500},"train_seconds":20,"food":3},
   {"id":"brute","name":"Brute","hp":30,"move_speed":96,"sprite":"s","attack_seconds":1.0,
    "stats":{"armor":0,"damage_min":1,"damage_max":9,"range":1,"sight":5},"cost":{"gold":500}}]})";
 constexpr const char* kBuildings = R"({"buildings":[
@@ -279,6 +283,68 @@ TEST_CASE("Idle fighters kill a builder they can see before touching its site") 
   CHECK_FALSE(f.world.units().alive(builder));                 // units come first...
   CHECK_FALSE(f.world.buildings().alive(site));                // ...then the building
   CHECK(f.count<ev::UnitDied>() == 1);
+}
+
+TEST_CASE("Siege units hit buildings much harder than units") {
+  Fixture f;
+  const EntityId hall = f.world.add_building(f.bdef("hall"), f.foe, {12, 4}, true);  // 100 hp
+  const auto catapult = f.spawn("catapult", {6, 6}, f.me);
+  const auto victim = f.spawn("grunt", {20, 10}, f.foe);
+  (void)victim;
+  f.world.order_attack(std::array{catapult}, {12, 4});
+  f.run(0.5);  // one strike from range 6: 4 x 3.0 = 12 against a building
+  CHECK(f.world.buildings().get(hall)->hp == 100 - 12);
+
+  Fixture g;
+  const auto siege = g.spawn("catapult", {6, 6}, g.me);
+  const auto prey = g.spawn("footman", {10, 6}, g.foe);  // armor 2
+  g.world.order_attack(std::array{siege}, {10, 6});
+  g.run(0.5);
+  CHECK(g.unit(prey)->hp == 20 - 2);  // 4 - armor 2: no multiplier against units
+}
+
+TEST_CASE("Flying units cross land obstacles and can be hit by ground fighters") {
+  Grid land(24, 10);
+  for (int y = 0; y < 10; ++y) land.set_blocked({10, y});  // a wall splitting the map
+  World world{WorldConfig{}, land};
+  const PlayerId me = world.add_player("me", "orcs", {});
+  const PlayerId foe = world.add_player("foe", "alliance", {});
+  const EntityId dragon = world.spawn_unit(*registry().unit("dragon"), me, {2, 5});
+  const EntityId archer = world.spawn_unit(*registry().unit("archer"), foe, {16, 5});
+  REQUIRE((dragon.valid() && archer.valid()));
+  world.order_attack(std::array{dragon}, {16, 5});
+  for (int i = 0; i < 300; ++i) world.update(0.05);  // 15 s
+  CHECK_FALSE(world.units().alive(archer));  // it flew over the wall and killed it
+  REQUIRE(world.units().alive(dragon));
+  CHECK(world.units().get(dragon)->tile.x > 10);
+}
+
+TEST_CASE("The computer player trains a varied army, not just the first unit of a building") {
+  WorldConfig cfg;
+  cfg.train_speed = 40;
+  Fixture f(cfg, 40, 14);
+  f.world.add_building(f.bdef("hall"), f.foe, {28, 5}, true);   // food 50
+  f.world.add_building(f.bdef("barracks"), f.foe, {20, 1}, true);  // grunt, footman
+  f.world.player(f.foe).stock = {100000, 0, 0};
+  f.spawn("peon", {26, 6}, f.foe);
+  f.world.add_mine({33, 8}, 3, 100000);
+
+  AiConfig ai_cfg;
+  ai_cfg.think_interval = 0.5;
+  ai_cfg.start_delay = 1e9;  // never attack: just watch what it builds
+  Ai ai(f.world, registry(), f.foe, ai_cfg);
+  for (int i = 0; i < 1200; ++i) {  // 60 s
+    ai.update(0.05);
+    f.world.update(0.05);
+  }
+  int grunts = 0, footmen = 0;
+  f.world.units().for_each([&](const Unit& u) {
+    grunts += u.def->id == "grunt" ? 1 : 0;
+    footmen += u.def->id == "footman" ? 1 : 0;
+  });
+  CHECK(grunts >= 2);
+  CHECK(footmen >= 2);
+  CHECK(std::abs(grunts - footmen) <= 1);  // it alternates
 }
 
 TEST_CASE("Food limits how many units a player can have") {

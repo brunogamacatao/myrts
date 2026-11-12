@@ -4,6 +4,8 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <string>
+#include <unordered_map>
 
 namespace myrts {
 
@@ -164,27 +166,39 @@ void Ai::manage_construction() {
   world_.order_build(me_, std::array{builder}, *farm, *spot);
 }
 
-/// Every finished building with an empty queue trains one useful unit it is able to afford.
+/// Every finished building with an empty queue trains the useful unit it has the fewest of, so the army
+/// ends up varied (footmen and archers, knights, gryphons...). Buildings wait until they can afford it.
 void Ai::manage_production() {
+  std::unordered_map<std::string, int> have;  // living + queued, by unit id
   int workers = 0;
-  world_.units().for_each([&](const Unit& u) { workers += (u.owner == me_ && u.def->worker) ? 1 : 0; });
+  world_.units().for_each([&](const Unit& u) {
+    if (u.owner != me_) return;
+    ++have[u.def->id];
+    workers += u.def->worker ? 1 : 0;
+  });
   world_.buildings().for_each([&](const Building& b) {
-    for (const TrainItem& q : b.queue) workers += (b.owner == me_ && q.unit->worker) ? 1 : 0;
+    if (b.owner != me_) return;
+    for (const TrainItem& q : b.queue) {
+      ++have[q.unit->id];
+      workers += q.unit->worker ? 1 : 0;
+    }
   });
 
   for (const EntityId id : world_.buildings().ids()) {
     const Building* b = world_.buildings().get(id);
     if (!b || b->owner != me_ || !b->complete || !b->queue.empty()) continue;
 
+    const UnitDef* pick = nullptr;
     for (const std::string& unit_id : b->def->trains) {
       const UnitDef* def = registry_.unit(unit_id);
       if (!def) continue;
       const bool wanted = def->worker ? workers < cfg_.desired_workers : (def->aggressive && def->can_attack());
       if (!wanted) continue;
-      if (world_.order_train(me_, id, *def).ok) {
-        workers += def->worker ? 1 : 0;
-        break;
-      }
+      if (!pick || have[def->id] < have[pick->id]) pick = def;
+    }
+    if (pick && world_.order_train(me_, id, *pick).ok) {
+      ++have[pick->id];
+      workers += pick->worker ? 1 : 0;
     }
   }
 }
