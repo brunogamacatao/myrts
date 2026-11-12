@@ -659,18 +659,19 @@ void Game::handle_event(const ALLEGRO_EVENT& e) {
     case ALLEGRO_EVENT_MOUSE_BUTTON_UP:
       on_mouse_up(e);
       break;
-    case ALLEGRO_EVENT_DISPLAY_CLOSE:
-      running_ = false;
-      break;
     case ALLEGRO_EVENT_DISPLAY_SWITCH_OUT:
-      std::ranges::fill(keys_, false);  // avoid stuck keys while unfocused
-      left_down_ = false;
-      box_selecting_ = false;
-      dragging_minimap_ = false;
+      release_input();  // avoid stuck keys while unfocused
       break;
     default:
       break;
   }
+}
+
+void Game::release_input() {
+  std::ranges::fill(keys_, false);
+  left_down_ = false;
+  box_selecting_ = false;
+  dragging_minimap_ = false;
 }
 
 void Game::on_key_down(int keycode) {
@@ -689,11 +690,11 @@ void Game::on_key_down(int keycode) {
       } else if (!selected_.empty()) {
         select_only({});
       } else {
-        running_ = false;
+        menu_requested_ = true;
       }
       break;
     case ALLEGRO_KEY_F10:
-      set_message("Menu is not implemented yet");
+      menu_requested_ = true;
       break;
     case ALLEGRO_KEY_M:
       if (!selected_.empty()) activate_command(Command::Move);
@@ -769,7 +770,7 @@ void Game::on_mouse_down(const ALLEGRO_EVENT& e) {
     const auto w = minimap_.mini_to_world(mouse_x_ - ui::kMinimap.x, mouse_y_ - ui::kMinimap.y);
     camera_.center_on(w.x, w.y);
   } else if (ui::kMenuButton.contains(mouse_x_, mouse_y_)) {
-    set_message("Menu is not implemented yet");
+    menu_requested_ = true;
   } else if (const auto slot = ui::button_at(mouse_x_, mouse_y_); slot && build_menu_) {
     if (const auto kind = ui::build_menu_slot(*slot)) {
       start_placing(*kind);

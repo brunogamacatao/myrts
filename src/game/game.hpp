@@ -6,6 +6,7 @@
 
 #include <array>
 #include <expected>
+#include <utility>
 #include <optional>
 #include <span>
 #include <memory>
@@ -60,7 +61,10 @@ class Game {
   Game(const Game&) = delete;
   Game& operator=(const Game&) = delete;
 
-  [[nodiscard]] bool running() const { return running_; }
+  /// True (once) after the player asked for the game menu (ESC with nothing to cancel, F10, Menu button).
+  [[nodiscard]] bool take_menu_request() { return std::exchange(menu_requested_, false); }
+  /// Forgets pressed keys and drags, e.g. when the game regains focus after a pause menu.
+  void release_input();
   void handle_event(const ALLEGRO_EVENT& event);
   void update(double dt);
   void draw();
@@ -153,5 +157,5 @@ class Game {
 
   std::string message_;
   double message_time_left_ = 0;
-  bool running_ = true;
+  bool menu_requested_ = false;
 };

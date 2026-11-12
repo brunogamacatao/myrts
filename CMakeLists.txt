@@ -60,6 +60,10 @@ if(MYRTS_BUILD_GAME)
     src/game/unit.cpp
     src/game/ui.cpp
     src/game/building_art.cpp
+    src/game/draw_util.cpp
+    src/game/menu_scene.cpp
+    src/game/scene_manager.cpp
+    src/game/scenes.cpp
     src/game/game.cpp)
   target_link_libraries(myrts PRIVATE
     myrts_core myrts_warnings nlohmann_json::nlohmann_json tmx ${MYRTS_ALLEGRO_LIBS})
@@ -80,7 +84,8 @@ if(MYRTS_BUILD_TESTS)
     tests/occupancy_test.cpp
     tests/geometry_test.cpp
     tests/harvest_test.cpp
-    tests/building_test.cpp)
+    tests/building_test.cpp
+    tests/scene_stack_test.cpp)
   target_link_libraries(myrts_tests PRIVATE myrts_core myrts_warnings Catch2::Catch2WithMain)
   if(catch2_SOURCE_DIR)
     list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)  # FetchContent fallback

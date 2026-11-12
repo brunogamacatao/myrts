@@ -6,7 +6,8 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "game.hpp"
+#include "scene_manager.hpp"
+#include "scenes.hpp"
 #include "ui.hpp"
 
 namespace {
@@ -41,37 +42,34 @@ int main() {
   al_register_event_source(queue, al_get_display_event_source(display));
   al_register_event_source(queue, al_get_timer_event_source(timer));
 
-  auto game = Game::create(font);
-  if (!game) {
-    std::fprintf(stderr, "couldn't start game: %s\n", game.error().c_str());
-    return EXIT_FAILURE;
-  }
+  SceneManager scenes({display, font});
+  if (!scenes.start(make_intro([] { return Transition::replace(make_main_menu()); }))) return EXIT_FAILURE;
 
   bool redraw = true;
   double last_time = al_get_time();
   al_start_timer(timer);
 
-  while ((*game)->running()) {
+  while (scenes.running()) {
     ALLEGRO_EVENT event;
     al_wait_for_event(queue, &event);
 
     if (event.type == ALLEGRO_EVENT_TIMER) {
       const double now = al_get_time();
-      (*game)->update(now - last_time);
+      scenes.update(now - last_time);
       last_time = now;
       redraw = true;
     } else {
-      (*game)->handle_event(event);
+      scenes.handle_event(event);
     }
 
     if (redraw && al_is_event_queue_empty(queue)) {
-      (*game)->draw();
+      scenes.draw();
       al_flip_display();
       redraw = false;
     }
   }
 
-  game->reset();  // free game resources while Allegro is still initialised
+  scenes.shutdown();  // free every scene's resources while Allegro is still initialised
   al_destroy_font(font);
   al_destroy_display(display);
   al_destroy_timer(timer);

@@ -1,0 +1,13 @@
+MYRTS
+A real-time strategy game inspired by Warcraft II
+
+Programming
+Bruno
+
+Art
+Sprites and tiles from Warcraft II
+(c) Blizzard Entertainment
+Ripped by Maxim - The Spriters Resource
+
+Built with
+C++23 - Allegro 5 - libtmx - Catch2
