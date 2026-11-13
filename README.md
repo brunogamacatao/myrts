@@ -26,6 +26,16 @@ cd build/release && ./myrts      # assets are copied next to the executable
 ```
 Without vcpkg, use `--preset debug-system` (needs `liballegro5-dev`; json/Catch2 are then fetched by CMake).
 
+## Windows build (cross-compiled from Linux)
+```sh
+sudo apt install g++-mingw-w64-x86-64-posix gcc-mingw-w64-x86-64-posix zip   # once
+scripts/package-windows.sh    # -> dist/myrts-windows-x64.zip
+```
+Builds a static `myrts.exe` for Windows 10/11 64-bit with MinGW-w64 and vcpkg (triplet in `cmake/windows/`), then zips
+it with the assets. The first run builds the dependencies (slow); later runs are cached. The zip needs no installation:
+extract it all and run `myrts.exe` (it loads the assets from its own folder). It can be smoke-tested on Linux with
+`wine dist/myrts-windows-x64/myrts.exe`.
+
 Tests: `cmake --preset tests-only && cmake --build --preset tests-only && ctest --preset tests-only`
 
 ## Controls
