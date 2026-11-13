@@ -249,7 +249,7 @@ void World::strike(Unit& attacker, const order::Target& target) {
 void World::destroy_building(EntityId id) {
   Building* b = buildings_.get(id);
   if (!b) return;
-  for (const Point p : footprint(b->origin, b->def->size)) layer(MoveClass::Land).blocked.set_blocked(p, false);
+  for (const Point p : footprint(b->origin, b->def->size)) layer_of(*b->def).blocked.set_blocked(p, false);
   if (Unit* builder = units_.get(b->builder)) cancel_order(*builder);
   const PlayerId owner = b->owner;
   const std::string name = b->def->name;

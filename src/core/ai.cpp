@@ -55,7 +55,7 @@ void Ai::manage_workers() {
     if (u.owner != me_ || !u.def->worker || u.locked()) return;
     workers.push_back(u.id);
     any_worker = u.def;
-    if (const auto* h = std::get_if<order::Harvest>(&u.order)) lumberjacks += h->gold ? 0 : 1;
+    if (const auto* h = std::get_if<order::Harvest>(&u.order)) lumberjacks += h->kind == ResourceKind::Lumber ? 1 : 0;
   });
   if (workers.empty()) return;
 
@@ -78,7 +78,7 @@ void Ai::manage_workers() {
     std::optional<Point> best;
     double best_d = std::numeric_limits<double>::max();
     for (const Mine& m : world_.mines())
-      if (!m.site.depleted())
+      if (!m.site.depleted() && m.kind() == ResourceKind::Gold)
         if (const double d = dist(from, m.site.origin()); d < best_d) {
           best_d = d;
           best = m.site.origin();
@@ -99,7 +99,7 @@ void Ai::manage_workers() {
     for (const EntityId id : workers) {
       const Unit* u = world_.units().get(id);
       const auto* h = std::get_if<order::Harvest>(&u->order);
-      if (h && !h->gold && u->carrying == 0)
+      if (h && h->kind == ResourceKind::Lumber && u->carrying == 0)
         if (const auto mine = nearest_mine(u->tile)) {
           const std::array one{id};
           world_.order_harvest(one, *mine);

@@ -8,6 +8,13 @@
 namespace myrts {
 
 namespace {
+Cargo cargo_of(ResourceKind kind) {
+  return kind == ResourceKind::Gold ? Cargo::Gold : kind == ResourceKind::Oil ? Cargo::Oil : Cargo::Lumber;
+}
+}  // namespace
+
+
+namespace {
 
 template <class... Ts>
 struct Overloaded : Ts... {
@@ -47,7 +54,7 @@ std::optional<ApproachPath> World::approach(const Unit& u, std::span<const Point
 
 void World::cancel_order(Unit& u) {
   if (const auto* h = std::get_if<order::Harvest>(&u.order)) {
-    if (h->gold && h->mine >= 0 && h->state == order::Harvest::State::Working)
+    if (h->kind == ResourceKind::Gold && h->mine >= 0 && h->state == order::Harvest::State::Working)
       mines_[static_cast<std::size_t>(h->mine)].busy = false;
   } else if (const auto* b = std::get_if<order::Build>(&u.order)) {
     if (Building* bld = buildings_.get(b->building); bld && bld->builder == u.id) bld->builder = kNoEntity;
@@ -118,8 +125,9 @@ Result World::order_move(std::span<const EntityId> ids, Point target) {
 
 Result World::order_harvest(std::span<const EntityId> ids, Point tile) {
   if (ids.empty()) return Result::success();
-  const bool gold = mine_at(tile) >= 0;
-  if (!gold && !trees_.has_tree(tile)) {
+  const int site = mine_at(tile);
+  const ResourceKind kind = site >= 0 ? mines_[static_cast<std::size_t>(site)].kind() : ResourceKind::Lumber;
+  if (site < 0 && !trees_.has_tree(tile)) {
     // Clicking beside or between trees picks the nearest one within a couple of tiles.
     const auto near = nearest_tree(tile, 2);
     if (!near) return Result::fail("Select a tree or a gold mine");
@@ -135,22 +143,25 @@ Result World::order_harvest(std::span<const EntityId> ids, Point tile) {
     Unit& u = *units_.get(id);
     if (!u.def->worker) continue;
     any_worker = true;
-    if (depot_tiles(u.owner).empty()) {
+    if (depot_tiles(u.owner, kind).empty()) {
       no_depot = true;
       continue;
     }
     cancel_order(u);
     stop_unit(u);
-    const Cargo wanted = gold ? Cargo::Gold : Cargo::Lumber;
+    const Cargo wanted = cargo_of(kind);
     if (u.carrying > 0 && u.cargo != wanted) {  // drops what it was carrying
       u.carrying = 0;
       u.cargo = Cargo::None;
     }
-    if (!start_gathering(u, gold, tile)) unreachable = true;
+    if (!start_gathering(u, kind, tile)) unreachable = true;
   }
   if (!any_worker) return Result::fail("These units cannot gather resources");
-  if (no_depot) return Result::fail("You need a Great Hall to deliver resources");
-  if (unreachable) return Result::fail(gold ? "Cannot reach that gold mine" : "Cannot reach that tree");
+  if (no_depot)
+    return Result::fail(kind == ResourceKind::Oil ? "You need a Shipyard to deliver oil" : "You need a Great Hall to deliver resources");
+  if (unreachable)
+    return Result::fail(kind == ResourceKind::Gold ? "Cannot reach that gold mine"
+                        : kind == ResourceKind::Oil ? "Cannot reach that oil patch" : "Cannot reach that tree");
   return Result::success();
 }
 
@@ -240,12 +251,12 @@ std::vector<Point> World::forest_around(Point start, std::size_t limit) const {
   return found;
 }
 
-bool World::start_gathering(Unit& u, bool gold, Point target) {
+bool World::start_gathering(Unit& u, ResourceKind kind, Point target) {
   std::vector<Point> targets;
   int mine = -1;
-  if (gold) {
+  if (kind != ResourceKind::Lumber) {
     mine = mine_at(target);
-    if (mine < 0) return false;
+    if (mine < 0 || mines_[static_cast<std::size_t>(mine)].kind() != kind) return false;
     targets = mines_[static_cast<std::size_t>(mine)].site.tiles();
   } else {
     if (!trees_.has_tree(target)) return false;
@@ -254,15 +265,15 @@ bool World::start_gathering(Unit& u, bool gold, Point target) {
   auto route = approach(u, targets);
   if (!route) return false;
   send_along(u, std::move(route->path));
-  u.order = order::Harvest{order::Harvest::State::ToResource, gold, gold ? target : route->target, mine, 0.0};
+  u.order = order::Harvest{order::Harvest::State::ToResource, kind, kind != ResourceKind::Lumber ? target : route->target, mine, 0.0};
   return true;
 }
 
-bool World::start_gathering_nearest(Unit& u, bool gold) {
+bool World::start_gathering_nearest(Unit& u, ResourceKind kind) {
   std::vector<Point> targets;
-  if (gold) {
+  if (kind != ResourceKind::Lumber) {
     for (const auto& m : mines_) {
-      if (m.site.depleted()) continue;
+      if (m.site.depleted() || m.kind() != kind) continue;
       const auto tiles = m.site.tiles();
       targets.insert(targets.end(), tiles.begin(), tiles.end());
     }
@@ -272,13 +283,14 @@ bool World::start_gathering_nearest(Unit& u, bool gold) {
   auto route = approach(u, targets);
   if (!route) return false;
   send_along(u, std::move(route->path));
-  u.order = order::Harvest{order::Harvest::State::ToResource, gold, route->target,
-                           gold ? mine_at(route->target) : -1, 0.0};
+  u.order = order::Harvest{order::Harvest::State::ToResource, kind, route->target,
+                           kind != ResourceKind::Lumber ? mine_at(route->target) : -1, 0.0};
   return true;
 }
 
 bool World::send_to_depot(Unit& u) {
-  const auto depots = depot_tiles(u.owner);
+  const auto* harvest = std::get_if<order::Harvest>(&u.order);
+  const auto depots = depot_tiles(u.owner, harvest ? harvest->kind : ResourceKind::Gold);
   auto route = approach(u, depots);
   if (!route) return false;
   send_along(u, std::move(route->path));
@@ -311,8 +323,9 @@ void World::fell_tree(Point tile) {
 }
 
 void World::exhaust_mine(int index) {
-  for (const Point p : mines_[static_cast<std::size_t>(index)].site.tiles())
-    layer(MoveClass::Land).blocked.set_blocked(p, false);
+  const Mine& mine = mines_[static_cast<std::size_t>(index)];
+  Layer& L = layer(mine.kind() == ResourceKind::Oil ? MoveClass::Water : MoveClass::Land);
+  for (const Point p : mine.site.tiles()) L.blocked.set_blocked(p, false);
   events_.publish(ev::MineDepleted{index});
 }
 
@@ -331,7 +344,8 @@ void World::update_order(Unit& u, double dt) {
 void World::update_harvest(Unit& u, order::Harvest& h, double dt) {
   using State = order::Harvest::State;
   const WorkerDef worker = u.def->worker.value_or(WorkerDef{});
-  const bool gold = h.gold;
+  const ResourceKind kind = h.kind;
+  const bool from_site = h.from_site();
   const Point target = h.target;
 
   const auto fail = [&](const std::string& msg) {
@@ -339,26 +353,29 @@ void World::update_harvest(Unit& u, order::Harvest& h, double dt) {
     cancel_order(u);
   };
   const auto retry = [&] {
-    const bool alive = gold ? mine_at(target) >= 0 : trees_.has_tree(target);
-    const bool ok = alive ? start_gathering(u, gold, target) : start_gathering_nearest(u, gold);
-    if (!ok) fail(gold ? "There is no gold left to mine" : "There are no more trees");
+    const bool alive = from_site ? mine_at(target) >= 0 : trees_.has_tree(target);
+    const bool ok = alive ? start_gathering(u, kind, target) : start_gathering_nearest(u, kind);
+    if (!ok)
+      fail(kind == ResourceKind::Gold ? "There is no gold left to mine"
+           : kind == ResourceKind::Oil ? "There is no oil left to pump" : "There are no more trees");
   };
 
   switch (h.state) {
     case State::ToResource: {
       if (!u.is_idle()) return;
-      if (gold) {
+      if (from_site) {
         const int mine = mine_at(target);
         if (mine < 0) return retry();
         Mine& m = mines_[static_cast<std::size_t>(mine)];
         const auto tiles = m.site.tiles();
         if (adjacent_to_any(u.tile, tiles)) {
-          if (m.busy) return;  // wait for the peon inside to come out
-          m.busy = true;
+          const bool goes_inside = kind == ResourceKind::Gold;  // workers disappear into a mine; tankers stay in sight
+          if (goes_inside && m.busy) return;  // wait for the peon inside to come out
+          m.busy = goes_inside;
           h.mine = mine;
           h.state = State::Working;
           h.timer = 0.0;
-          u.hidden = true;
+          u.hidden = goes_inside;
           return;
         }
       } else if (trees_.has_tree(target) && is_adjacent(u.tile, target)) {
@@ -376,17 +393,18 @@ void World::update_harvest(Unit& u, order::Harvest& h, double dt) {
     }
     case State::Working: {
       h.timer += dt;
-      if (gold) {
-        if (h.timer < worker.mine_seconds) return;
+      if (from_site) {
+        const bool oil = kind == ResourceKind::Oil;
+        if (h.timer < (oil ? worker.oil_seconds : worker.mine_seconds)) return;
         Mine& m = mines_[static_cast<std::size_t>(h.mine)];
-        const int got = m.site.take(worker.gold_per_trip);
+        const int got = m.site.take(oil ? worker.oil_per_trip : worker.gold_per_trip);
         m.busy = false;
         u.hidden = false;
-        u.cargo = Cargo::Gold;
+        u.cargo = cargo_of(kind);
         u.carrying = got;
         if (m.site.depleted()) {
           exhaust_mine(h.mine);
-          notice(u.owner, "The gold mine is exhausted");
+          notice(u.owner, oil ? "The oil patch is exhausted" : "The gold mine is exhausted");
         }
       } else {
         if (h.timer < worker.chop_seconds) return;
@@ -404,13 +422,14 @@ void World::update_harvest(Unit& u, order::Harvest& h, double dt) {
     }
     case State::ToDepot: {
       if (!u.is_idle()) return;
-      const auto depots = depot_tiles(u.owner);
+      const auto depots = depot_tiles(u.owner, kind);
       if (adjacent_to_any(u.tile, depots)) {
         Stock amount;
-        (u.cargo == Cargo::Gold ? amount.gold : amount.lumber) = u.carrying;
+        (u.cargo == Cargo::Gold ? amount.gold : u.cargo == Cargo::Oil ? amount.oil : amount.lumber) = u.carrying;
         Stock& stock = player(u.owner).stock;
         stock.gold += amount.gold;
         stock.lumber += amount.lumber;
+        stock.oil += amount.oil;
         events_.publish(ev::Delivered{u.owner, amount});
         u.carrying = 0;
         u.cargo = Cargo::None;

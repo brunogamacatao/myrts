@@ -40,7 +40,7 @@ void Game::draw_world() {
 
   const auto tile_px = static_cast<float>(tile_size_);
   for (const auto& mine : world_->mines()) {
-    if (mine.site.depleted()) continue;
+    if (mine.site.depleted() || mine.kind() != myrts::ResourceKind::Gold) continue;  // (no oil art yet)
     const auto o = mine.site.origin();
     draw_centered_in_square(art_.gold_mine(mine.busy), static_cast<float>(o.x) * tile_px,
                             static_cast<float>(o.y) * tile_px, static_cast<float>(mine.site.size()) * tile_px);

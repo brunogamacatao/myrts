@@ -38,6 +38,13 @@ Targeting parse_targeting(const std::string& s) {
   throw std::runtime_error("unknown targeting '" + s + "'");
 }
 
+Placement parse_placement(const std::string& s) {
+  if (s == "land") return Placement::Land;
+  if (s == "coast") return Placement::Coast;
+  if (s == "water") return Placement::Water;
+  throw std::runtime_error("unknown placement '" + s + "' (expected land, coast or water)");
+}
+
 UnitDef parse_unit(const json& j) {
   UnitDef u;
   u.id = j.at("id").get<std::string>();
@@ -71,6 +78,8 @@ UnitDef parse_unit(const json& j) {
     def.gold_per_trip = w.value("gold_per_trip", def.gold_per_trip);
     def.chop_seconds = w.value("chop_seconds", def.chop_seconds);
     def.mine_seconds = w.value("mine_seconds", def.mine_seconds);
+    def.oil_per_trip = w.value("oil_per_trip", def.oil_per_trip);
+    def.oil_seconds = w.value("oil_seconds", def.oil_seconds);
     u.worker = def;
   }
   u.aggressive = j.value("aggressive", !u.worker.has_value());  // workers keep working unless told to fight
@@ -92,6 +101,8 @@ BuildingDef parse_building(const json& j) {
   b.icon = j.value("icon", -1);
   if (b.hp < 1) throw std::runtime_error("building '" + b.id + "': hp must be >= 1");
   b.is_depot = j.value("is_depot", false);
+  b.accepts_oil = j.value("accepts_oil", false);
+  b.placement = parse_placement(j.value("placement", std::string("land")));
   b.sprite = j.at("sprite").get<std::string>();
   b.sprite_construction = j.value("sprite_construction", b.sprite);
   b.trains = parse_strings(j, "trains");

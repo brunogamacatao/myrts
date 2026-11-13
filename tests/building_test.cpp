@@ -30,8 +30,8 @@ TEST_CASE("can_place rejects blocked or out-of-bounds footprints") {
   CHECK(can_place(g, {3, 3}, 2));
 }
 
-TEST_CASE("GoldMine is exhausted gradually") {
-  GoldMine m({1, 1}, 3, 250);
+TEST_CASE("ResourceSite is exhausted gradually") {
+  ResourceSite m({1, 1}, 3, 250);
   CHECK(m.tiles().size() == 9);
   CHECK(m.take(100) == 100);
   CHECK(m.take(100) == 100);

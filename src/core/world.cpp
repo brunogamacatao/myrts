@@ -28,7 +28,7 @@ const char* facing_name(Facing f) {
 
 bool Unit::working() const {
   if (const auto* h = std::get_if<order::Harvest>(&order))
-    return h->state == order::Harvest::State::Working && !h->gold;
+    return h->state == order::Harvest::State::Working && !h->from_site();
   if (const auto* b = std::get_if<order::Build>(&order)) return b->state == order::Build::State::Building;
   return false;
 }
@@ -93,7 +93,7 @@ EntityId World::add_building(const BuildingDef& def, PlayerId owner, Point origi
     b.hp = def.hp;
     return b;
   });
-  for (const Point p : footprint(origin, def.size)) layer(MoveClass::Land).blocked.set_blocked(p);
+  for (const Point p : footprint(origin, def.size)) layer_of(def).blocked.set_blocked(p);
   events_.publish(ev::BuildingPlaced{id, owner});
   if (complete) events_.publish(ev::BuildingCompleted{id, owner});
   return id;
@@ -104,18 +104,30 @@ void World::add_tree(Point tile, int lumber) {
   layer(MoveClass::Land).blocked.set_blocked(tile);
 }
 
-int World::add_mine(Point origin, int size, int gold) {
-  mines_.push_back({GoldMine(origin, size, gold), false});
-  for (const Point p : mines_.back().site.tiles()) layer(MoveClass::Land).blocked.set_blocked(p);
+int World::add_mine(Point origin, int size, int amount, ResourceKind kind) {
+  mines_.push_back({ResourceSite(origin, size, amount, kind), false});
+  Layer& L = layer(kind == ResourceKind::Oil ? MoveClass::Water : MoveClass::Land);
+  for (const Point p : mines_.back().site.tiles()) L.blocked.set_blocked(p);
   return static_cast<int>(mines_.size()) - 1;
 }
 
 // ---- queries --------------------------------------------------------------------
 
 PlaceStatus World::placement_status(const BuildingDef& def, Point origin) const {
-  if (!can_place(land().blocked, origin, def.size)) return PlaceStatus::Blocked;
+  const Layer& L = layer_of(def);  // water for platforms, land otherwise
+  if (!can_place(L.blocked, origin, def.size)) return PlaceStatus::Blocked;
+  if (def.placement == Placement::Coast) {  // a shore: some tile around the footprint must be open water
+    const Layer& sea = layer(MoveClass::Water);
+    bool shore = false;
+    for (int y = origin.y - 1; y <= origin.y + def.size && !shore; ++y)
+      for (int x = origin.x - 1; x <= origin.x + def.size && !shore; ++x) {
+        const bool inside = x >= origin.x && x < origin.x + def.size && y >= origin.y && y < origin.y + def.size;
+        shore = !inside && sea.blocked.is_walkable({x, y});
+      }
+    if (!shore) return PlaceStatus::Blocked;
+  }
   for (const Point p : footprint(origin, def.size))
-    if (land().occupancy.owner(p) != Occupancy::kNone) return PlaceStatus::UnitInWay;
+    if (L.occupancy.owner(p) != Occupancy::kNone) return PlaceStatus::UnitInWay;
   return PlaceStatus::Ok;
 }
 
@@ -148,10 +160,11 @@ int World::mine_at(Point tile) const {
   return -1;
 }
 
-std::vector<Point> World::depot_tiles(PlayerId owner) const {
+std::vector<Point> World::depot_tiles(PlayerId owner, ResourceKind kind) const {
   std::vector<Point> out;
   buildings_.for_each([&](const Building& b) {
-    if (b.owner != owner || !b.complete || !b.def->is_depot) return;
+    if (b.owner != owner || !b.complete) return;
+    if (kind == ResourceKind::Oil ? !b.def->accepts_oil : !b.def->is_depot) return;
     const auto tiles = footprint(b.origin, b.def->size);
     out.insert(out.end(), tiles.begin(), tiles.end());
   });

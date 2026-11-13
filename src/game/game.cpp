@@ -422,7 +422,7 @@ std::string Game::unit_animation(const myrts::Unit& u, const SpriteDef& sprite) 
   if (u.attacking() && !u.moving) return pick_animation(sprite, {"attack_" + dir, "chop_" + dir, base + dir});
   if (u.working() && !u.moving) return pick_animation(sprite, {"chop_" + dir, base + dir});
   if (u.carrying > 0) {
-    const std::string carried = base + (u.cargo == myrts::Cargo::Gold ? "gold_" : "wood_") + dir;
+    const std::string carried = base + (u.cargo == myrts::Cargo::Gold ? "gold_" : u.cargo == myrts::Cargo::Oil ? "oil_" : "wood_") + dir;
     return pick_animation(sprite, {carried, base + dir});
   }
   return pick_animation(sprite, {base + dir});

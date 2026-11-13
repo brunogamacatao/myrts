@@ -6,6 +6,9 @@
 
 namespace myrts {
 
+/// What workers gather. Gold and oil come from sites on the map (mines, oil patches); lumber from trees.
+enum class ResourceKind { Gold, Lumber, Oil };
+
 /// Amounts of each resource (a player's stock, or the price of something).
 struct Stock {
   int gold = 0;
@@ -34,23 +37,26 @@ constexpr bool pay(Stock& stock, const Cost& cost) {
 /// True if every tile of the footprint is inside the map and walkable.
 [[nodiscard]] bool can_place(const Grid& grid, Point origin, int size);
 
-/// A gold mine: a square obstacle holding a finite amount of gold.
-class GoldMine {
+/// A gold mine or an oil patch: a square obstacle holding a finite amount of one resource.
+class ResourceSite {
  public:
-  GoldMine(Point origin, int size, int gold) : origin_(origin), size_(size), remaining_(gold) {}
+  ResourceSite(Point origin, int size, int amount, ResourceKind kind = ResourceKind::Gold)
+      : origin_(origin), size_(size), remaining_(amount), kind_(kind) {}
 
+  [[nodiscard]] ResourceKind kind() const { return kind_; }
   [[nodiscard]] Point origin() const { return origin_; }
   [[nodiscard]] int size() const { return size_; }
   [[nodiscard]] int remaining() const { return remaining_; }
   [[nodiscard]] bool depleted() const { return remaining_ <= 0; }
   [[nodiscard]] std::vector<Point> tiles() const { return footprint(origin_, size_); }
-  /// Removes up to `amount` gold and returns what was taken.
+  /// Removes up to `amount` and returns what was taken.
   int take(int amount);
 
  private:
   Point origin_;
   int size_;
   int remaining_;
+  ResourceKind kind_;
 };
 
 }  // namespace myrts

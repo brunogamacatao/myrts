@@ -86,12 +86,23 @@ war2edit and warcraft2-map-editor; see `NOTICE.md`).
 
 Everything is data (`assets/data/units.json`, `buildings.json`). Behaviour differences come from a few fields: `move_class`
 (air units cross walls and are drawn lifted with a shadow), `stats.range` (ranged attackers), `siege_multiplier`
-(catapults and ballistas hit buildings much harder), `food`, and `aggressive`. Not implemented yet: naval units (needs a
-shipyard and a coast), Goblin Sappers, summoned Skeletons and spells.
+(catapults and ballistas hit buildings much harder), `food`, and `aggressive`. Naval groundwork exists in the core (see "Water and oil") but there are no ships, shipyards or sprites yet. Not implemented yet, Goblin Sappers, summoned Skeletons and spells.
 
 `MYRTS_ROSTER=1` spawns one of every unit type, which is a quick way to eyeball new sprites.
 
 The build menu pages itself when a worker can build more than five things.
+
+## Water and oil
+
+* `BuildingDef.placement` is `land` (default), `coast` (walkable ground with open water next to it: shipyards) or `water`
+  (oil platforms). `World::placement_status` checks the right layer; a `water` building blocks the water layer only.
+* Gold mines and oil patches are both `Mine`s with a `ResourceKind` (`World::add_mine(..., ResourceKind::Oil)`: an oil
+  patch is an obstacle in the water layer). A harvest `order::Harvest` carries the `ResourceKind` it gathers; workers
+  disappear into gold mines (one at a time) but tankers stay in sight and several may pump the same patch.
+* A worker delivers to a depot that accepts what it carries: `is_depot` for gold and lumber, `accepts_oil` for oil
+  (`World::depot_tiles(owner, kind)`). `WorkerDef` has `oil_per_trip` and `oil_seconds`.
+* Still missing for a naval campaign: map loading of oil patches (the `.pud` oil units), ships and their sprites, the HUD's
+  oil counter and the AI's naval plan.
 
 ## Adding content
 

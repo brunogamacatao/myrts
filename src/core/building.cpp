@@ -17,7 +17,7 @@ bool can_place(const Grid& grid, Point origin, int size) {
   return std::ranges::all_of(tiles, [&](Point p) { return grid.is_walkable(p); });
 }
 
-int GoldMine::take(int amount) {
+int ResourceSite::take(int amount) {
   if (amount <= 0) return 0;
   const int taken = std::min(amount, remaining_);
   remaining_ -= taken;

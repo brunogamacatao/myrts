@@ -22,7 +22,7 @@
 namespace myrts {
 
 /// What a worker is carrying back to a depot.
-enum class Cargo { None, Lumber, Gold };
+enum class Cargo { None, Lumber, Gold, Oil };
 
 
 // ---- orders -----------------------------------------------------------------
@@ -39,9 +39,11 @@ struct Idle {};
 struct Harvest {
   enum class State { ToResource, Working, ToDepot };
   State state = State::ToResource;  ///< current leg of the work cycle
-  bool gold = false;                ///< true: mining gold, false: chopping lumber
+  ResourceKind kind = ResourceKind::Lumber;  ///< what is being gathered
+  /// Gold and oil come from a site on the map (see World::mines()), lumber from a tree.
+  [[nodiscard]] bool from_site() const { return kind != ResourceKind::Lumber; }
   Point target{};                   ///< a tree tile, or any tile of the mine
-  int mine = -1;                    ///< index into World::mines() when gold
+  int mine = -1;                    ///< index into World::mines() when gathering from a site
   double timer = 0.0;               ///< work progress, or delay before re-planning a blocked route
 };
 
@@ -139,10 +141,11 @@ struct Building {
   std::optional<Point> rally;    // where new units go after leaving the building
 };
 
-/// A gold mine on the map plus whether a worker is currently inside it.
+/// A gold mine or oil patch on the map plus whether a worker is currently inside it.
 struct Mine {
-  GoldMine site;
-  bool busy = false;  ///< a worker is inside (only one at a time)
+  ResourceSite site;
+  bool busy = false;  ///< a worker is inside (gold only: one at a time; oil can be pumped by several)
+  [[nodiscard]] ResourceKind kind() const { return site.kind(); }
 };
 
 /// A participant of the match (human or computer) and their resources.
@@ -195,8 +198,9 @@ class World {
   EntityId add_building(const BuildingDef& def, PlayerId owner, Point origin, bool complete);
   /// Adds a tree holding `lumber` units of wood.
   void add_tree(Point tile, int lumber);
-  /// Adds a gold mine (a `size` x `size` obstacle) and returns its index in mines().
-  int add_mine(Point origin, int size, int gold);
+  /// Adds a gold mine or oil patch (a `size` x `size` obstacle: on land for gold, on water for oil) and returns its
+  /// index in mines().
+  int add_mine(Point origin, int size, int amount, ResourceKind kind = ResourceKind::Gold);
 
   // ---- orders (what the player asks for)
   /// Cancels the orders and movement of the given units (builders stay locked).
@@ -236,8 +240,8 @@ class World {
   [[nodiscard]] EntityId unit_at(Point tile) const;  // visible unit standing on (or stepping onto) the tile
   [[nodiscard]] static bool is_enemy(PlayerId a, PlayerId b) { return a != b && a != kNoPlayer && b != kNoPlayer; }
   [[nodiscard]] int mine_at(Point tile) const;  // -1 if none (depleted mines do not count)
-  /// Tiles of the owner's finished depots (halls), where workers deliver.
-  [[nodiscard]] std::vector<Point> depot_tiles(PlayerId owner) const;
+  /// Tiles of the owner's finished depots that accept `kind` (halls for gold and lumber, shipyards for oil).
+  [[nodiscard]] std::vector<Point> depot_tiles(PlayerId owner, ResourceKind kind = ResourceKind::Gold) const;
   /// True while the player still has any unit or building (used by the victory rules).
   [[nodiscard]] bool has_assets(PlayerId owner) const;
   /// Food provided by finished buildings.
@@ -271,6 +275,9 @@ class World {
   [[nodiscard]] const Layer& layer(MoveClass c) const { return layers_[static_cast<std::size_t>(c)]; }
   [[nodiscard]] Layer& layer_of(const Unit& u) { return layer(u.def->move_class); }
   [[nodiscard]] const Layer& land() const { return layer(MoveClass::Land); }
+  /// The layer a building occupies: platforms stand on the water, everything else on land.
+  [[nodiscard]] Layer& layer_of(const BuildingDef& d) { return layer(d.placement == Placement::Water ? MoveClass::Water : MoveClass::Land); }
+  [[nodiscard]] const Layer& layer_of(const BuildingDef& d) const { return layer(d.placement == Placement::Water ? MoveClass::Water : MoveClass::Land); }
   static int occ_id(const Unit& u) { return static_cast<int>(u.id.index); }
 
   // movement (world.cpp)
@@ -288,8 +295,8 @@ class World {
   void update_build(Unit& u, order::Build& b, double dt);
   void cancel_order(Unit& u);
   [[nodiscard]] std::optional<ApproachPath> approach(const Unit& u, std::span<const Point> targets) const;
-  bool start_gathering(Unit& u, bool gold, Point target);
-  bool start_gathering_nearest(Unit& u, bool gold);
+  bool start_gathering(Unit& u, ResourceKind kind, Point target);
+  bool start_gathering_nearest(Unit& u, ResourceKind kind);
   bool send_to_depot(Unit& u);
   bool start_building(Unit& u, EntityId building);
   void notice(PlayerId to, std::string text);

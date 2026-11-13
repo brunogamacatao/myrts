@@ -16,6 +16,13 @@ namespace myrts {
 /// @see World for how each class gets its own blocked grid.
 enum class MoveClass { Land, Water, Air };
 
+/// Where a building may stand. A shipyard needs the shore, an oil platform stands on the water.
+enum class Placement {
+  Land,   ///< on walkable ground (the default)
+  Coast,  ///< on walkable ground with open water next to it, so the ships it builds can leave
+  Water   ///< on sailable water (oil platforms)
+};
+
 enum class Targeting {
   None,      // acts immediately (Stop)
   Ground,    // next click picks a tile (Move)
@@ -38,6 +45,8 @@ struct WorkerDef {
   int gold_per_trip = 100;
   double chop_seconds = 3.0;
   double mine_seconds = 2.5;
+  int oil_per_trip = 100;
+  double oil_seconds = 2.5;
 };
 
 /// Static data shared by every unit of a kind. Loaded from assets/data/units.json.
@@ -77,7 +86,9 @@ struct BuildingDef {
   int hp = 400;
   int armor = 0;
   int food = 0;           // food this building provides (farms, town halls)
-  bool is_depot = false;  // accepts delivered gold and lumber
+  bool is_depot = false;      // accepts delivered gold and lumber
+  bool accepts_oil = false;   // accepts delivered oil (shipyards, refineries)
+  Placement placement = Placement::Land;  // where it can be built
   int icon = -1;                    // index in the icon atlas
   std::string sprite;               // finished building (png)
   std::string sprite_construction;  // while being built (png)
