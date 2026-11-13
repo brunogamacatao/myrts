@@ -113,6 +113,16 @@ struct CommandDef {
   bool implemented = true;
 };
 
+/// How to read a campaign written for another faction as this one: the unit and building ids to use instead
+/// (`orc_peon` becomes `alliance_peasant`; an id may become several, or none) and the words of the briefings and hints.
+struct Translation {
+  std::unordered_map<std::string, std::vector<std::string>> ids;
+  std::vector<std::pair<std::string, std::string>> terms;  ///< the longest matching source wins; the text is read once
+};
+
+/// Rewrites `text` with `translation.terms` in one pass, so a replacement is never replaced again.
+[[nodiscard]] std::string translate_text(std::string_view text, const Translation& translation);
+
 /// A playable side: what its players start with. Loaded from assets/data/factions.json.
 struct FactionDef {
   std::string id;                              ///< matches `faction` of its units and buildings ("orcs", "alliance")
@@ -120,6 +130,8 @@ struct FactionDef {
   std::string worker;                          ///< unit id of the starting workers
   std::string town_hall;                       ///< building id every player of this side starts with
   std::vector<std::string> base_buildings;     ///< production buildings a computer player starts with, around its hall
+  /// By the faction a campaign level was written for: how to play that level as this faction.
+  std::unordered_map<std::string, Translation> translations;
 };
 
 /// All game data. Immutable after loading; units and buildings refer to each other by id and

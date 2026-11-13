@@ -158,7 +158,7 @@ Result World::order_harvest(std::span<const EntityId> ids, Point tile) {
   }
   if (!any_worker) return Result::fail("These units cannot gather resources");
   if (no_depot)
-    return Result::fail(kind == ResourceKind::Oil ? "You need a Shipyard to deliver oil" : "You need a Great Hall to deliver resources");
+    return Result::fail(kind == ResourceKind::Oil ? "You need a Shipyard to deliver oil" : "You need a Great Hall or Town Hall to deliver resources");
   if (unreachable)
     return Result::fail(kind == ResourceKind::Gold ? "Cannot reach that gold mine"
                         : kind == ResourceKind::Oil ? "Cannot reach that oil patch" : "Cannot reach that tree");
@@ -170,7 +170,7 @@ Result World::order_build(PlayerId owner, std::span<const EntityId> candidates, 
   std::vector<EntityId> free;
   free_units(candidates, free);
   std::erase_if(free, [&](EntityId id) { return !can_build(*units_.get(id), def); });
-  if (free.empty()) return Result::fail("The selected peons are busy or cannot build that");
+  if (free.empty()) return Result::fail("The selected workers are busy or cannot build that");
 
   switch (placement_status(def, origin)) {
     case PlaceStatus::Blocked: return Result::fail("Cannot build there");
@@ -414,7 +414,7 @@ void World::update_harvest(Unit& u, order::Harvest& h, double dt) {
         u.carrying = got;
       }
       if (u.carrying > 0) {
-        if (!send_to_depot(u)) fail("Cannot reach a Great Hall");
+        if (!send_to_depot(u)) fail("Cannot reach a hall to deliver to");
       } else {
         retry();
       }
@@ -435,7 +435,7 @@ void World::update_harvest(Unit& u, order::Harvest& h, double dt) {
         u.cargo = Cargo::None;
         return retry();
       }
-      if ((h.timer += dt) >= config_.retry_delay && !send_to_depot(u)) fail("Cannot reach a Great Hall");
+      if ((h.timer += dt) >= config_.retry_delay && !send_to_depot(u)) fail("Cannot reach a hall to deliver to");
       return;
     }
   }

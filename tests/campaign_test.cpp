@@ -110,3 +110,49 @@ TEST_CASE("levels name factions that exist; the default sides are orcs against t
   CHECK(c->level(1).player_faction == "alliance");
   CHECK(c->level(1).enemy_faction == "orcs");
 }
+
+TEST_CASE("a level can be played as the other faction: sides swap, ids and words are translated") {
+  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  const auto campaign = Campaign::load_file((assets / "data" / "campaign.json").string());
+  const auto registry = Registry::load_directory((assets / "data").string());
+  REQUIRE(campaign.has_value());
+  REQUIRE(registry.has_value());
+
+  const Level& first = campaign->level(0);
+  CHECK(play_as(first, *registry, "orcs").hints == first.hints);  // its own faction: untouched
+  CHECK(play_as(first, *registry, "").allow == first.allow);
+  CHECK(play_as(first, *registry, "elves").player_faction == first.player_faction);  // unknown: untouched
+
+  const Level human = play_as(first, *registry, "alliance");
+  CHECK(human.player_faction == "alliance");
+  CHECK(human.enemy_faction == "orcs");
+  CHECK(human.briefing == "Learn to gather, build and train. The Horde is slow to react.");
+  CHECK(human.hints[0].contains("peasant"));
+  CHECK(human.hints[0].contains("Town Hall"));
+  CHECK(human.hints[3].contains("Footmen"));
+
+  // Every level, translated, only allows things of the human side that exist, and keeps no orc words behind (enemy Dragons are fine).
+  for (const Level& level : campaign->levels()) {
+    INFO(level.name);
+    const Level l = play_as(level, *registry, "alliance");
+    for (const auto& id : l.allow) {
+      const bool unit = registry->unit(id) != nullptr;
+      REQUIRE((unit || registry->building(id) != nullptr));
+      CHECK((unit ? registry->unit(id)->faction : registry->building(id)->faction) == "alliance");
+    }
+    CHECK(level.allow.empty() == l.allow.empty());
+    for (const auto& text : l.hints)
+      for (const char* orc : {"Peon", "peon", "Grunt", "Great Hall", "Pig Farm", "Axethrower", "Ogre", "Zeppelin"})
+        CHECK_FALSE(text.contains(orc));
+  }
+  // A human can use every kind of thing the orc level offered: workers, a hall and something to fight with.
+  const Level rich = play_as(campaign->level(9), *registry, "alliance");  // "Rich Ground": everything allowed
+  CHECK(rich.allow.empty());
+}
+
+TEST_CASE("translate_text replaces in one pass and prefers the longest term") {
+  Translation t;
+  t.terms = {{"Alliance", "Horde"}, {"Horde", "Alliance"}, {"Alliance Gryphons", "Horde Dragons"}};
+  CHECK(translate_text("The Alliance and the Horde. Alliance Gryphons.", t) == "The Horde and the Alliance. Horde Dragons.");
+  CHECK(translate_text("nothing to do", t) == "nothing to do");
+}

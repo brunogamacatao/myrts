@@ -18,9 +18,10 @@ constexpr const char* kDefaultMap = "maps/Gold Rush BNE.pud";
 
 // ---- setup ------------------------------------------------------------------------
 
-std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContext& ctx, std::size_t level_index) {
+std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContext& ctx, std::size_t level_index,
+                                                                const std::string& faction) {
   const myrts::Level fallback = myrts::Campaign::single(kDefaultMap).level(0);
-  const myrts::Level& level = ctx.campaign ? ctx.campaign->level(level_index) : fallback;
+  const myrts::Level level = myrts::play_as(ctx.campaign ? ctx.campaign->level(level_index) : fallback, *ctx.registry, faction);
   std::unique_ptr<Game> game(new Game());
   game->font_ = ctx.font;
   game->cursors_ = ctx.cursors;

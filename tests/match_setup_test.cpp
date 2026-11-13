@@ -85,3 +85,25 @@ TEST_CASE("a level with an unknown faction or a missing map is refused with a me
   level.map = "maps/does-not-exist.pud";
   CHECK_FALSE(build_match(d.registry, d.tilesets, level, d.options()).has_value());
 }
+
+TEST_CASE("every shipped level can be played as the alliance: the human side is the alliance, the AI the horde") {
+  const Data d;
+  for (const Level& original : d.campaign.levels()) {
+    INFO(original.name);
+    const Level level = play_as(original, d.registry, "alliance");
+    const auto m = build_match(d.registry, d.tilesets, level, d.options());
+    REQUIRE(m.has_value());
+    const World& w = *m->world;
+    CHECK(w.player(m->local).faction == "alliance");
+    CHECK(w.player(m->enemy).faction == "orcs");
+    CHECK(w.buildings().get(w.building_at(m->local_hall))->def->id == "alliance_town_hall");
+    CHECK(count_units(w, m->local, true) > 0);
+    CHECK(count_buildings(w, m->enemy) >= 1);
+    // The allowed list leaves the human something to build with and something to train.
+    if (!level.allow.empty()) {
+      CHECK(std::ranges::find(level.allow, "alliance_peasant") != level.allow.end());
+      CHECK(std::ranges::find(level.allow, "alliance_town_hall") != level.allow.end());
+      CHECK(std::ranges::find(level.allow, "alliance_footman") != level.allow.end());
+    }
+  }
+}

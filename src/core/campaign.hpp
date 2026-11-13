@@ -29,6 +29,12 @@ struct Level {
   int enemy_workers = 2;
 };
 
+/// `level` as played by `faction`. Levels are written for one faction (`level.player_faction`, the orcs); to play another
+/// the sides are swapped (the written player's faction becomes the enemy) and the unit and building ids of `allow` and
+/// the words of the briefing and hints are translated with the faction's `Translation` (see assets/data/factions.json).
+/// An unknown faction, or the level's own, leaves the level as it is.
+[[nodiscard]] Level play_as(const Level& level, const Registry& registry, std::string_view faction);
+
 /// The ordered list of levels, loaded from assets/data/campaign.json. Winning a level leads to the next one.
 class Campaign {
  public:

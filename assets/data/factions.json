@@ -5,14 +5,164 @@
       "name": "Horde",
       "worker": "orc_peon",
       "town_hall": "great_hall",
-      "base_buildings": ["barracks", "ogre_mound", "dragon_roost"]
+      "base_buildings": [
+        "barracks",
+        "ogre_mound",
+        "dragon_roost"
+      ]
     },
     {
       "id": "alliance",
       "name": "Alliance",
       "worker": "alliance_peasant",
       "town_hall": "alliance_town_hall",
-      "base_buildings": ["alliance_barracks", "alliance_stables", "alliance_aviary"]
+      "base_buildings": [
+        "alliance_barracks",
+        "alliance_stables",
+        "alliance_aviary"
+      ],
+      "translations": {
+        "orcs": {
+          "ids": {
+            "orc_peon": "alliance_peasant",
+            "great_hall": "alliance_town_hall",
+            "pig_farm": "alliance_farm",
+            "barracks": "alliance_barracks",
+            "orc_grunt": "alliance_footman",
+            "orc_troll_axethrower": "alliance_archer",
+            "ogre_mound": [
+              "alliance_stables",
+              "alliance_blacksmith"
+            ],
+            "orc_ogre": "alliance_knight",
+            "orc_catapult": "alliance_ballista",
+            "temple_of_the_damned": "alliance_mage_tower",
+            "orc_death_knight": "alliance_mage",
+            "dragon_roost": "alliance_aviary",
+            "orc_dragon": "alliance_gryphon",
+            "alchemist": [],
+            "orc_zeppelin": []
+          },
+          "terms": [
+            [
+              "Alliance Gryphons",
+              "Horde Dragons"
+            ],
+            [
+              "Alliance",
+              "Horde"
+            ],
+            [
+              "Gryphons",
+              "Dragons"
+            ],
+            [
+              "The Ogre Mound trains Ogres (strong in melee) and Catapults.",
+              "The Stables train Knights (strong in melee) and the Blacksmith builds Ballistas."
+            ],
+            [
+              "Zeppelins (Alchemist) are cheap scouts.",
+              "Keep a few Archers at home to watch the sky."
+            ],
+            [
+              "Scout with a Zeppelin: its sight range is long and it is cheap.",
+              "Scout with a Gryphon Rider: it flies fast and sees far."
+            ],
+            [
+              "Troll Axethrowers",
+              "Archers"
+            ],
+            [
+              "Axethrowers",
+              "Archers"
+            ],
+            [
+              "Axethrower",
+              "Archer"
+            ],
+            [
+              "Great Hall",
+              "Town Hall"
+            ],
+            [
+              "Pig Farms",
+              "Farms"
+            ],
+            [
+              "Pig Farm",
+              "Farm"
+            ],
+            [
+              "peons",
+              "peasants"
+            ],
+            [
+              "peon",
+              "peasant"
+            ],
+            [
+              "Grunts",
+              "Footmen"
+            ],
+            [
+              "Grunt",
+              "Footman"
+            ],
+            [
+              "Ogre Mound",
+              "Stables"
+            ],
+            [
+              "Ogres",
+              "Knights"
+            ],
+            [
+              "Ogre",
+              "Knight"
+            ],
+            [
+              "Catapults",
+              "Ballistas"
+            ],
+            [
+              "catapults",
+              "ballistas"
+            ],
+            [
+              "Death Knights",
+              "Mages"
+            ],
+            [
+              "Death Knight",
+              "Mage"
+            ],
+            [
+              "Their Temple",
+              "Their Tower"
+            ],
+            [
+              "Temple of the Damned",
+              "Mage Tower"
+            ],
+            [
+              "Dragon Roost",
+              "Gryphon Aviary"
+            ],
+            [
+              "Dragons",
+              "Gryphons"
+            ],
+            [
+              "dragons",
+              "gryphons"
+            ],
+            [
+              "breathe fire",
+              "strike hard"
+            ]
+          ]
+        }
+      }
     }
   ]
 }

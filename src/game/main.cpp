@@ -78,7 +78,12 @@ int main() {
   cursors.load(display);
 
   SceneManager scenes({display, font, &assets, &*registry, &cursors, shared_campaign, &audio, shared_sounds, shared_tilesets});
-  if (!scenes.start(make_intro([] { return Transition::replace(make_main_menu()); }))) return EXIT_FAILURE;
+  // Testing aid: MYRTS_FACTION=alliance starts the first level straight away as that side (skipping the menus).
+  if (const char* faction = std::getenv("MYRTS_FACTION")) {
+    if (!scenes.start(make_game(0, faction))) return EXIT_FAILURE;
+  } else if (!scenes.start(make_intro([] { return Transition::replace(make_main_menu()); }))) {
+    return EXIT_FAILURE;
+  }
 
   bool redraw = true;
   double last_time = al_get_time();

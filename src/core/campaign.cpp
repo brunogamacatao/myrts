@@ -1,5 +1,6 @@
 #include "campaign.hpp"
 
+#include <algorithm>
 #include <fstream>
 #include <iterator>
 #include <nlohmann/json.hpp>
@@ -49,6 +50,28 @@ std::expected<Campaign, std::string> Campaign::parse(std::string_view json_text)
   }
   if (campaign.levels_.empty()) return std::unexpected("the campaign has no levels");
   return campaign;
+}
+
+Level play_as(const Level& level, const Registry& registry, std::string_view faction) {
+  if (faction.empty() || faction == level.player_faction) return level;
+  const FactionDef* chosen = registry.faction(faction);
+  if (!chosen) return level;
+  Level out = level;
+  out.enemy_faction = level.player_faction;
+  out.player_faction = chosen->id;
+  const auto it = chosen->translations.find(level.player_faction);
+  if (it == chosen->translations.end()) return out;
+  const Translation& t = it->second;
+  out.allow.clear();
+  for (const std::string& id : level.allow) {
+    const auto to = t.ids.find(id);
+    const std::vector<std::string> mapped = to == t.ids.end() ? std::vector<std::string>{id} : to->second;
+    for (const std::string& m : mapped)
+      if (std::ranges::find(out.allow, m) == out.allow.end()) out.allow.push_back(m);
+  }
+  out.briefing = translate_text(level.briefing, t);
+  for (std::string& hint : out.hints) hint = translate_text(hint, t);
+  return out;
 }
 
 std::expected<Campaign, std::string> Campaign::load_file(const std::string& path) {

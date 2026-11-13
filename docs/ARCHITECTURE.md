@@ -124,6 +124,13 @@ walk/idle. No C++ needed unless it needs a new behaviour.
 **A building**: entry in `assets/data/buildings.json` (size, cost, build time, `is_depot`, sprites, `trains`) and the two PNGs.
 It shows up in the build menu of every unit whose `builds` lists it.
 
+**Playing a level as the other side**: campaign levels are written for one faction (orcs). The faction-select screen
+(`make_faction_select`, from "New Game") picks the side; `play_as(level, registry, faction)` swaps the sides and uses the
+`translations` block of the chosen faction in `factions.json` to turn the level's `allow` ids and the words of its
+briefing and hints into that faction's (`orc_peon` becomes `alliance_peasant`, "Great Hall" becomes "Town Hall"). A new
+faction needs its own translation from the faction the campaign was written for. `MYRTS_FACTION=alliance` starts level 1
+as that side, skipping the menus (a testing aid).
+
 **A command**: entry in `assets/data/commands.json` (label, hotkey, `targeting`, and `icons`: atlas indices by faction with a
 `default`) and a line in `Game::register_commands` for what it does.
 

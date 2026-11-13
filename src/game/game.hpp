@@ -52,8 +52,10 @@ struct Projectile {
 /// game_input.cpp (mouse and keyboard) and game_render.cpp (drawing).
 class Game {
  public:
-  /// Builds the match for level `level` of the campaign (see assets/data/campaign.json).
-  static std::expected<std::unique_ptr<Game>, std::string> create(const SceneContext& ctx, std::size_t level = 0);
+  /// Builds the match for level `level` of the campaign (see assets/data/campaign.json), played as `faction`
+  /// ("" keeps the side the level was written for; see myrts::play_as).
+  static std::expected<std::unique_ptr<Game>, std::string> create(const SceneContext& ctx, std::size_t level = 0,
+                                                                  const std::string& faction = {});
   Game(const Game&) = delete;
   Game& operator=(const Game&) = delete;
 

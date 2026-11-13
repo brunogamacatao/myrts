@@ -130,6 +130,16 @@ FactionDef parse_faction(const json& j) {
   f.worker = j.at("worker").get<std::string>();
   f.town_hall = j.at("town_hall").get<std::string>();
   f.base_buildings = parse_strings(j, "base_buildings");
+  if (j.contains("translations"))
+    for (const auto& [from, t] : j.at("translations").items()) {
+      Translation tr;
+      if (t.contains("ids"))
+        for (const auto& [id, to] : t.at("ids").items())
+          tr.ids[id] = to.is_array() ? to.get<std::vector<std::string>>() : std::vector<std::string>{to.get<std::string>()};
+      if (t.contains("terms"))
+        for (const auto& pair : t.at("terms")) tr.terms.emplace_back(pair.at(0).get<std::string>(), pair.at(1).get<std::string>());
+      f.translations[from] = std::move(tr);
+    }
   return f;
 }
 
@@ -150,6 +160,23 @@ std::string find_duplicate(const std::vector<T>& items) {
 }
 
 }  // namespace
+
+std::string translate_text(std::string_view text, const Translation& translation) {
+  std::string out;
+  for (std::size_t i = 0; i < text.size();) {
+    const std::pair<std::string, std::string>* best = nullptr;
+    for (const auto& term : translation.terms)
+      if (!term.first.empty() && text.substr(i).starts_with(term.first) && (!best || term.first.size() > best->first.size()))
+        best = &term;
+    if (best) {
+      out += best->second;
+      i += best->first.size();
+    } else {
+      out += text[i++];
+    }
+  }
+  return out;
+}
 
 std::expected<Registry, std::string> Registry::parse(std::string_view units_json, std::string_view buildings_json,
                                                      std::string_view commands_json, std::string_view factions_json) {
@@ -185,6 +212,15 @@ std::expected<Registry, std::string> Registry::parse(std::string_view units_json
     if (!r.building(f.town_hall)) return std::unexpected("faction '" + f.id + "' has unknown town hall '" + f.town_hall + "'");
     for (const auto& b : f.base_buildings)
       if (!r.building(b)) return std::unexpected("faction '" + f.id + "' has unknown base building '" + b + "'");
+    for (const auto& [from, t] : f.translations) {
+      if (!r.faction(from)) return std::unexpected("faction '" + f.id + "' translates from unknown faction '" + from + "'");
+      for (const auto& [id, to] : t.ids) {
+        const auto known = [&](const std::string& x) { return r.unit(x) || r.building(x); };
+        if (!known(id)) return std::unexpected("faction '" + f.id + "' translates unknown id '" + id + "'");
+        for (const auto& x : to)
+          if (!known(x)) return std::unexpected("faction '" + f.id + "' translates '" + id + "' to unknown id '" + x + "'");
+      }
+    }
   }
   return r;
 }

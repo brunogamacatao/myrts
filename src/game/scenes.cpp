@@ -128,8 +128,8 @@ class IntroScene : public Scene {
 
 class GameScene : public Scene {
  public:
-  GameScene(std::unique_ptr<Game> game, std::size_t level, Audio* audio, std::string music)
-      : game_(std::move(game)), level_(level), audio_(audio), music_(std::move(music)) {}
+  GameScene(std::unique_ptr<Game> game, std::size_t level, std::string faction, Audio* audio, std::string music)
+      : game_(std::move(game)), level_(level), faction_(std::move(faction)), audio_(audio), music_(std::move(music)) {}
 
   void on_enter() override {
     if (audio_ && !music_.empty()) audio_->play_music(music_, true);  // the level's track, looping
@@ -139,11 +139,11 @@ class GameScene : public Scene {
 
   Transition handle_event(const ALLEGRO_EVENT& e) override {
     if (e.type == ALLEGRO_EVENT_KEY_DOWN) {  // debug shortcuts until real win/lose rules exist
-      if (e.keyboard.keycode == ALLEGRO_KEY_F11) return Transition::replace(make_game_over(GameResult::Victory, level_));
-      if (e.keyboard.keycode == ALLEGRO_KEY_F12) return Transition::replace(make_game_over(GameResult::Defeat, level_));
+      if (e.keyboard.keycode == ALLEGRO_KEY_F11) return Transition::replace(make_game_over(GameResult::Victory, level_, faction_));
+      if (e.keyboard.keycode == ALLEGRO_KEY_F12) return Transition::replace(make_game_over(GameResult::Defeat, level_, faction_));
     }
     game_->handle_event(e);
-    if (game_->take_menu_request()) return Transition::push(make_pause_menu(level_));
+    if (game_->take_menu_request()) return Transition::push(make_pause_menu(level_, faction_));
     return Transition::none();
   }
 
@@ -152,7 +152,7 @@ class GameScene : public Scene {
     if (const auto outcome = game_->outcome())
       return Transition::replace(make_game_over(*outcome == myrts::Outcome::Victory ? GameResult::Victory
                                                                                      : GameResult::Defeat,
-                                    level_));
+                                    level_, faction_));
     return Transition::none();
   }
 
@@ -161,6 +161,7 @@ class GameScene : public Scene {
  private:
   std::unique_ptr<Game> game_;
   std::size_t level_;
+  std::string faction_;
   Audio* audio_;
   std::string music_;
 };
@@ -173,11 +174,11 @@ SceneFactory make_intro(std::function<Transition()> when_done) {
   return factory_of<IntroScene>(std::move(when_done));
 }
 
-SceneFactory make_game(std::size_t level) {
-  return [level](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
-    auto game = Game::create(ctx, level);
+SceneFactory make_game(std::size_t level, std::string faction) {
+  return [level, faction = std::move(faction)](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
+    auto game = Game::create(ctx, level, faction);
     if (!game) return std::unexpected(game.error());
-    return std::make_unique<GameScene>(std::move(*game), level, ctx.audio,
+    return std::make_unique<GameScene>(std::move(*game), level, faction, ctx.audio,
                                        ctx.campaign ? ctx.campaign->level(level).music : std::string{});
   };
 }
@@ -189,7 +190,7 @@ SceneFactory make_main_menu() {
     cfg.subtitle = "A real-time strategy game";
     cfg.music = kMenuMusic;
     cfg.items = {
-        {"New Game", [] { return Transition::replace(make_game()); }},
+        {"New Game", [] { return Transition::push(make_faction_select()); }},
         {"Options", [] { return Transition::push(make_options()); }},
         {"Credits", [] { return Transition::push(make_intro([] { return Transition::pop(); }), true); }},
         {"Exit", [] { return Transition::quit(); }},
@@ -198,8 +199,24 @@ SceneFactory make_main_menu() {
   };
 }
 
-SceneFactory make_pause_menu(std::size_t level) {
-  return [level](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
+SceneFactory make_faction_select() {
+  return [](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
+    MenuConfig cfg;
+    cfg.title = "Choose Your Side";
+    cfg.subtitle = "The campaign is the same for both; the enemy is the other side";
+    cfg.music = kMenuMusic;
+    cfg.on_escape = [] { return Transition::pop(); };
+    for (const myrts::FactionDef& f : ctx.registry->factions()) {
+      const std::string id = f.id;
+      cfg.items.push_back({"Play as the " + f.name, [id] { return Transition::reset(make_game(0, id)); }});
+    }
+    cfg.items.push_back({"Back", [] { return Transition::pop(); }});
+    return std::make_unique<MenuScene>(ctx, std::move(cfg));
+  };
+}
+
+SceneFactory make_pause_menu(std::size_t level, std::string faction) {
+  return [level, faction = std::move(faction)](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
     MenuConfig cfg;
     cfg.title = "Game Menu";
     cfg.overlay = true;
@@ -207,7 +224,7 @@ SceneFactory make_pause_menu(std::size_t level) {
     cfg.items = {
         {"Resume", [] { return Transition::pop(); }},
         {"Options", [] { return Transition::push(make_options()); }},
-        {"Restart Level", [level] { return Transition::reset(make_game(level)); }},
+        {"Restart Level", [level, faction] { return Transition::reset(make_game(level, faction)); }},
         {"Quit to Main Menu", [] { return Transition::reset(make_main_menu()); }},
         {"Exit Game", [] { return Transition::quit(); }},
     };
@@ -215,8 +232,8 @@ SceneFactory make_pause_menu(std::size_t level) {
   };
 }
 
-SceneFactory make_game_over(GameResult result, std::size_t level) {
-  return [result, level](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
+SceneFactory make_game_over(GameResult result, std::size_t level, std::string faction) {
+  return [result, level, faction = std::move(faction)](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
     const bool won = result == GameResult::Victory;
     const auto next = ctx.campaign ? ctx.campaign->next(level) : std::nullopt;
     const bool multi = ctx.campaign && ctx.campaign->size() > 1;
@@ -229,10 +246,10 @@ SceneFactory make_game_over(GameResult result, std::size_t level) {
     cfg.title_color = won ? al_map_rgb(240, 200, 60) : al_map_rgb(220, 60, 50);
     if (won && next) {
       const std::size_t n = *next;
-      cfg.items.push_back({"Next Level", [n] { return Transition::reset(make_game(n)); }});
+      cfg.items.push_back({"Next Level", [n, faction] { return Transition::reset(make_game(n, faction)); }});
     }
-    cfg.items.push_back({won ? "Replay Level" : "Try Again", [level] { return Transition::reset(make_game(level)); }});
-    if (won && !next && multi) cfg.items.push_back({"Play From the Start", [] { return Transition::reset(make_game(0)); }});
+    cfg.items.push_back({won ? "Replay Level" : "Try Again", [level, faction] { return Transition::reset(make_game(level, faction)); }});
+    if (won && !next && multi) cfg.items.push_back({"Play From the Start", [faction] { return Transition::reset(make_game(0, faction)); }});
     cfg.items.push_back(MenuItem{"Main Menu", [] { return Transition::reset(make_main_menu()); }});
     cfg.items.push_back(MenuItem{"Exit Game", [] { return Transition::quit(); }});
     return std::make_unique<MenuScene>(ctx, std::move(cfg));
