@@ -38,5 +38,5 @@ ALLEGRO_SAMPLE* Audio::sample(const std::string& file) {
 
 void Audio::play(const std::string& file, float gain, float pan) {
   if (!ready_ || muted_ || gain <= 0.0f) return;
-  if (ALLEGRO_SAMPLE* s = sample(file)) al_play_sample(s, gain, pan, 1.0f, ALLEGRO_PLAYMODE_ONCE, nullptr);
+  if (ALLEGRO_SAMPLE* s = sample(file)) al_play_sample(s, gain * volume_, pan, 1.0f, ALLEGRO_PLAYMODE_ONCE, nullptr);
 }

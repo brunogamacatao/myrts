@@ -83,6 +83,7 @@ if(MYRTS_BUILD_GAME)
     src/game/cursors.cpp
     src/game/draw_util.cpp
     src/game/menu_scene.cpp
+    src/game/options_scene.cpp
     src/game/scene_manager.cpp
     src/game/scenes.cpp
     src/game/assets.cpp

@@ -12,4 +12,6 @@ SceneFactory make_intro(std::function<Transition()> when_done);
 SceneFactory make_main_menu();
 SceneFactory make_game();
 SceneFactory make_pause_menu();
+/// Sound volume and mute (pushed on top of the main or the pause menu).
+SceneFactory make_options();
 SceneFactory make_game_over(GameResult result);

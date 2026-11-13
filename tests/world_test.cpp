@@ -258,3 +258,32 @@ TEST_CASE("Victory and defeat follow who has anything left") {
   f.world.kill_unit(mine);
   CHECK(evaluate_outcome(f.world, f.me) == Outcome::Defeat);
 }
+
+TEST_CASE("Clicking in the middle of a forest, or between trees, still starts chopping") {
+  Fixture f;
+  f.world.add_building(f.hall, f.me, {1, 1}, true);
+  for (int y = 4; y <= 10; ++y)
+    for (int x = 12; x <= 18; ++x) f.world.add_tree({x, y}, 10);  // a solid 7x7 wood
+  const auto u = f.spawn(f.peon, {7, 7});
+  const std::array ids{u};
+
+  REQUIRE(f.world.order_harvest(ids, {15, 7}).ok);  // deep inside: no free side of its own
+  f.run(60);
+  CHECK(f.world.player(f.me).stock.lumber > 1000);
+
+  const auto v = f.spawn(f.peon, {7, 8});
+  const std::array vids{v};
+  f.world.add_tree({22, 2}, 10);
+  CHECK(f.world.order_harvest(vids, {21, 2}).ok);       // one tile off a tree: snaps to it
+  CHECK_FALSE(f.world.order_harvest(vids, {22, 12}).ok);  // nothing nearby: still refused
+}
+
+TEST_CASE("Moving to a walled-off spot goes as near as possible instead of staying put") {
+  Fixture f;
+  for (int y = 0; y < 14; ++y) f.world.add_tree({16, y}, 10);  // a wall of trees across the map
+  const auto u = f.spawn(f.grunt, {4, 6});
+  const std::array ids{u};
+  REQUIRE(f.world.order_move(ids, {20, 6}).ok);
+  f.run(10);
+  CHECK(f.unit(u).tile.x == 15);
+}

@@ -124,3 +124,13 @@ TEST_CASE("A* ignores extra blockers on the start cell but not the goal", "[asta
   extra.set_blocked({2, 0});
   REQUIRE(a_star(grid, {0, 0}, {2, 0}, &extra).empty());
 }
+
+TEST_CASE("a_star_closest ends at the reachable cell nearest to an unreachable goal") {
+  Grid g(10, 5);
+  for (int y = 0; y < 5; ++y) g.set_blocked({5, y});  // a wall splits the map
+  CHECK(a_star(g, {1, 2}, {8, 2}).empty());
+  const auto path = a_star_closest(g, {1, 2}, {8, 2});
+  REQUIRE_FALSE(path.empty());
+  CHECK(path.back() == Point{4, 2});
+  CHECK(a_star_closest(g, {1, 2}, {5, 2}).back() == Point{4, 2});  // a blocked goal too
+}

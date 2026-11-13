@@ -170,6 +170,7 @@ SceneFactory make_main_menu() {
     cfg.subtitle = "A real-time strategy game";
     cfg.items = {
         {"New Game", [] { return Transition::replace(make_game()); }},
+        {"Options", [] { return Transition::push(make_options()); }},
         {"Credits", [] { return Transition::push(make_intro([] { return Transition::pop(); }), true); }},
         {"Exit", [] { return Transition::quit(); }},
     };
@@ -185,6 +186,7 @@ SceneFactory make_pause_menu() {
     cfg.on_escape = [] { return Transition::pop(); };
     cfg.items = {
         {"Resume", [] { return Transition::pop(); }},
+        {"Options", [] { return Transition::push(make_options()); }},
         {"Restart", [] { return Transition::reset(make_game()); }},
         {"Quit to Main Menu", [] { return Transition::reset(make_main_menu()); }},
         {"Exit Game", [] { return Transition::quit(); }},

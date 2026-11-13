@@ -22,6 +22,9 @@ class Audio {
   [[nodiscard]] bool available() const { return ready_; }
   [[nodiscard]] bool muted() const { return muted_; }
   void set_muted(bool muted) { muted_ = muted; }
+  /// Master volume, 0..1.
+  [[nodiscard]] float volume() const { return volume_; }
+  void set_volume(float v) { volume_ = v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v); }
 
   /// Plays `file` (a name in the sound directory) at `gain` 0..1 panned -1 (left) .. 1 (right). Loads it on first use.
   void play(const std::string& file, float gain = 1.0f, float pan = 0.0f);
@@ -33,4 +36,5 @@ class Audio {
   std::unordered_map<std::string, ALLEGRO_SAMPLE*> samples_;  // nullptr remembers a file that would not load
   bool ready_ = false;
   bool muted_ = false;
+  float volume_ = 0.8f;
 };

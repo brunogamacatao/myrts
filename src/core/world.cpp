@@ -234,8 +234,9 @@ void World::try_advance(Unit& u, double dt) {
   // Another unit is in the way: look for a route around every tile held by others.
   const Grid others = L.occupancy.blocked_for(occ_id(u));
   auto detour = a_star(L.blocked, u.tile, u.goal, &others);
+  if (detour.empty()) detour = a_star(L.blocked, u.tile, u.goal);  // crowded: wait for the others to move on
   if (detour.empty()) {
-    u.path.clear();  // no way through; stay put
+    u.path.clear();  // truly unreachable; stay put
   } else {
     detour.pop_front();  // current tile
     u.path = std::move(detour);

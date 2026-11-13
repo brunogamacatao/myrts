@@ -18,4 +18,9 @@ namespace myrts {
 [[nodiscard]] std::deque<Point> a_star(const Grid& grid, Point start, Point goal,
                                        const Grid* extra_blocked = nullptr);
 
+/// Like a_star, but when the goal cannot be reached (walled off, or in another region) the path ends at the reachable
+/// cell nearest to it instead of being empty. Empty only if `start` itself is blocked.
+[[nodiscard]] std::deque<Point> a_star_closest(const Grid& grid, Point start, Point goal,
+                                               const Grid* extra_blocked = nullptr);
+
 }  // namespace myrts

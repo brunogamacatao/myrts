@@ -1,3 +1,4 @@
+#include <set>
 #include <algorithm>
 
 #include "pathfinding.hpp"
@@ -94,7 +95,11 @@ std::vector<std::optional<Point>> World::move_group(const std::vector<EntityId>&
         stop_unit(u);
         continue;
       }
-      send_along(u, a_star(L.blocked, anchors[k], *destinations[k], &occupied));
+      // Plan over the terrain alone: other units move, so walls of them must not cause long detours (a unit that finds
+      // someone in its way re-plans locally). If the spot cannot be reached, go as close as the terrain allows.
+      auto path = a_star(L.blocked, anchors[k], *destinations[k]);
+      if (path.empty()) path = a_star_closest(L.blocked, anchors[k], *destinations[k]);
+      send_along(u, std::move(path));
       result[group[k]] = destinations[k];
     }
   }
@@ -114,7 +119,12 @@ Result World::order_move(std::span<const EntityId> ids, Point target) {
 Result World::order_harvest(std::span<const EntityId> ids, Point tile) {
   if (ids.empty()) return Result::success();
   const bool gold = mine_at(tile) >= 0;
-  if (!gold && !trees_.has_tree(tile)) return Result::fail("Select a tree or a gold mine");
+  if (!gold && !trees_.has_tree(tile)) {
+    // Clicking beside or between trees picks the nearest one within a couple of tiles.
+    const auto near = nearest_tree(tile, 2);
+    if (!near) return Result::fail("Select a tree or a gold mine");
+    return order_harvest(ids, *near);
+  }
 
   std::vector<EntityId> free;
   free_units(ids, free);
@@ -200,6 +210,36 @@ Result World::order_resume_build(std::span<const EntityId> ids, EntityId buildin
 
 // ---- gathering --------------------------------------------------------------------------
 
+std::optional<Point> World::nearest_tree(Point from, int radius) const {
+  std::optional<Point> best;
+  int best_d = 0;
+  for (int dy = -radius; dy <= radius; ++dy)
+    for (int dx = -radius; dx <= radius; ++dx) {
+      const Point p{from.x + dx, from.y + dy};
+      const int d = dx * dx + dy * dy;
+      if (trees_.has_tree(p) && (!best || d < best_d)) {
+        best = p;
+        best_d = d;
+      }
+    }
+  return best;
+}
+
+/// The trees connected to `start` (touching, diagonals included), the clicked one first; at most `limit`.
+std::vector<Point> World::forest_around(Point start, std::size_t limit) const {
+  std::vector<Point> found{start};
+  std::set<std::pair<int, int>> seen{{start.x, start.y}};
+  for (std::size_t i = 0; i < found.size() && found.size() < limit; ++i) {
+    const Point p = found[i];
+    for (int dy = -1; dy <= 1; ++dy)
+      for (int dx = -1; dx <= 1; ++dx) {
+        const Point n{p.x + dx, p.y + dy};
+        if (trees_.has_tree(n) && seen.insert({n.x, n.y}).second) found.push_back(n);
+      }
+  }
+  return found;
+}
+
 bool World::start_gathering(Unit& u, bool gold, Point target) {
   std::vector<Point> targets;
   int mine = -1;
@@ -209,12 +249,12 @@ bool World::start_gathering(Unit& u, bool gold, Point target) {
     targets = mines_[static_cast<std::size_t>(mine)].site.tiles();
   } else {
     if (!trees_.has_tree(target)) return false;
-    targets = {target};
+    targets = forest_around(target, 400);  // trees inside the forest have no free side: the edge ones are reached
   }
   auto route = approach(u, targets);
   if (!route) return false;
   send_along(u, std::move(route->path));
-  u.order = order::Harvest{order::Harvest::State::ToResource, gold, target, mine, 0.0};
+  u.order = order::Harvest{order::Harvest::State::ToResource, gold, gold ? target : route->target, mine, 0.0};
   return true;
 }
 

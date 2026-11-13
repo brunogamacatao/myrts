@@ -2,6 +2,7 @@
 #include <array>
 
 #include "core/harvest.hpp"
+#include "core/world.hpp"
 
 using namespace myrts;
 
@@ -65,4 +66,14 @@ TEST_CASE("path_to_adjacent ignores tiles held by other units") {
   busy.set_blocked({3, 2});
   const std::array targets{Point{4, 1}};
   CHECK_FALSE(path_to_adjacent(g, {0, 1}, targets, &busy).has_value());
+}
+
+TEST_CASE("nearest_tree and forest_around find trees around a click") {
+  World w(WorldConfig{}, Grid(20, 20));
+  for (int y = 5; y <= 9; ++y)
+    for (int x = 5; x <= 9; ++x) w.add_tree({x, y}, 100);
+  CHECK(w.nearest_tree({4, 7}, 2) == Point{5, 7});
+  CHECK_FALSE(w.nearest_tree({1, 1}, 2).has_value());
+  CHECK(w.forest_around({7, 7}, 400).size() == 25);
+  CHECK(w.forest_around({7, 7}, 400).front() == Point{7, 7});
 }

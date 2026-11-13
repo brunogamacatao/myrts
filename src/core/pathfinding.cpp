@@ -32,12 +32,16 @@ struct OpenNode {
 
 }  // namespace
 
-std::deque<Point> a_star(const Grid& grid, Point start, Point goal, const Grid* extra_blocked) {
+namespace {
+
+/// The search behind both entry points. With `closest`, an unreachable goal yields the path to the nearest cell found.
+std::deque<Point> search(const Grid& grid, Point start, Point goal, const Grid* extra_blocked, bool closest) {
   const auto blocked = [&](Point p) {
     return grid.is_blocked(p) || (extra_blocked != nullptr && extra_blocked->is_blocked(p));
   };
 
-  if (grid.is_blocked(start) || blocked(goal)) return {};
+  if (grid.is_blocked(start)) return {};
+  if (blocked(goal) && !closest) return {};
   if (start == goal) return {start};
 
   const std::size_t cells = static_cast<std::size_t>(grid.width()) * static_cast<std::size_t>(grid.height());
@@ -56,7 +60,9 @@ std::deque<Point> a_star(const Grid& grid, Point start, Point goal, const Grid* 
   };
 
   const std::size_t start_i = grid.index(start);
-  const std::size_t goal_i = grid.index(goal);
+  const std::size_t goal_i = blocked(goal) ? kNone : grid.index(goal);  // a blocked goal can only be approached
+  std::size_t best_i = start_i;
+  double best_h = heuristic(start, goal);
   g[start_i] = 0.0;
   open.push({heuristic(start, goal), start_i});
 
@@ -65,6 +71,13 @@ std::deque<Point> a_star(const Grid& grid, Point start, Point goal, const Grid* 
     open.pop();
     if (closed[ci]) continue;  // stale queue entry
     closed[ci] = true;
+    if (closest) {
+      const double h = heuristic(to_point(ci), goal);
+      if (h < best_h) {
+        best_h = h;
+        best_i = ci;
+      }
+    }
 
     if (ci == goal_i) {
       std::deque<Point> path;
@@ -93,7 +106,22 @@ std::deque<Point> a_star(const Grid& grid, Point start, Point goal, const Grid* 
       }
     }
   }
-  return {};
+  if (closest && best_i != start_i) {
+    std::deque<Point> path;
+    for (std::size_t i = best_i; i != kNone; i = parent[i]) path.push_front(to_point(i));
+    return path;
+  }
+  return closest ? std::deque<Point>{start} : std::deque<Point>{};
+}
+
+}  // namespace
+
+std::deque<Point> a_star(const Grid& grid, Point start, Point goal, const Grid* extra_blocked) {
+  return search(grid, start, goal, extra_blocked, false);
+}
+
+std::deque<Point> a_star_closest(const Grid& grid, Point start, Point goal, const Grid* extra_blocked) {
+  return search(grid, start, goal, extra_blocked, true);
 }
 
 }  // namespace myrts

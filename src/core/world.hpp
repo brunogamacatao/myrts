@@ -254,6 +254,10 @@ class World {
   [[nodiscard]] const EntityStore<Building>& buildings() const { return buildings_; }
   [[nodiscard]] const std::vector<Mine>& mines() const { return mines_; }
   [[nodiscard]] const TreeField& trees() const { return trees_; }
+  /// The tree nearest to `from` within `radius` tiles (square), if any.
+  [[nodiscard]] std::optional<Point> nearest_tree(Point from, int radius) const;
+  /// The trees touching `start`, directly or through other trees (at most `limit`), `start` first.
+  [[nodiscard]] std::vector<Point> forest_around(Point start, std::size_t limit) const;
   /// The terrain, if this world was built over a TileMap.
   [[nodiscard]] const TileMap* terrain() const { return terrain_ ? &*terrain_ : nullptr; }
   [[nodiscard]] EventBus& events() { return events_; }
