@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(MYRTS_BUILD_GAME "Build the game executable (needs Allegro 5, libxml2, zlib)" ON)
+option(MYRTS_BUILD_GAME "Build the game executable (needs Allegro 5)" ON)
 option(MYRTS_BUILD_TESTS "Build unit tests" ON)
 option(MYRTS_WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
 
@@ -37,7 +37,12 @@ add_library(myrts_core STATIC
   src/core/orders.cpp
   src/core/combat.cpp
   src/core/ai.cpp
-  src/core/rules.cpp)
+  src/core/rules.cpp
+  src/core/terrain.cpp
+  src/core/tileset.cpp
+  src/core/pud.cpp
+  src/core/tilemap.cpp
+  src/core/scenario.cpp)
 target_include_directories(myrts_core PUBLIC src)
 target_compile_features(myrts_core PUBLIC cxx_std_23)
 target_link_libraries(myrts_core PRIVATE myrts_warnings nlohmann_json::nlohmann_json)
@@ -47,7 +52,6 @@ endif()
 
 # ---- game ----------------------------------------------------------------
 if(MYRTS_BUILD_GAME)
-  FetchContent_MakeAvailable(tmx)
 
   # vcpkg ships a CMake config; system installs only provide pkg-config files.
   find_package(Allegro CONFIG QUIET)
@@ -64,9 +68,11 @@ if(MYRTS_BUILD_GAME)
   add_executable(myrts
     src/game/main.cpp
     src/game/sprite.cpp
-    src/game/tilemap.cpp
+    src/game/tile_renderer.cpp
     src/game/ui.cpp
     src/game/building_art.cpp
+    src/game/ui_art.cpp
+    src/game/cursors.cpp
     src/game/draw_util.cpp
     src/game/menu_scene.cpp
     src/game/scene_manager.cpp
@@ -76,7 +82,7 @@ if(MYRTS_BUILD_GAME)
     src/game/game_input.cpp
     src/game/game_render.cpp)
   target_link_libraries(myrts PRIVATE
-    myrts_core myrts_warnings nlohmann_json::nlohmann_json tmx ${MYRTS_ALLEGRO_LIBS})
+    myrts_core myrts_warnings nlohmann_json::nlohmann_json ${MYRTS_ALLEGRO_LIBS})
 
   # Make assets available next to the executable (run it from there).
   add_custom_command(TARGET myrts POST_BUILD
@@ -99,7 +105,8 @@ if(MYRTS_BUILD_TESTS)
     tests/infrastructure_test.cpp
     tests/defs_test.cpp
     tests/world_test.cpp
-    tests/combat_test.cpp)
+    tests/combat_test.cpp
+    tests/terrain_test.cpp)
   target_compile_definitions(myrts_tests PRIVATE MYRTS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   target_link_libraries(myrts_tests PRIVATE myrts_core myrts_warnings nlohmann_json::nlohmann_json Catch2::Catch2WithMain)
   if(catch2_SOURCE_DIR)

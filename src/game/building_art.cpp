@@ -36,13 +36,13 @@ std::shared_ptr<const Bitmap> load_or(Assets& assets, const std::string& path, b
 
 }  // namespace
 
-void BuildingArt::load(const myrts::Registry& registry, Assets& assets) {
+void BuildingArt::load(const myrts::Registry& registry, Assets& assets, const std::string& era) {
   for (const auto& def : registry.buildings()) {
     if (auto b = load_or(assets, def.sprite, false, false)) finished_[def.id] = std::move(b);
     if (auto b = load_or(assets, def.sprite_construction, false, false)) construction_[def.id] = std::move(b);
   }
-  mine_ = load_or(assets, "buildings/gold_mine.png", false, true);
-  mine_active_ = load_or(assets, "buildings/gold_mine_active.png", true, true);
+  mine_ = load_or(assets, "buildings/gold_mine_" + era + ".png", false, true);
+  mine_active_ = load_or(assets, "buildings/gold_mine_active_" + era + ".png", true, true);
 }
 
 void draw_centered_in_square(ALLEGRO_BITMAP* bitmap, float x, float y, float size_px, ALLEGRO_COLOR tint) {

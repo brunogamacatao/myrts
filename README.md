@@ -1,6 +1,6 @@
 # myrts
 
-Small RTS prototype in C++23 (Allegro 5, Tiled maps, A* pathfinding).
+Small RTS prototype in C++23 (Allegro 5, Warcraft II maps, A* pathfinding).
 
 ## Quick start
 ```sh
@@ -13,7 +13,7 @@ scripts/test.sh    # unit tests only (no Allegro needed)
 ## Requirements
 - C++23 compiler (GCC ≥ 13 or Clang ≥ 17), CMake ≥ 3.25, Ninja
 - [vcpkg](https://github.com/microsoft/vcpkg); dependencies are declared in `vcpkg.json`
-  (Allegro 5, tmx, nlohmann-json, Catch2) and built automatically on first configure
+  (Allegro 5, nlohmann-json, Catch2) and built automatically on first configure
   (slow once, then cached). `VCPKG_ROOT` defaults to `~/vcpkg` in the scripts.
 - System packages for building Allegro: see `scripts/setup.sh` (Debian/Ubuntu) –
   `autoconf automake libtool` and X11/OpenGL/ALSA dev packages.
@@ -24,8 +24,7 @@ export VCPKG_ROOT=~/vcpkg
 cmake --preset release && cmake --build --preset release
 cd build/release && ./myrts      # assets are copied next to the executable
 ```
-Without vcpkg, use `--preset debug-system` (needs `liballegro5-dev`, `libxml2-dev`,
-`zlib1g-dev`; tmx/json/Catch2 are then fetched by CMake).
+Without vcpkg, use `--preset debug-system` (needs `liballegro5-dev`; json/Catch2 are then fetched by CMake).
 
 Tests: `cmake --preset tests-only && cmake --build --preset tests-only && ctest --preset tests-only`
 
@@ -43,9 +42,22 @@ Tests: `cmake --preset tests-only && cmake --build --preset tests-only && ctest 
 ## Layout
 - `src/core/` – pure logic, unit tested: `Grid`, A* (`pathfinding`), group destinations (`formation`), tile
   reservations (`occupancy`), camera/minimap math (`geometry`), picking (`selection`)
-- `src/game/` – Allegro/Tiled front-end: `Game` (state, input, rendering), `Unit`/`UnitType`, `SpriteDef`, HUD (`ui`)
-- `assets/` – sprites, maps and unit definitions (`units/*.json`: stats, speed, commands)
+- `src/game/` – Allegro front-end: `Game` (input, selection, camera), `TileRenderer`, `SpriteDef`, HUD (`ui`), scenes
+- `assets/` – sprites, tilesets, Warcraft II maps (`maps/*.pud`) and game data (`data/*.json`)
 - `tests/` – Catch2 tests
+
+## Maps
+Maps are Warcraft II `.pud` files, drawn with the same tile scheme the game uses (every tile is built from four terrain
+quadrants, so forests, coasts and cliffs get proper borders, and a felled tree redraws its surroundings).
+The default is `maps/Cramped BNE.pud`; pick another with `MYRTS_MAP`, for example
+`MYRTS_MAP="maps/Gold Rush BNE.pud" scripts/run.sh`. The sample maps (forest, wasteland and swamp eras) are in `assets/maps/`,
+and any `.pud` with two or more start locations works. See [NOTICE.md](NOTICE.md) for the sources.
+
+## Interface
+The HUD is built from the original Warcraft II art: cracked-earth panels, the framed minimap, command / unit / building icons,
+resource icons and the mouse cursors (crosshairs while choosing a target, scroll arrows at the screen edge). The icon of every
+unit, building and command is set in `assets/data/*.json` (an index into `assets/ui/icons.png`). To rebuild the assets from their
+sources run `scripts/extract_ui_assets.py` (see its docstring).
 
 ## Group movement
 A* stays single-agent. For a group order, `assign_destinations` picks the closest free, connected tiles around

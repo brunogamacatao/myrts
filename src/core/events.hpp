@@ -19,6 +19,8 @@ namespace myrts::ev {
 /// Published by the World while it updates; delivered by EventBus::dispatch().
 /// @{
 struct TreeFelled { Point tile; };
+/// Tiles whose drawing changed (a forest edge after a tree fell), so the view can redraw them.
+struct TerrainChanged { std::vector<Point> tiles; };
 struct MineDepleted { int mine; };
 struct UnitSpawned { EntityId unit; };
 /// Carries where and how the unit fell so the view can show a body.
@@ -37,7 +39,7 @@ struct Notice { PlayerId player; std::string text; };
 
 namespace myrts {
 
-using Event = std::variant<ev::TreeFelled, ev::MineDepleted, ev::UnitSpawned, ev::UnitDied, ev::Attacked,
+using Event = std::variant<ev::TreeFelled, ev::TerrainChanged, ev::MineDepleted, ev::UnitSpawned, ev::UnitDied, ev::Attacked,
                            ev::BuildingPlaced, ev::BuildingCompleted, ev::BuildingDestroyed, ev::Delivered,
                            ev::Notice>;
 

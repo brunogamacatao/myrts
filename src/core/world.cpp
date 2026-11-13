@@ -48,6 +48,11 @@ World::World(WorldConfig config, Grid land_blocked, Grid water_blocked) : config
   layer(MoveClass::Air) = {Grid(w, h), Occupancy(w, h)};
 }
 
+World::World(WorldConfig config, TileMap terrain) : World(config, terrain.land_blocked(), terrain.water_blocked()) {
+  for (const Point p : terrain.tree_tiles()) trees_.add(p, config_.lumber_per_tree);
+  terrain_ = std::move(terrain);
+}
+
 PlayerId World::add_player(std::string name, std::string faction, Stock stock) {
   players_.push_back({std::move(name), std::move(faction), stock});
   return static_cast<PlayerId>(players_.size()) - 1;

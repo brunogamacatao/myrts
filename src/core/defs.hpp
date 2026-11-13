@@ -5,6 +5,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include "building.hpp"
@@ -55,6 +56,7 @@ struct UnitDef {
   double attack_seconds = 1.5;           // time between two strikes
   double siege_multiplier = 1.0;         // damage multiplier against buildings (catapults, ballistas)
   bool aggressive = true;                // attacks enemies it sees on its own (workers do not)
+  int icon = -1;                         // index in the icon atlas (assets/ui/icons.png), -1 for none
   std::string sprite;                    // path of the sprite definition (json)
   std::vector<std::string> commands;     // command ids offered in the panel
   std::optional<WorkerDef> worker;       // gathers resources
@@ -75,6 +77,7 @@ struct BuildingDef {
   int armor = 0;
   int food = 0;           // food this building provides (farms, town halls)
   bool is_depot = false;  // accepts delivered gold and lumber
+  int icon = -1;                    // index in the icon atlas
   std::string sprite;               // finished building (png)
   std::string sprite_construction;  // while being built (png)
   std::vector<std::string> trains;  // unit ids it can train
@@ -84,7 +87,15 @@ struct BuildingDef {
 struct CommandDef {
   std::string id;
   std::string label;
-  std::string icon;  ///< key into the UI's glyph table
+  std::string icon;  ///< key into the UI's glyph table (fallback when there is no icon in the atlas)
+  /// Icon atlas indices by faction; "default" applies to factions not listed (the two sides have their own).
+  std::unordered_map<std::string, int> icons;
+  /// The icon for a faction's units: its own, else the default, else -1.
+  [[nodiscard]] int icon_for(const std::string& faction) const {
+    if (const auto it = icons.find(faction); it != icons.end()) return it->second;
+    if (const auto it = icons.find("default"); it != icons.end()) return it->second;
+    return -1;
+  }
   Targeting targeting = Targeting::None;
   char hotkey = 0;  ///< upper-case letter, 0 for none
   bool implemented = true;

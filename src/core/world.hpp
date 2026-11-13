@@ -17,6 +17,7 @@
 #include "grid.hpp"
 #include "harvest.hpp"
 #include "occupancy.hpp"
+#include "tilemap.hpp"
 
 namespace myrts {
 
@@ -181,6 +182,9 @@ class World {
   /// `land_blocked` marks tiles land units cannot enter; `water_blocked` (same size) tiles water
   /// units cannot enter. Air units are only limited by the map edge.
   World(WorldConfig config, Grid land_blocked, Grid water_blocked = {});
+  /// A world over real terrain: blocked tiles come from the map's movement rules, every tree tile holds wood, and
+  /// felling trees edits the terrain (see TileMap::clear_trees).
+  World(WorldConfig config, TileMap terrain);
 
   // ---- setup
   /// Adds a player and returns their id (ids are assigned in order: 0, 1, ...).
@@ -250,6 +254,8 @@ class World {
   [[nodiscard]] const EntityStore<Building>& buildings() const { return buildings_; }
   [[nodiscard]] const std::vector<Mine>& mines() const { return mines_; }
   [[nodiscard]] const TreeField& trees() const { return trees_; }
+  /// The terrain, if this world was built over a TileMap.
+  [[nodiscard]] const TileMap* terrain() const { return terrain_ ? &*terrain_ : nullptr; }
   [[nodiscard]] EventBus& events() { return events_; }
 
  private:
@@ -307,6 +313,7 @@ class World {
   EntityStore<Building> buildings_;
   std::vector<Mine> mines_;
   TreeField trees_;
+  std::optional<TileMap> terrain_;
   std::vector<Player> players_;
   EventBus events_;
   std::mt19937 rng_;

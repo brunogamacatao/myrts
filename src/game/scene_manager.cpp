@@ -87,6 +87,7 @@ void SceneManager::update(double dt) {
   } else if (fade_ == Fade::In && fade_time_ >= kFadeSeconds) {
     fade_ = Fade::None;
   }
+  if (ctx_.cursors) ctx_.cursors->set(CursorKind::Pointer);  // the scene may pick another one while it updates
   if (Scene* top = stack_.top()) submit(top->update(dt));
 }
 

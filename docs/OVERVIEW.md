@@ -14,7 +14,7 @@ O projeto é dividido em **duas bibliotecas/camadas** com uma regra de dependên
 | Camada | Pasta | Depende de | Testada? |
 |---|---|---|---|
 | **core** (`myrts_core`) | `src/core/` | só a STL e nlohmann-json | Sim, *headless* (Catch2) |
-| **game** (`myrts`) | `src/game/` | `core`, Allegro 5, libtmx | Não (verifica-se rodando) |
+| **game** (`myrts`) | `src/game/` | `core`, Allegro 5 | Não (verifica-se rodando) |
 
 * `core` contém **todas as regras do jogo**: movimento, coleta, construção, combate, treinamento, comida,
   IA, vitória/derrota. Não sabe o que é pixel, janela, mouse ou som.
@@ -29,7 +29,7 @@ flowchart TB
   subgraph DATA["assets/ (dados)"]
     J["data/units.json<br/>buildings.json<br/>commands.json"]
     SP["sprites/*.json + png"]
-    TM["tiles/mapa.tmx + tileset"]
+    TM["maps/*.pud + tilesets/*.png<br/>data/tilesets.json"]
   end
 
   subgraph GAME["src/game — front-end Allegro (executável myrts)"]
@@ -41,7 +41,7 @@ flowchart TB
     UI["ui<br/>HUD, minimapa, botões"]
     SPR["sprite<br/>SpriteDef · AnimationState"]
     AS["Assets + BuildingArt<br/>cache de bitmaps/sprites"]
-    TMAP["tilemap<br/>libtmx → Grid, árvores"]
+    TMAP["TileRenderer<br/>desenha só os tiles visíveis + minimapa"]
   end
 
   subgraph CORE["src/core — lógica pura (biblioteca myrts_core)"]
@@ -103,7 +103,7 @@ Leitura rápida: setas sempre apontam de quem **usa** para quem **é usado**. Na
 | `SceneManager` + cenas | `game/scene*`, `scenes`, `menu_scene` | Ciclo de vida de telas (intro, menu, jogo, pausa, game over) com *fade*. |
 | `Game` | `game/game*.cpp` | Uma partida vista pelo jogador: câmera, seleção, comandos, HUD, desenho. |
 | `ui` | `game/ui.*` | HUD desenhado a partir de *view-models* (`HudData`, `UnitCard`…). |
-| `sprite`, `Assets`, `BuildingArt`, `tilemap` | `game/*` | Animações, cache de imagens, arte de prédios e mapa Tiled. |
+| `sprite`, `Assets`, `BuildingArt`, `TileRenderer` | `game/*` | Animações, cache de imagens, arte de prédios e desenho do terreno. |
 
 ## 3. Diagrama de classes
 
@@ -492,7 +492,7 @@ Mover-se **não** é uma ordem: é só seguir o `path` da unidade.
   um *handler* nunca roda no meio de uma mudança de estado.
 * **Dados primeiro.** Novas unidades/prédios/comandos são entradas JSON; veja "Adding content" em
   [ARCHITECTURE.md](ARCHITECTURE.md).
-* **RAII para tudo do Allegro.** `raii.hpp` embrulha `ALLEGRO_BITMAP`, `tmx_map` etc. Cenas são donas dos
+* **RAII para tudo do Allegro.** `raii.hpp` embrulha `ALLEGRO_BITMAP`. Cenas são donas dos
   seus recursos e os liberam no destrutor; `Assets` guarda só `weak_ptr`.
 
 ## 6. Mapa do código

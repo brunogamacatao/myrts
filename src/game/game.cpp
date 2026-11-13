@@ -6,30 +6,40 @@
 #include <cstdlib>
 
 #include "core/formation.hpp"
-#include "tilemap.hpp"
+#include "core/pud.hpp"
+#include "core/scenario.hpp"
 
 namespace {
 constexpr float kScrollSpeed = 420.0f;  // pixels per second
 constexpr float kEdgeScrollMargin = 6.0f;
 constexpr int kInitialUnits = 8;
-constexpr unsigned kGrassGid = 191;       // replaces a felled tree
-constexpr int kGoldPerMine = 10000;
+constexpr int kEnemyWorkers = 2;
 constexpr double kCorpseSeconds = 25.0;  // how long a body stays (the last 5 s it fades)
 constexpr std::size_t kMaxCorpses = 60;
 constexpr int kMineSize = 3;
 constexpr myrts::Stock kStartingStock{2000, 1000, 0};
-
-// Start positions (tiles) on assets/tiles/mapa.tmx. The player is in the west, the Alliance in the north-east.
-constexpr myrts::Point kPlayerHall{1, 6};
-constexpr myrts::Point kPlayerMine{6, 0};
-constexpr myrts::Point kPlayerUnits{3, 3};
-constexpr myrts::Point kEnemyHall{19, 0};
-constexpr myrts::Point kEnemyBarracks{13, 0};
-constexpr myrts::Point kEnemyMine{16, 0};
-constexpr myrts::Point kEnemyStables{9, 0};
-constexpr myrts::Point kEnemyAviary{22, 6};
-constexpr myrts::Point kEnemyUnits{18, 4};
 constexpr myrts::Stock kEnemyStock{1000, 300, 0};
+constexpr const char* kDefaultMap = "maps/Cramped BNE.pud";
+
+/// The free spot closest to `near` where `def` fits, leaving a one-tile gap around it so units can walk past.
+std::optional<myrts::Point> find_spot(const myrts::World& world, const myrts::BuildingDef& def, myrts::Point near) {
+  std::optional<myrts::Point> best;
+  double best_d = 1e9;
+  for (int y = near.y - 14; y <= near.y + 14; ++y) {
+    for (int x = near.x - 14; x <= near.x + 14; ++x) {
+      const myrts::Point origin{x, y};
+      if (world.placement_status(def, origin) != myrts::PlaceStatus::Ok) continue;
+      if (!myrts::can_place(world.grid(myrts::MoveClass::Land), {x - 1, y - 1}, def.size + 2)) continue;
+      const double d = std::hypot(static_cast<double>(x - near.x), static_cast<double>(y - near.y));
+      if (d < best_d) {
+        best_d = d;
+        best = origin;
+      }
+    }
+  }
+  return best;
+}
+
 }  // namespace
 
 // ---- setup ------------------------------------------------------------------------
@@ -37,6 +47,7 @@ constexpr myrts::Stock kEnemyStock{1000, 300, 0};
 std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContext& ctx) {
   std::unique_ptr<Game> game(new Game());
   game->font_ = ctx.font;
+  game->cursors_ = ctx.cursors;
   game->assets_ = ctx.assets;
   game->registry_ = ctx.registry;
   const myrts::Registry& registry = *ctx.registry;
@@ -51,70 +62,84 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   if (!peon || !hall || !peasant || !town_hall || !enemy_barracks || !enemy_stables || !enemy_aviary)
     return std::unexpected("game data is missing the starting units or buildings (assets/data)");
 
-  init_tilemap_engine();
-  game->map_.reset(tmx_load("tiles/mapa.tmx"));
-  if (!game->map_) return std::unexpected(std::string("cannot load map: ") + tmx_strerr());
-  const tmx_map* map = game->map_.get();
-  game->tile_size_ = static_cast<int>(map->tile_width);
+  // The map: a Warcraft II .pud. Its terrain, start locations and gold mines define the match.
+  const char* map_path = std::getenv("MYRTS_MAP");
+  auto pud = myrts::load_pud(map_path ? map_path : kDefaultMap);
+  if (!pud) return std::unexpected(pud.error());
+  auto terrain = myrts::TileMap::from_pud(*pud, ctx.tilesets);
+  if (!terrain) return std::unexpected(terrain.error());
+  const myrts::Scenario scenario = myrts::scenario_from(*pud);
+  if (scenario.starts.size() < 2) return std::unexpected("this map has fewer than two start locations");
 
   myrts::WorldConfig config;
   config.tile_size = game->tile_size_;
   // Testing aids: speed up construction and training.
   if (const char* speed = std::getenv("MYRTS_BUILD_SPEED")) config.build_speed = std::max(0.01, std::atof(speed));
   if (const char* speed = std::getenv("MYRTS_TRAIN_SPEED")) config.train_speed = std::max(0.01, std::atof(speed));
-  game->world_ = std::make_unique<myrts::World>(config, get_collision_grid(map), get_water_grid(map));
+  game->world_ = std::make_unique<myrts::World>(config, std::move(*terrain));
   myrts::World& world = *game->world_;
+  if (auto drawn = game->terrain_view_.load(*world.terrain(), *ctx.assets); !drawn) return std::unexpected(drawn.error());
 
+  for (const myrts::MineSpec& mine : scenario.mines) world.add_mine(mine.origin, kMineSize, mine.gold);
+
+  // Two players: the first start location is ours, the opponent takes the one farthest away.
+  const myrts::StartSlot& ours = scenario.starts[0];
+  const myrts::StartSlot& theirs = scenario.starts[*scenario.farthest_from(0)];
   game->local_player_ = world.add_player("Player", "orcs", kStartingStock);
-  for (const auto& tree : find_tree_tiles(map)) world.add_tree(tree, config.lumber_per_tree);
-  world.add_building(*hall, game->local_player_, kPlayerHall, true);
-  world.add_mine(kPlayerMine, kMineSize, kGoldPerMine);
-
-  // The Alliance: a computer-controlled opponent with its own base, mine and workers.
   const myrts::PlayerId enemy = world.add_player("Alliance", "alliance", kEnemyStock);
-  world.add_building(*town_hall, enemy, kEnemyHall, true);
-  world.add_building(*enemy_barracks, enemy, kEnemyBarracks, true);
-  world.add_building(*enemy_stables, enemy, kEnemyStables, true);
-  world.add_building(*enemy_aviary, enemy, kEnemyAviary, true);
-  world.add_mine(kEnemyMine, kMineSize, kGoldPerMine);
+
+  /// A player's hall goes where the map put one, or at the nearest free spot to the start location.
+  const auto place_hall = [&](const myrts::BuildingDef& def, const myrts::StartSlot& slot,
+                              myrts::PlayerId owner) -> std::expected<myrts::Point, std::string> {
+    std::optional<myrts::Point> at;
+    if (slot.hall && world.placement_status(def, *slot.hall) == myrts::PlaceStatus::Ok) at = slot.hall;
+    if (!at) at = find_spot(world, def, slot.start);
+    if (!at) return std::unexpected("no room for a " + def.name + " near the start location");
+    world.add_building(def, owner, *at, true);
+    return *at;
+  };
+  const auto our_hall = place_hall(*hall, ours, game->local_player_);
+  if (!our_hall) return std::unexpected(our_hall.error());
+  const auto their_hall = place_hall(*town_hall, theirs, enemy);
+  if (!their_hall) return std::unexpected(their_hall.error());
+
+  // The opponent's production buildings, next to its town hall.
+  for (const myrts::BuildingDef* def : {enemy_barracks, enemy_stables, enemy_aviary}) {
+    if (const auto at = find_spot(world, *def, *their_hall)) world.add_building(*def, enemy, *at, true);
+  }
   myrts::AiConfig ai_config;
   if (const char* delay = std::getenv("MYRTS_AI_DELAY")) ai_config.start_delay = std::max(0.0, std::atof(delay));
   game->ais_.push_back(std::make_unique<myrts::Ai>(world, registry, enemy, ai_config));
 
-  const auto world_w = static_cast<float>(map->width * map->tile_width);
-  const auto world_h = static_cast<float>(map->height * map->tile_height);
+  const auto world_w = static_cast<float>(world.width() * game->tile_size_);
+  const auto world_h = static_cast<float>(world.height() * game->tile_size_);
   game->camera_ = {0, 0, ui::kViewport.w, ui::kViewport.h, world_w, world_h};
   game->minimap_ = {world_w, world_h, ui::kMinimap.w, ui::kMinimap.h};
 
-  game->art_.load(registry, *ctx.assets);
+  game->art_.load(registry, *ctx.assets, world.terrain()->tileset().name());
+  if (auto loaded = game->ui_art_.load(*ctx.assets); !loaded) return std::unexpected(loaded.error());
   if (!game->sprite_of(*peon)) return std::unexpected("cannot load the sprite of " + peon->id);
 
-  // Render the whole map once into a bitmap used by the minimap.
-  game->minimap_bitmap_.reset(al_create_bitmap(static_cast<int>(world_w), static_cast<int>(world_h)));
-  if (!game->minimap_bitmap_) return std::unexpected("cannot create minimap bitmap");
-  game->redraw_minimap_bitmap();
+  // Starting workers stand around their hall.
+  const auto spawn_workers = [&](const myrts::UnitDef& def, myrts::PlayerId owner, myrts::Point hall_origin,
+                                 const myrts::BuildingDef& hall_def, int count) {
+    const myrts::Point around{hall_origin.x + hall_def.size / 2, hall_origin.y + hall_def.size};
+    const std::vector<myrts::Point> wanted(static_cast<std::size_t>(count), around);
+    for (const auto& spot : myrts::assign_destinations(world.grid(myrts::MoveClass::Land), nullptr, wanted, around))
+      if (spot) world.spawn_unit(def, owner, *spot);
+  };
+  spawn_workers(*peon, game->local_player_, *our_hall, *hall, kInitialUnits);
+  spawn_workers(*peasant, enemy, *their_hall, *town_hall, kEnemyWorkers);
 
-  // Spawn a group of units in distinct walkable tiles near the top-left corner.
-  const std::vector<myrts::Point> start(kInitialUnits, kPlayerUnits);
-  const auto spots = myrts::assign_destinations(world.grid(myrts::MoveClass::Land), nullptr, start, kPlayerUnits);
-  for (const auto& spot : spots)
-    if (spot) world.spawn_unit(*peon, game->local_player_, *spot);
-
-  const std::vector<myrts::Point> enemy_start(2, kEnemyUnits);
-  const auto enemy_spots = myrts::assign_destinations(world.grid(myrts::MoveClass::Land), nullptr, enemy_start, kEnemyUnits);
-  for (const auto& spot : enemy_spots)
-    if (spot) world.spawn_unit(*peasant, enemy, *spot);
-
-  myrts::Point focus = kPlayerUnits;
-  if (std::getenv("MYRTS_ROSTER")) {  // testing aid: one of every unit type, in the pocket south of the walls
+  myrts::Point focus{our_hall->x + hall->size / 2, our_hall->y + hall->size / 2};
+  if (std::getenv("MYRTS_ROSTER")) {  // testing aid: one of every unit type, next to our hall
     int n = 0;
     for (const myrts::UnitDef& def : registry.units()) {
       if (def.worker) continue;
-      const myrts::Point tile{8 + (n % 8), 10 + (n / 8) * 2};
+      const myrts::Point tile{our_hall->x + (n % 8), our_hall->y - 3 - (n / 8) * 2};
       world.spawn_unit(def, game->local_player_, tile);
       ++n;
     }
-    focus = {12, 11};
   }
   game->camera_.center_on(static_cast<float>(focus.x * game->tile_size_), static_cast<float>(focus.y * game->tile_size_));
   game->subscribe_to_world();
@@ -140,9 +165,8 @@ void Game::subscribe_to_world() {
     myrts::on_event<myrts::ev::BuildingDestroyed>(e, [&](const myrts::ev::BuildingDestroyed& d) {
       if (selected_building_ == d.building) selected_building_ = myrts::kNoEntity;
     });
-    myrts::on_event<myrts::ev::TreeFelled>(e, [&](const myrts::ev::TreeFelled& t) {
-      replace_tree_tile(map_.get(), t.tile, kGrassGid);
-      redraw_minimap_bitmap();
+    myrts::on_event<myrts::ev::TerrainChanged>(e, [&](const myrts::ev::TerrainChanged& c) {
+      for (const myrts::Point p : c.tiles) terrain_view_.update_minimap(*world_->terrain(), p);  // the view reads the tiles itself
     });
     myrts::on_event<myrts::ev::Notice>(e, [&](const myrts::ev::Notice& n) {
       if (n.player == local_player_) set_message(n.text);
@@ -157,14 +181,6 @@ void Game::register_commands() {
   targeted_commands_["move"] = [this](myrts::Point t) { apply(world_->order_move(selected_, t)); };
   targeted_commands_["harvest"] = [this](myrts::Point t) { apply(world_->order_harvest(selected_, t)); };
   targeted_commands_["attack"] = [this](myrts::Point t) { apply(world_->order_attack(selected_, t)); };
-}
-
-void Game::redraw_minimap_bitmap() {
-  ALLEGRO_BITMAP* previous_target = al_get_target_bitmap();
-  al_set_target_bitmap(minimap_bitmap_.get());
-  al_clear_to_color(al_map_rgb(0, 0, 0));
-  render_map(map_.get());
-  al_set_target_bitmap(previous_target);
 }
 
 const SpriteDef* Game::sprite_of(const myrts::UnitDef& def) {
@@ -184,6 +200,43 @@ void Game::set_message(std::string text, double seconds) {
 
 void Game::apply(const myrts::Result& result) {
   if (!result.ok && !result.message.empty()) set_message(result.message);
+}
+
+std::string Game::selected_faction() const {
+  for (const auto id : selected_)
+    if (const myrts::Unit* u = world_->units().get(id)) return u->def->faction;
+  return "orcs";
+}
+
+/// The cursor tells what a click would do: scroll arrows at the edge, crosshairs while choosing a target (red over an
+/// enemy, green over something to work on) and the normal pointer over the HUD.
+void Game::update_cursor(float edge_dx, float edge_dy) {
+  if (!cursors_) return;
+  using K = CursorKind;
+  if (edge_dx != 0 || edge_dy != 0) {
+    static constexpr K kArrows[3][3] = {{K::ScrollNW, K::ScrollN, K::ScrollNE},
+                                        {K::ScrollW, K::Pointer, K::ScrollE},
+                                        {K::ScrollSW, K::ScrollS, K::ScrollSE}};
+    cursors_->set(kArrows[static_cast<int>(edge_dy) + 1][static_cast<int>(edge_dx) + 1]);
+    return;
+  }
+  if (!mouse_in_window_ || !ui::kViewport.contains(mouse_x_, mouse_y_)) return;  // over the HUD: the pointer
+
+  if (placing_) return cursors_->set(K::Target);
+  if (awaiting_target_) return cursors_->set(awaiting_target_->id == "attack" ? K::TargetEnemy : K::TargetOk);
+  if (selected_.empty()) return;
+
+  const auto world = camera_.to_world(mouse_x_ - ui::kViewport.x, mouse_y_ - ui::kViewport.y);
+  const auto tile = tile_at_world(world);
+  if (!tile) return;
+  const myrts::EntityId unit = world_->unit_at(*tile);
+  const myrts::Unit* foe_unit = unit.valid() ? world_->units().get(unit) : nullptr;
+  const myrts::EntityId site = world_->building_at(*tile);
+  const myrts::Building* foe_building = site.valid() ? world_->buildings().get(site) : nullptr;
+  if ((foe_unit && myrts::World::is_enemy(local_player_, foe_unit->owner)) ||
+      (foe_building && myrts::World::is_enemy(local_player_, foe_building->owner)))
+    return cursors_->set(K::TargetEnemy);
+  if (world_->trees().has_tree(*tile) || world_->mine_at(*tile) >= 0) cursors_->set(K::TargetOk);
 }
 
 std::optional<myrts::Outcome> Game::outcome() const { return myrts::evaluate_outcome(*world_, local_player_); }
@@ -352,10 +405,18 @@ void Game::update(double dt) {
     if (mouse_y_ < ui::kViewport.y + kEdgeScrollMargin) dy -= 1;
     if (mouse_y_ >= ui::kHeight - kEdgeScrollMargin) dy += 1;
   }
+  float edge_dx = 0, edge_dy = 0;  // scrolling caused by the mouse at the screen edge (it gets an arrow cursor)
+  if (mouse_in_window_ && !dragging_minimap_ && mouse_x_ >= ui::kPanelW) {
+    if (mouse_x_ < ui::kViewport.x + kEdgeScrollMargin) edge_dx -= 1;
+    if (mouse_x_ >= ui::kWidth - kEdgeScrollMargin) edge_dx += 1;
+    if (mouse_y_ < ui::kViewport.y + kEdgeScrollMargin) edge_dy -= 1;
+    if (mouse_y_ >= ui::kHeight - kEdgeScrollMargin) edge_dy += 1;
+  }
   if (dx != 0 || dy != 0) {
     const auto step = kScrollSpeed * static_cast<float>(dt);
     camera_.move(dx * step, dy * step);
   }
+  update_cursor(edge_dx, edge_dy);
 
   for (auto& ai : ais_) ai->update(dt);
   world_->update(dt);

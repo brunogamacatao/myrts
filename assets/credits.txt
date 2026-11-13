@@ -10,4 +10,7 @@ Sprites and tiles from Warcraft II
 Ripped by Maxim - The Spriters Resource
 
 Built with
-C++23 - Allegro 5 - libtmx - Catch2
+C++23 - Allegro 5 - Catch2
+
+Map format and tile scheme
+war2edit and warcraft2-map-editor (MIT)

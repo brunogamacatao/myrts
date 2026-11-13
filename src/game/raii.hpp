@@ -1,7 +1,6 @@
 #pragma once
 
 #include <allegro5/allegro5.h>
-#include <tmx.h>
 
 #include <memory>
 
@@ -18,10 +17,3 @@ struct Bitmap {
   BitmapPtr ptr;
   [[nodiscard]] ALLEGRO_BITMAP* get() const { return ptr.get(); }
 };
-
-struct TmxMapDeleter {
-  void operator()(tmx_map* m) const noexcept {
-    if (m) tmx_map_free(m);
-  }
-};
-using TmxMapPtr = std::unique_ptr<tmx_map, TmxMapDeleter>;

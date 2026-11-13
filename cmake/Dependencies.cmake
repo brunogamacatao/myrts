@@ -9,13 +9,6 @@ FetchContent_Declare(nlohmann_json
   DOWNLOAD_EXTRACT_TIMESTAMP TRUE
   FIND_PACKAGE_ARGS NAMES nlohmann_json)
 
-# Tiled (.tmx) map loader
-FetchContent_Declare(tmx
-  GIT_REPOSITORY https://github.com/baylej/tmx.git
-  GIT_TAG tmx_1.10.1
-  GIT_SHALLOW TRUE
-  FIND_PACKAGE_ARGS NAMES tmx)
-
 # Unit tests
 FetchContent_Declare(Catch2
   GIT_REPOSITORY https://github.com/catchorg/Catch2.git

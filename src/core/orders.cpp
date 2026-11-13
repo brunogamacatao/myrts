@@ -250,8 +250,24 @@ bool World::send_to_depot(Unit& u) {
 }
 
 void World::fell_tree(Point tile) {
-  layer(MoveClass::Land).blocked.set_blocked(tile, false);
+  Layer& L = layer(MoveClass::Land);
+  if (!terrain_) {  // a world without real terrain: the tile just becomes free
+    L.blocked.set_blocked(tile, false);
+    events_.publish(ev::TreeFelled{tile});
+    return;
+  }
+
+  // The tile's trees turn to grass and the tiles around it are redrawn to match; some of them may have lost their
+  // last tree, which frees them too.
+  const std::vector<Point> changed = terrain_->clear_trees(tile);
+  for (const Point p : changed) {
+    if (trees_.has_tree(p) && !terrain_->is_tree(p)) trees_.remove(p);
+    const bool covered = building_at(p).valid() || mine_at(p) >= 0;
+    L.blocked.set_blocked(p, covered || !land_passable(terrain_->movement(p)));
+  }
+  L.blocked.set_blocked(tile, building_at(tile).valid() || !land_passable(terrain_->movement(tile)));
   events_.publish(ev::TreeFelled{tile});
+  if (!changed.empty()) events_.publish(ev::TerrainChanged{changed});
 }
 
 void World::exhaust_mine(int index) {

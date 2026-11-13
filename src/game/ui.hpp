@@ -12,18 +12,20 @@
 #include "core/defs.hpp"
 #include "core/geometry.hpp"
 #include "sprite.hpp"
+#include "ui_art.hpp"
 
 namespace ui {
 
 inline constexpr int kWidth = 800;
 inline constexpr int kHeight = 600;
-inline constexpr int kPanelW = 160;
+inline constexpr int kPanelW = 176;  // the width of the original game's side panel
 inline constexpr int kTopBar = 24;
 
 inline constexpr myrts::Rect kViewport{kPanelW, kTopBar, kWidth - kPanelW, kHeight - kTopBar};
-inline constexpr myrts::Rect kMenuButton{8, 4, 144, 18};
-inline constexpr myrts::Rect kMinimap{16, 30, 128, 128};
-inline constexpr myrts::Rect kInfoPanel{8, 166, 144, 262};
+inline constexpr myrts::Rect kMenuButton{8, 4, 160, 18};
+inline constexpr myrts::Rect kMinimapFrame{0, 26, 176, 136};  // the frame texture...
+inline constexpr myrts::Rect kMinimap{24, 28, 128, 128};      // ...and the 128x128 hole in it
+inline constexpr myrts::Rect kInfoPanel{8, 168, 160, 262};
 inline constexpr int kButtonCols = 3;
 inline constexpr int kButtonRows = 2;
 inline constexpr int kButtonSlots = kButtonCols * kButtonRows;
@@ -31,7 +33,7 @@ inline constexpr int kBuildMenuCancel = kButtonSlots - 1;  // last slot closes t
 inline constexpr int kBuildNextPage = kButtonSlots - 2;    // shown instead of a building when there are more than fit
 
 // The HUD only sees small view-models filled in by the game every frame; it knows nothing about
-// the simulation.
+// the simulation. Icons are indices into the icon atlas (see UiArt).
 
 /// A selected unit, as shown in the info panel.
 struct UnitCard {
@@ -40,11 +42,9 @@ struct UnitCard {
   int hp = 1;
   int max_hp = 1;
   myrts::UnitStats stats;
-  const SpriteDef* sprite = nullptr;
-  const AnimationState* anim = nullptr;
+  int icon = -1;
 };
 
-/// One dot on the minimap (a unit or a building).
 struct MinimapDot {
   float x = 0;  // world pixels
   float y = 0;
@@ -53,16 +53,14 @@ struct MinimapDot {
   float size = 2;  // pixels on the minimap (buildings are bigger)
 };
 
-/// A button of the command panel.
 struct CommandButton {
   const myrts::CommandDef* def = nullptr;
+  int icon = -1;
   bool active = false;  // waiting for its target click
 };
 
-/// A button of the build menu (one building a worker can construct).
 struct BuildOption {
   const myrts::BuildingDef* def = nullptr;
-  ALLEGRO_BITMAP* icon = nullptr;
   bool affordable = true;
   bool placing = false;
 };
@@ -71,8 +69,7 @@ struct BuildOption {
 struct QueueEntry {
   std::string name;
   float progress = 0;  // 0..1, only meaningful for the front entry
-  const SpriteDef* sprite = nullptr;
-  const AnimationState* anim = nullptr;
+  int icon = -1;
 };
 
 /// A selected building, as shown in the info panel.
@@ -82,19 +79,18 @@ struct BuildingCard {
   int max_hp = 1;
   bool complete = true;
   float build_progress = 1;  // 0..1 while under construction
+  int icon = -1;
   std::vector<QueueEntry> queue;
 };
 
 /// A unit a selected building can train (one button each).
 struct TrainOption {
   const myrts::UnitDef* def = nullptr;
-  const SpriteDef* sprite = nullptr;
-  const AnimationState* anim = nullptr;
   bool affordable = true;
 };
 
-/// Everything draw_hud() needs for one frame. Filled in by Game; the HUD never touches the World.
 struct HudData {
+  const UiArt& art;
   const myrts::Stock& resources;
   std::span<const UnitCard> selection;
   std::span<const MinimapDot> dots;

@@ -1,10 +1,68 @@
 {
   "commands": [
-    {"id": "move",    "label": "Move",    "icon": "move",    "hotkey": "M", "targeting": "ground"},
-    {"id": "stop",    "label": "Stop",    "icon": "stop",    "hotkey": "S", "targeting": "none"},
-    {"id": "attack",  "label": "Attack",  "icon": "attack",  "hotkey": "A", "targeting": "ground"},
-    {"id": "repair",  "label": "Repair",  "icon": "repair",  "hotkey": "R", "targeting": "resource", "implemented": false},
-    {"id": "harvest", "label": "Harvest", "icon": "harvest", "hotkey": "H", "targeting": "resource"},
-    {"id": "build",   "label": "Build",   "icon": "build",   "hotkey": "B", "targeting": "menu"}
+    {
+      "id": "move",
+      "label": "Move",
+      "icon": "move",
+      "hotkey": "M",
+      "targeting": "ground",
+      "icons": {
+        "default": 83,
+        "orcs": 84
+      }
+    },
+    {
+      "id": "stop",
+      "label": "Stop",
+      "icon": "stop",
+      "hotkey": "S",
+      "targeting": "none",
+      "icons": {
+        "default": 164,
+        "orcs": 167
+      }
+    },
+    {
+      "id": "attack",
+      "label": "Attack",
+      "icon": "attack",
+      "hotkey": "A",
+      "targeting": "ground",
+      "icons": {
+        "default": 116,
+        "orcs": 119
+      }
+    },
+    {
+      "id": "repair",
+      "label": "Repair",
+      "icon": "repair",
+      "hotkey": "R",
+      "targeting": "resource",
+      "implemented": false,
+      "icons": {
+        "default": 85
+      }
+    },
+    {
+      "id": "harvest",
+      "label": "Harvest",
+      "icon": "harvest",
+      "hotkey": "H",
+      "targeting": "resource",
+      "icons": {
+        "default": 86
+      }
+    },
+    {
+      "id": "build",
+      "label": "Build",
+      "icon": "build",
+      "hotkey": "B",
+      "targeting": "menu",
+      "icons": {
+        "default": 87
+      }
+    }
   ]
 }

@@ -8,6 +8,7 @@
 
 #include "assets.hpp"
 #include "core/defs.hpp"
+#include "core/tileset.hpp"
 #include "scene_manager.hpp"
 #include "scenes.hpp"
 #include "ui.hpp"
@@ -49,9 +50,17 @@ int main() {
     std::fprintf(stderr, "couldn't load game data: %s\n", registry.error().c_str());
     return EXIT_FAILURE;
   }
+  auto tilesets = myrts::TileSets::load_file("data/tilesets.json");
+  if (!tilesets) {
+    std::fprintf(stderr, "couldn't load the tilesets: %s\n", tilesets.error().c_str());
+    return EXIT_FAILURE;
+  }
+  const auto shared_tilesets = std::make_shared<const myrts::TileSets>(std::move(*tilesets));
   Assets assets;
+  Cursors cursors;
+  cursors.load(display);
 
-  SceneManager scenes({display, font, &assets, &*registry});
+  SceneManager scenes({display, font, &assets, &*registry, &cursors, shared_tilesets});
   if (!scenes.start(make_intro([] { return Transition::replace(make_main_menu()); }))) return EXIT_FAILURE;
 
   bool redraw = true;
@@ -78,7 +87,8 @@ int main() {
     }
   }
 
-  scenes.shutdown();  // free every scene's resources while Allegro is still initialised
+  scenes.shutdown();
+  cursors.unload();  // free every scene's resources while Allegro is still initialised
   if (assets.live_sprites() + assets.live_bitmaps() != 0)  // everything is owned by scenes, so none should remain
     std::fprintf(stderr, "warning: %zu sprites and %zu bitmaps still alive after shutdown (leak?)\n",
                  assets.live_sprites(), assets.live_bitmaps());

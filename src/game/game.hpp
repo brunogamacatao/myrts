@@ -21,6 +21,8 @@
 #include "core/world.hpp"
 #include "raii.hpp"
 #include "scene.hpp"
+#include "tile_renderer.hpp"
+#include "ui_art.hpp"
 #include "ui.hpp"
 
 /// A body left where a unit died: plays its falling animation, rests for a while and fades away.
@@ -61,7 +63,6 @@ class Game {
   // ---- setup / events (game.cpp)
   void subscribe_to_world();
   void register_commands();
-  void redraw_minimap_bitmap();
   void set_message(std::string text, double seconds = 3.0);
   void apply(const myrts::Result& result);
   [[nodiscard]] const SpriteDef* sprite_of(const myrts::UnitDef& def);
@@ -100,11 +101,15 @@ class Game {
 
   // ---- drawing (game_render.cpp)
   void draw_world();
+  void update_cursor(float edge_dx, float edge_dy);
+  [[nodiscard]] std::string selected_faction() const;
   void draw_placement_ghost();
   void draw_health_bar(float x, float y, float w, int hp, int max_hp);
 
   // services (owned by main)
   ALLEGRO_FONT* font_ = nullptr;
+  Cursors* cursors_ = nullptr;
+  UiArt ui_art_;
   Assets* assets_ = nullptr;
   const myrts::Registry* registry_ = nullptr;
 
@@ -113,10 +118,9 @@ class Game {
   myrts::PlayerId local_player_ = myrts::kNoPlayer;
   std::vector<std::unique_ptr<myrts::Ai>> ais_;  // the computer players
 
-  // map graphics (tmx owns its tile bitmaps)
-  TmxMapPtr map_;
-  BitmapPtr minimap_bitmap_;
-  int tile_size_ = 32;
+  // map graphics
+  TileRenderer terrain_view_;
+  int tile_size_ = TileRenderer::kTile;
 
   // view state
   std::vector<myrts::EntityId> selected_;

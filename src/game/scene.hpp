@@ -10,6 +10,8 @@
 
 #include "assets.hpp"
 #include "core/defs.hpp"
+#include "core/tileset.hpp"
+#include "cursors.hpp"
 
 class Scene;
 
@@ -19,6 +21,8 @@ struct SceneContext {
   ALLEGRO_FONT* font = nullptr;
   Assets* assets = nullptr;                    // shared, reference-counted resources
   const myrts::Registry* registry = nullptr;   // game data (units, buildings, commands)
+  Cursors* cursors = nullptr;                   // the mouse cursors (a scene may change them each frame)
+  std::shared_ptr<const myrts::TileSets> tilesets;  // which tile code is drawn where, per terrain era
 };
 
 /// Builds a scene when the manager needs it (the old scene is still alive while this runs, so a

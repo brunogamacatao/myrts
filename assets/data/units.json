@@ -44,7 +44,8 @@
         "temple_of_the_damned",
         "dragon_roost",
         "alchemist"
-      ]
+      ],
+      "icon": 1
     },
     {
       "id": "orc_grunt",
@@ -72,7 +73,8 @@
         "move",
         "stop",
         "attack"
-      ]
+      ],
+      "icon": 3
     },
     {
       "id": "alliance_peasant",
@@ -118,7 +120,8 @@
         "alliance_mage_tower",
         "alliance_aviary",
         "alliance_blacksmith"
-      ]
+      ],
+      "icon": 0
     },
     {
       "id": "alliance_footman",
@@ -146,7 +149,8 @@
         "move",
         "stop",
         "attack"
-      ]
+      ],
+      "icon": 2
     },
     {
       "id": "orc_troll_axethrower",
@@ -174,7 +178,8 @@
         "stop",
         "attack"
       ],
-      "attack_seconds": 1.4
+      "attack_seconds": 1.4,
+      "icon": 5
     },
     {
       "id": "orc_ogre",
@@ -203,7 +208,8 @@
         "attack"
       ],
       "attack_seconds": 1.5,
-      "food": 2
+      "food": 2,
+      "icon": 9
     },
     {
       "id": "orc_death_knight",
@@ -232,7 +238,8 @@
         "attack"
       ],
       "attack_seconds": 1.6,
-      "food": 2
+      "food": 2,
+      "icon": 15
     },
     {
       "id": "orc_dragon",
@@ -261,7 +268,8 @@
         "attack"
       ],
       "attack_seconds": 1.6,
-      "food": 3
+      "food": 3,
+      "icon": 31
     },
     {
       "id": "orc_zeppelin",
@@ -287,7 +295,8 @@
       "commands": [
         "move",
         "stop"
-      ]
+      ],
+      "icon": 29
     },
     {
       "id": "orc_catapult",
@@ -318,7 +327,8 @@
       "attack_seconds": 3.0,
       "siege_multiplier": 2.0,
       "food": 2,
-      "aggressive": true
+      "aggressive": true,
+      "icon": 17
     },
     {
       "id": "alliance_archer",
@@ -346,7 +356,8 @@
         "stop",
         "attack"
       ],
-      "attack_seconds": 1.4
+      "attack_seconds": 1.4,
+      "icon": 4
     },
     {
       "id": "alliance_knight",
@@ -375,7 +386,8 @@
         "attack"
       ],
       "attack_seconds": 1.4,
-      "food": 2
+      "food": 2,
+      "icon": 8
     },
     {
       "id": "alliance_mage",
@@ -404,7 +416,8 @@
         "attack"
       ],
       "attack_seconds": 1.6,
-      "food": 2
+      "food": 2,
+      "icon": 14
     },
     {
       "id": "alliance_gryphon",
@@ -433,7 +446,8 @@
         "attack"
       ],
       "attack_seconds": 1.4,
-      "food": 3
+      "food": 3,
+      "icon": 30
     },
     {
       "id": "alliance_ballista",
@@ -463,7 +477,8 @@
       ],
       "attack_seconds": 3.0,
       "siege_multiplier": 2.0,
-      "food": 2
+      "food": 2,
+      "icon": 16
     }
   ]
 }

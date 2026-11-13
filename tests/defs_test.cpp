@@ -160,3 +160,40 @@ TEST_CASE("Every unit in the shipped data can actually be obtained") {
     CHECK(buildable.contains(b.id));
   }
 }
+
+TEST_CASE("Every unit, building and command in the shipped data has an icon in the atlas") {
+  namespace fs = std::filesystem;
+  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  const auto r = Registry::load_directory((assets / "data").string());
+  REQUIRE(r);
+  constexpr int kIcons = 198;  // icons in assets/ui/icons.png
+  for (const auto& u : r->units()) {
+    INFO("unit " << u.id);
+    CHECK(u.icon >= 0);
+    CHECK(u.icon < kIcons);
+  }
+  for (const auto& b : r->buildings()) {
+    INFO("building " << b.id);
+    CHECK(b.icon >= 0);
+    CHECK(b.icon < kIcons);
+  }
+  for (const auto& c : r->commands()) {
+    INFO("command " << c.id);
+    for (const char* faction : {"orcs", "alliance"}) {
+      CHECK(c.icon_for(faction) >= 0);
+      CHECK(c.icon_for(faction) < kIcons);
+    }
+  }
+  const CommandDef* move = r->command("move");
+  REQUIRE(move);
+  CHECK(move->icon_for("orcs") != move->icon_for("alliance"));  // each side has its own arrow
+  CHECK(move->icon_for("trolls") == move->icon_for("alliance"));  // unknown sides fall back to the default
+
+  for (const char* file : {"ui/icons.png", "ui/gold.png", "ui/lumber.png", "ui/oil.png", "ui/food.png", "ui/panel.png",
+                           "ui/minimap_frame.png", "ui/topbar.png", "cursors/cursors.json", "cursors/pointer.png"})
+    CHECK(fs::exists(assets / file));
+  for (const char* era : {"forest", "winter", "wasteland", "swamp"}) {
+    CHECK(fs::exists(assets / "buildings" / (std::string("gold_mine_") + era + ".png")));
+    CHECK(fs::exists(assets / "buildings" / (std::string("gold_mine_active_") + era + ".png")));
+  }
+}

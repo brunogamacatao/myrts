@@ -16,6 +16,8 @@ class TreeField {
   void add(Point p, int lumber);
   [[nodiscard]] bool has_tree(Point p) const { return trees_.contains(p); }
   [[nodiscard]] int remaining(Point p) const;
+  /// Takes the whole tree away (e.g. when its tile stops being forest).
+  void remove(Point p) { trees_.erase(p); }
   /// Removes up to `amount` lumber from the tree at `p` and returns what was taken.
   /// The tree disappears once it is empty.
   int take(Point p, int amount);

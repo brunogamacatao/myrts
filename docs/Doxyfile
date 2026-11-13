@@ -24,7 +24,7 @@ INLINE_SOURCES         = NO
 REFERENCED_BY_RELATION = YES
 REFERENCES_RELATION    = YES
 
-# Allegro / tmx headers are not parsed; unresolved names are just shown as text.
+# Allegro headers are not parsed; unresolved names are just shown as text.
 ENABLE_PREPROCESSING   = YES
 MACRO_EXPANSION        = YES
 PREDEFINED             = MYRTS_DOXYGEN=1

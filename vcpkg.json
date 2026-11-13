@@ -12,8 +12,7 @@
     "game": {
       "description": "Dependencies of the game executable",
       "dependencies": [
-        "allegro5",
-        "tmx"
+        "allegro5"
       ]
     }
   }

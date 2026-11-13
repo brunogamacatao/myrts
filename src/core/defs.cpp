@@ -55,6 +55,7 @@ UnitDef parse_unit(const json& j) {
   if (j.contains("cost")) u.cost = parse_cost(j.at("cost"));
   u.train_seconds = j.value("train_seconds", 0.0);
   u.food = j.value("food", u.food);
+  u.icon = j.value("icon", -1);
   if (u.food < 0) throw std::runtime_error("unit '" + u.id + "': food must be >= 0");
   u.attack_seconds = j.value("attack_seconds", u.attack_seconds);
   u.siege_multiplier = j.value("siege_multiplier", u.siege_multiplier);
@@ -87,6 +88,7 @@ BuildingDef parse_building(const json& j) {
   b.hp = j.value("hp", b.hp);
   b.armor = j.value("armor", 0);
   b.food = j.value("food", 0);
+  b.icon = j.value("icon", -1);
   if (b.hp < 1) throw std::runtime_error("building '" + b.id + "': hp must be >= 1");
   b.is_depot = j.value("is_depot", false);
   b.sprite = j.at("sprite").get<std::string>();
@@ -104,6 +106,8 @@ CommandDef parse_command(const json& j) {
   const std::string hotkey = j.value("hotkey", std::string{});
   c.hotkey = hotkey.empty() ? '\0' : static_cast<char>(std::toupper(static_cast<unsigned char>(hotkey[0])));
   c.implemented = j.value("implemented", true);
+  if (j.contains("icons"))
+    for (const auto& [faction, index] : j.at("icons").items()) c.icons[faction] = index.get<int>();
   return c;
 }
 

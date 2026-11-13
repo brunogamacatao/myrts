@@ -4,7 +4,6 @@
 #include <cmath>
 
 #include "game.hpp"
-#include "tilemap.hpp"
 
 namespace {
 const ALLEGRO_COLOR kSelectGreen = al_map_rgb(60, 230, 60);
@@ -37,7 +36,7 @@ void Game::draw_placement_ghost() {
 }
 
 void Game::draw_world() {
-  render_map(map_.get());
+  terrain_view_.draw(*world_->terrain(), camera_.visible());
 
   const auto tile_px = static_cast<float>(tile_size_);
   for (const auto& mine : world_->mines()) {
@@ -132,16 +131,11 @@ void Game::draw() {
   al_set_clipping_rectangle(0, 0, ui::kWidth, ui::kHeight);
 
   // View-models for the HUD.
-  static const AnimationState kNoAnimation;
   std::vector<ui::UnitCard> cards;
   for (const auto id : selected_) {
     const myrts::Unit* u = world_->units().get(id);
     if (!u) continue;
-    const auto sprite = sprites_.find(u->def);
-    const auto anim = anims_.find(id);
-    cards.push_back({u->def->name, u->def->level, u->hp, u->def->max_hp, u->def->stats,
-                     sprite != sprites_.end() ? sprite->second.get() : nullptr,
-                     anim != anims_.end() ? &anim->second : &kNoAnimation});
+    cards.push_back({u->def->name, u->def->level, u->hp, u->def->max_hp, u->def->stats, u->def->icon});
   }
   std::vector<ui::MinimapDot> dots;
   world_->buildings().for_each([&](const myrts::Building& b) {
@@ -157,36 +151,33 @@ void Game::draw() {
   // A selected building: its info card and what it can train.
   std::optional<ui::BuildingCard> building_card;
   std::vector<ui::TrainOption> train_options;
+  const myrts::Stock& stock = world_->player(local_player_).stock;
   if (const myrts::Building* b = world_->buildings().get(selected_building_)) {
-    static AnimationState icon_anim;  // every icon shows the unit standing, facing the viewer
-    icon_anim.current = "idle_down";
     ui::BuildingCard card;
     card.name = b->def->name;
     card.hp = b->hp;
     card.max_hp = b->def->hp;
     card.complete = b->complete;
     card.build_progress = static_cast<float>(b->progress / b->def->build_seconds);
-    for (const myrts::TrainItem& q : b->queue) {
-      const auto sprite = sprites_.find(q.unit);
-      card.queue.push_back({q.unit->name, static_cast<float>(q.progress / q.unit->train_seconds),
-                            sprite != sprites_.end() ? sprite->second.get() : nullptr, &icon_anim});
-    }
+    card.icon = b->def->icon;
+    for (const myrts::TrainItem& q : b->queue)
+      card.queue.push_back({q.unit->name, static_cast<float>(q.progress / q.unit->train_seconds), q.unit->icon});
     building_card = std::move(card);
-    const myrts::Stock& have = world_->player(local_player_).stock;
     for (const myrts::UnitDef* def : current_train_options())
-      train_options.push_back({def, sprite_of(*def), &icon_anim, myrts::can_afford(have, def->cost)});
+      train_options.push_back({def, myrts::can_afford(stock, def->cost)});
   }
+
+  const std::string faction = selected_faction();
   std::vector<ui::CommandButton> commands;
-  for (const myrts::CommandDef* c : current_commands()) commands.push_back({c, c == awaiting_target_});
+  for (const myrts::CommandDef* c : current_commands()) commands.push_back({c, c->icon_for(faction), c == awaiting_target_});
   std::vector<ui::BuildOption> options;
-  const myrts::Stock& stock = world_->player(local_player_).stock;
   bool more_pages = false;
   for (const myrts::BuildingDef* def : build_page(&more_pages))
-    options.push_back({def, art_.finished(*def), myrts::can_afford(stock, def->cost), def == placing_});
+    options.push_back({def, myrts::can_afford(stock, def->cost), def == placing_});
 
-  const ui::HudData hud{stock,     cards,     dots,       minimap_bitmap_.get(), minimap_, camera_,
-                        message_,  mouse_x_,  mouse_y_,   commands,              build_menu_, options, more_pages,
-                        building_card ? &*building_card : nullptr, train_options,
+  const ui::HudData hud{ui_art_,   stock,       cards,   dots,        terrain_view_.minimap(), minimap_,
+                        camera_,   message_,    mouse_x_, mouse_y_,   commands,                build_menu_,
+                        options,   more_pages,  building_card ? &*building_card : nullptr,     train_options,
                         world_->food_used(local_player_), world_->food_cap(local_player_)};
   ui::draw_hud(font_, hud);
 }

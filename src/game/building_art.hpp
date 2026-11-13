@@ -9,14 +9,14 @@
 #include "assets.hpp"
 #include "core/defs.hpp"
 
-/// Bitmaps of every building in the registry plus the gold mine. Sprites are shared through
+/// Bitmaps of every building in the registry plus the gold mine of the map's era. Sprites are shared through
 /// `Assets`; this object only keeps them alive while the game uses them.
 class BuildingArt {
  public:
   /// Loads what the registry names. A missing sprite is reported on stderr and that building is
   /// simply not drawn; a missing gold-mine sprite is replaced by a drawn placeholder
   /// (see scripts/extract_sprites.py).
-  void load(const myrts::Registry& registry, Assets& assets);
+  void load(const myrts::Registry& registry, Assets& assets, const std::string& era);
 
   [[nodiscard]] ALLEGRO_BITMAP* finished(const myrts::BuildingDef& def) const { return find(finished_, def.id); }
   [[nodiscard]] ALLEGRO_BITMAP* construction(const myrts::BuildingDef& def) const {
