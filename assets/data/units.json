@@ -154,6 +154,7 @@
     },
     {
       "id": "orc_troll_axethrower",
+      "projectile": "axe",
       "name": "Troll Axethrower",
       "faction": "orcs",
       "level": 1,
@@ -213,6 +214,7 @@
     },
     {
       "id": "orc_death_knight",
+      "projectile": "coil",
       "name": "Death Knight",
       "faction": "orcs",
       "level": 1,
@@ -243,6 +245,7 @@
     },
     {
       "id": "orc_dragon",
+      "projectile": "fire",
       "name": "Dragon",
       "faction": "orcs",
       "level": 1,
@@ -300,6 +303,7 @@
     },
     {
       "id": "orc_catapult",
+      "projectile": "boulder",
       "name": "Catapult",
       "faction": "orcs",
       "level": 1,
@@ -332,6 +336,7 @@
     },
     {
       "id": "alliance_archer",
+      "projectile": "arrow",
       "name": "Archer",
       "faction": "alliance",
       "level": 1,
@@ -391,6 +396,7 @@
     },
     {
       "id": "alliance_mage",
+      "projectile": "magic",
       "name": "Mage",
       "faction": "alliance",
       "level": 1,
@@ -451,6 +457,7 @@
     },
     {
       "id": "alliance_ballista",
+      "projectile": "bolt",
       "name": "Ballista",
       "faction": "alliance",
       "level": 1,

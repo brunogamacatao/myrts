@@ -57,6 +57,14 @@ int main() {
     return EXIT_FAILURE;
   }
   const auto shared_tilesets = std::make_shared<const myrts::TileSets>(std::move(*tilesets));
+  // The campaign: levels in order. MYRTS_MAP plays a single map instead; a missing file falls back to one level.
+  auto campaign = myrts::Campaign::load_file("data/campaign.json");
+  if (!campaign) {
+    std::fprintf(stderr, "warning: %s\n", campaign.error().c_str());
+    campaign = myrts::Campaign::single("maps/Gold Rush BNE.pud");
+  }
+  if (const char* map = std::getenv("MYRTS_MAP")) campaign = myrts::Campaign::single(map);
+  const auto shared_campaign = std::make_shared<const myrts::Campaign>(std::move(*campaign));
   Assets assets;
   Audio audio;
   if (!std::getenv("MYRTS_MUTE")) audio.init("sounds");  // no sound card is fine: the game stays silent
@@ -69,7 +77,7 @@ int main() {
   Cursors cursors;
   cursors.load(display);
 
-  SceneManager scenes({display, font, &assets, &*registry, &cursors, &audio, shared_sounds, shared_tilesets});
+  SceneManager scenes({display, font, &assets, &*registry, &cursors, shared_campaign, &audio, shared_sounds, shared_tilesets});
   if (!scenes.start(make_intro([] { return Transition::replace(make_main_menu()); }))) return EXIT_FAILURE;
 
   bool redraw = true;

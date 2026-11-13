@@ -226,7 +226,7 @@ void World::strike(Unit& attacker, const order::Target& target) {
     if (!t) return;
     const int dmg = std::max(1, raw - t->def->stats.armor);
     t->hp -= dmg;
-    events_.publish(ev::Attacked{attacker.id, target.id, false, dmg});
+    events_.publish(ev::Attacked{attacker.id, target.id, false, dmg, attacker.x, attacker.y, t->x, t->y});
     if (t->hp <= 0) {
       kill_unit(target.id);
     } else if (t->def->can_attack() && std::holds_alternative<order::Idle>(t->order)) {  // anyone armed fights back
@@ -239,7 +239,10 @@ void World::strike(Unit& attacker, const order::Target& target) {
   if (!b) return;
   const int dmg = std::max(1, static_cast<int>(static_cast<double>(raw) * attacker.def->siege_multiplier) - b->def->armor);
   b->hp -= dmg;
-  events_.publish(ev::Attacked{attacker.id, target.id, true, dmg});
+  const float half = static_cast<float>(b->def->size * config_.tile_size) / 2;
+  events_.publish(ev::Attacked{attacker.id, target.id, true, dmg, attacker.x, attacker.y,
+                               static_cast<float>(b->origin.x * config_.tile_size) + half,
+                               static_cast<float>(b->origin.y * config_.tile_size) + half});
   if (b->hp <= 0) destroy_building(target.id);
 }
 

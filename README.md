@@ -46,6 +46,12 @@ Tests: `cmake --preset tests-only && cmake --build --preset tests-only && ctest 
 - `assets/` – sprites, tilesets, Warcraft II maps (`maps/*.pud`) and game data (`data/*.json`)
 - `tests/` – Catch2 tests
 
+## Campaign
+The levels are listed in order in `assets/data/campaign.json`: each has a name, a briefing line, a Warcraft II map and how hard
+the Alliance plays (delay before its first attack, size and growth of its waves, workers, starting stock). Winning a level offers
+the next one; losing offers to retry it. Add a level by adding an entry (the map must have two start locations connected by
+land once the forests are chopped; `tests/campaign_test.cpp` checks this for every level). `MYRTS_MAP=<pud>` plays a single map.
+
 ## Maps
 Maps are Warcraft II `.pud` files, drawn with the same tile scheme the game uses (every tile is built from four terrain
 quadrants, so forests, coasts and cliffs get proper borders, and a felled tree redraws its surroundings).
@@ -60,6 +66,9 @@ unit, building and command is set in `assets/data/*.json` (an index into `assets
 sources run `scripts/extract_ui_assets.py` (see its docstring).
 
 ## Sound
+Ranged units (archers, axe throwers, ballistas, catapults, mages, death knights, dragons) shoot visible missiles, drawn with
+primitives; a unit opts in with `"projectile"` in `assets/data/units.json`.
+
 Units speak the way they do in Warcraft II: a line when selected (`what`), when given an order (`yessir`), a sequence of
 increasingly annoyed ones when clicked repeatedly (`pissed`), when they finish training (`ready`), when hit (`help`, at most
 once every six seconds) and when they die; buildings have their own sound when selected, and construction, errors, chopping,

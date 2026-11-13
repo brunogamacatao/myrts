@@ -35,6 +35,15 @@ struct Corpse {
   double age = 0.0;
 };
 
+/// A missile in flight (arrow, boulder, fireball...), drawn between where a ranged strike started and where it landed.
+struct Projectile {
+  enum class Kind { Arrow, Bolt, Axe, Boulder, Fire, Magic, Coil };
+  Kind kind = Kind::Arrow;
+  float x0 = 0, y0 = 0, x1 = 0, y1 = 0;  // world pixels
+  double age = 0.0;
+  double duration = 0.3;
+};
+
 /// The player's view of a match: input, selection, camera, HUD and drawing on top of a `World`.
 /// Everything that is a rule of the game lives in the World; this class only turns clicks into
 /// orders and the World's state (and events) into pixels.
@@ -43,7 +52,8 @@ struct Corpse {
 /// game_input.cpp (mouse and keyboard) and game_render.cpp (drawing).
 class Game {
  public:
-  static std::expected<std::unique_ptr<Game>, std::string> create(const SceneContext& ctx);
+  /// Builds the match for level `level` of the campaign (see assets/data/campaign.json).
+  static std::expected<std::unique_ptr<Game>, std::string> create(const SceneContext& ctx, std::size_t level = 0);
   Game(const Game&) = delete;
   Game& operator=(const Game&) = delete;
 
@@ -106,6 +116,8 @@ class Game {
 
   // ---- drawing (game_render.cpp)
   void draw_world();
+  void draw_projectiles();
+  void spawn_projectile(const myrts::ev::Attacked& a);
   void update_cursor(float edge_dx, float edge_dy);
   [[nodiscard]] std::string selected_faction() const;
   void draw_placement_ghost();
@@ -136,6 +148,7 @@ class Game {
   myrts::EntityId selected_building_;  // a building is selected instead of units
   std::unordered_map<myrts::EntityId, AnimationState, myrts::EntityIdHash> anims_;
   std::vector<Corpse> corpses_;
+  std::vector<Projectile> projectiles_;
   std::unordered_map<const myrts::UnitDef*, std::shared_ptr<const SpriteDef>> sprites_;
   BuildingArt art_;
   myrts::Camera camera_;

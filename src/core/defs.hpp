@@ -58,6 +58,7 @@ struct UnitDef {
   bool aggressive = true;                // attacks enemies it sees on its own (workers do not)
   int icon = -1;                         // index in the icon atlas (assets/ui/icons.png), -1 for none
   std::string sprite;                    // path of the sprite definition (json)
+  std::string projectile;                // what a ranged strike looks like in flight ("arrow", "boulder"...), empty for none
   std::vector<std::string> commands;     // command ids offered in the panel
   std::optional<WorkerDef> worker;       // gathers resources
   std::vector<std::string> builds;       // building ids this unit can construct

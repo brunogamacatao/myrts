@@ -119,17 +119,17 @@ class IntroScene : public Scene {
 
 class GameScene : public Scene {
  public:
-  explicit GameScene(std::unique_ptr<Game> game) : game_(std::move(game)) {}
+  GameScene(std::unique_ptr<Game> game, std::size_t level) : game_(std::move(game)), level_(level) {}
 
   void on_resume() override { game_->release_input(); }  // keys may have changed while paused
 
   Transition handle_event(const ALLEGRO_EVENT& e) override {
     if (e.type == ALLEGRO_EVENT_KEY_DOWN) {  // debug shortcuts until real win/lose rules exist
-      if (e.keyboard.keycode == ALLEGRO_KEY_F11) return Transition::replace(make_game_over(GameResult::Victory));
-      if (e.keyboard.keycode == ALLEGRO_KEY_F12) return Transition::replace(make_game_over(GameResult::Defeat));
+      if (e.keyboard.keycode == ALLEGRO_KEY_F11) return Transition::replace(make_game_over(GameResult::Victory, level_));
+      if (e.keyboard.keycode == ALLEGRO_KEY_F12) return Transition::replace(make_game_over(GameResult::Defeat, level_));
     }
     game_->handle_event(e);
-    if (game_->take_menu_request()) return Transition::push(make_pause_menu());
+    if (game_->take_menu_request()) return Transition::push(make_pause_menu(level_));
     return Transition::none();
   }
 
@@ -137,7 +137,8 @@ class GameScene : public Scene {
     game_->update(dt);
     if (const auto outcome = game_->outcome())
       return Transition::replace(make_game_over(*outcome == myrts::Outcome::Victory ? GameResult::Victory
-                                                                                     : GameResult::Defeat));
+                                                                                     : GameResult::Defeat,
+                                    level_));
     return Transition::none();
   }
 
@@ -145,6 +146,7 @@ class GameScene : public Scene {
 
  private:
   std::unique_ptr<Game> game_;
+  std::size_t level_;
 };
 
 }  // namespace
@@ -155,11 +157,11 @@ SceneFactory make_intro(std::function<Transition()> when_done) {
   return factory_of<IntroScene>(std::move(when_done));
 }
 
-SceneFactory make_game() {
-  return [](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
-    auto game = Game::create(ctx);
+SceneFactory make_game(std::size_t level) {
+  return [level](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
+    auto game = Game::create(ctx, level);
     if (!game) return std::unexpected(game.error());
-    return std::make_unique<GameScene>(std::move(*game));
+    return std::make_unique<GameScene>(std::move(*game), level);
   };
 }
 
@@ -178,8 +180,8 @@ SceneFactory make_main_menu() {
   };
 }
 
-SceneFactory make_pause_menu() {
-  return [](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
+SceneFactory make_pause_menu(std::size_t level) {
+  return [level](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
     MenuConfig cfg;
     cfg.title = "Game Menu";
     cfg.overlay = true;
@@ -187,7 +189,7 @@ SceneFactory make_pause_menu() {
     cfg.items = {
         {"Resume", [] { return Transition::pop(); }},
         {"Options", [] { return Transition::push(make_options()); }},
-        {"Restart", [] { return Transition::reset(make_game()); }},
+        {"Restart Level", [level] { return Transition::reset(make_game(level)); }},
         {"Quit to Main Menu", [] { return Transition::reset(make_main_menu()); }},
         {"Exit Game", [] { return Transition::quit(); }},
     };
@@ -195,18 +197,24 @@ SceneFactory make_pause_menu() {
   };
 }
 
-SceneFactory make_game_over(GameResult result) {
-  return [result](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
+SceneFactory make_game_over(GameResult result, std::size_t level) {
+  return [result, level](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
     const bool won = result == GameResult::Victory;
+    const auto next = ctx.campaign ? ctx.campaign->next(level) : std::nullopt;
+    const bool multi = ctx.campaign && ctx.campaign->size() > 1;
     MenuConfig cfg;
-    cfg.title = won ? "Victory!" : "Defeat";
-    cfg.subtitle = won ? "Your enemies have been crushed." : "Your forces have been destroyed.";
+    cfg.title = won ? (multi && !next ? "Campaign Complete!" : "Victory!") : "Defeat";
+    cfg.subtitle = won ? (next ? "Next: " + ctx.campaign->level(*next).name : "Your enemies have been crushed.")
+                       : "Your forces have been destroyed.";
     cfg.title_color = won ? al_map_rgb(240, 200, 60) : al_map_rgb(220, 60, 50);
-    cfg.items = {
-        {"Play Again", [] { return Transition::reset(make_game()); }},
-        {"Main Menu", [] { return Transition::reset(make_main_menu()); }},
-        {"Exit Game", [] { return Transition::quit(); }},
-    };
+    if (won && next) {
+      const std::size_t n = *next;
+      cfg.items.push_back({"Next Level", [n] { return Transition::reset(make_game(n)); }});
+    }
+    cfg.items.push_back({won ? "Replay Level" : "Try Again", [level] { return Transition::reset(make_game(level)); }});
+    if (won && !next && multi) cfg.items.push_back({"Play From the Start", [] { return Transition::reset(make_game(0)); }});
+    cfg.items.push_back(MenuItem{"Main Menu", [] { return Transition::reset(make_main_menu()); }});
+    cfg.items.push_back(MenuItem{"Exit Game", [] { return Transition::quit(); }});
     return std::make_unique<MenuScene>(ctx, std::move(cfg));
   };
 }

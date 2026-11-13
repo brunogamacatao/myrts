@@ -1,0 +1,47 @@
+#pragma once
+
+#include <expected>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "ai.hpp"
+#include "defs.hpp"
+
+namespace myrts {
+
+/// One level of the campaign: a Warcraft II map and how hard the opponent plays on it.
+struct Level {
+  std::string name;
+  std::string map;       ///< .pud path, relative to the game's assets
+  std::string briefing;  ///< one line shown when the level starts
+  AiConfig ai;           ///< the opponent's pace (waves, delay, workers)
+  Stock enemy_stock{1000, 300, 0};
+  int enemy_workers = 2;
+};
+
+/// The ordered list of levels, loaded from assets/data/campaign.json. Winning a level leads to the next one.
+class Campaign {
+ public:
+  /// Parses `{"levels":[{"name","map","briefing","ai":{...},"enemy_stock":{...},"enemy_workers"}...]}`; at least one
+  /// level is required and every level needs a name and a map.
+  static std::expected<Campaign, std::string> parse(std::string_view json_text);
+  static std::expected<Campaign, std::string> load_file(const std::string& path);
+
+  /// A one-level campaign on `map` (for MYRTS_MAP, and when no campaign file exists).
+  static Campaign single(std::string map);
+
+  [[nodiscard]] std::size_t size() const { return levels_.size(); }
+  [[nodiscard]] const Level& level(std::size_t i) const { return levels_[i < levels_.size() ? i : levels_.size() - 1]; }
+  [[nodiscard]] const std::vector<Level>& levels() const { return levels_; }
+  /// The index after `i`, or nothing after the last level.
+  [[nodiscard]] std::optional<std::size_t> next(std::size_t i) const {
+    return i + 1 < levels_.size() ? std::optional<std::size_t>(i + 1) : std::nullopt;
+  }
+
+ private:
+  std::vector<Level> levels_;
+};
+
+}  // namespace myrts

@@ -104,7 +104,83 @@ void Game::draw_world() {
   for (const myrts::Unit* u : ground) draw_unit(u);
   for (const myrts::Unit* u : air) draw_unit(u);
 
+  draw_projectiles();
+
   if (placing_ && mouse_in_window_ && ui::kViewport.contains(mouse_x_, mouse_y_)) draw_placement_ghost();
+}
+
+/// Missiles are drawn with primitives: they fly in a straight line (boulders and arrows in a small arc, as thrown).
+void Game::draw_projectiles() {
+  for (const Projectile& p : projectiles_) {
+    const float t = static_cast<float>(std::clamp(p.age / p.duration, 0.0, 1.0));
+    const float dx = p.x1 - p.x0, dy = p.y1 - p.y0;
+    const float len = std::max(1.0f, std::hypot(dx, dy));
+    const float ux = dx / len, uy = dy / len;
+    float arc = 0;
+    switch (p.kind) {
+      case Projectile::Kind::Boulder: arc = std::min(46.0f, len * 0.35f); break;
+      case Projectile::Kind::Arrow:
+      case Projectile::Kind::Bolt:
+      case Projectile::Kind::Axe: arc = std::min(12.0f, len * 0.08f); break;
+      default: break;
+    }
+    const float lift = arc * 4 * t * (1 - t);  // parabola, highest halfway
+    const float x = p.x0 + dx * t, y = p.y0 + dy * t - lift;
+    const float slope = arc * 4 * (1 - 2 * t) / len;  // the arc tilts the shaft up, then down
+    float sx = ux, sy = uy - slope;
+    const float sl = std::max(0.001f, std::hypot(sx, sy));
+    sx /= sl;
+    sy /= sl;
+
+    switch (p.kind) {
+      case Projectile::Kind::Arrow:
+      case Projectile::Kind::Bolt: {
+        const float shaft = p.kind == Projectile::Kind::Bolt ? 16.0f : 11.0f;
+        const float width = p.kind == Projectile::Kind::Bolt ? 2.2f : 1.4f;
+        al_draw_line(x - sx * shaft, y - sy * shaft, x, y, al_map_rgb(140, 96, 52), width);
+        al_draw_line(x - sx * shaft, y - sy * shaft, x - sx * (shaft - 4), y - sy * (shaft - 4), al_map_rgb(220, 220, 210), width);
+        al_draw_filled_circle(x, y, width, al_map_rgb(214, 214, 220));  // the head
+        break;
+      }
+      case Projectile::Kind::Axe: {
+        const float a = static_cast<float>(p.age) * 22.0f;  // spins as it flies
+        for (int i = 0; i < 2; ++i) {
+          const float ang = a + static_cast<float>(i) * 1.5708f;
+          al_draw_line(x - std::cos(ang) * 6, y - std::sin(ang) * 6, x + std::cos(ang) * 6, y + std::sin(ang) * 6,
+                       i == 0 ? al_map_rgb(150, 150, 160) : al_map_rgb(120, 84, 48), 2.0f);
+        }
+        break;
+      }
+      case Projectile::Kind::Boulder: {
+        al_draw_filled_ellipse(p.x0 + dx * t, p.y0 + dy * t + 4, 5, 2.5f, al_map_rgba_f(0, 0, 0, 0.3f));  // its shadow
+        al_draw_filled_circle(x, y, 5, al_map_rgb(88, 82, 76));
+        al_draw_filled_circle(x - 1.5f, y - 1.5f, 2.5f, al_map_rgb(132, 124, 116));
+        break;
+      }
+      case Projectile::Kind::Fire: {
+        for (int i = 3; i >= 1; --i) {  // a fading trail
+          const float tt = std::max(0.0f, t - static_cast<float>(i) * 0.05f);
+          al_draw_filled_circle(p.x0 + dx * tt, p.y0 + dy * tt, 5.0f - static_cast<float>(i), al_map_rgba_f(0.9f, 0.35f, 0.05f, 0.25f * (4 - i)));
+        }
+        al_draw_filled_circle(x, y, 6, al_map_rgb(236, 110, 24));
+        al_draw_filled_circle(x, y, 3.2f, al_map_rgb(255, 224, 110));
+        break;
+      }
+      case Projectile::Kind::Magic: {
+        al_draw_filled_circle(x, y, 7, al_map_rgba_f(0.35f, 0.55f, 1.0f, 0.35f));
+        al_draw_filled_circle(x, y, 3.5f, al_map_rgb(150, 190, 255));
+        al_draw_filled_circle(x, y, 1.6f, al_map_rgb(255, 255, 255));
+        break;
+      }
+      case Projectile::Kind::Coil: {
+        const float a = static_cast<float>(p.age) * 14.0f;
+        al_draw_filled_circle(x, y, 7, al_map_rgba_f(0.5f, 0.1f, 0.7f, 0.35f));
+        al_draw_filled_circle(x + std::cos(a) * 3, y + std::sin(a) * 3, 3, al_map_rgb(170, 70, 220));
+        al_draw_filled_circle(x - std::cos(a) * 3, y - std::sin(a) * 3, 3, al_map_rgb(90, 220, 110));
+        break;
+      }
+    }
+  }
 }
 
 void Game::draw() {

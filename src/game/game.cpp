@@ -13,13 +13,11 @@ namespace {
 constexpr float kScrollSpeed = 420.0f;  // pixels per second
 constexpr float kEdgeScrollMargin = 6.0f;
 constexpr int kInitialUnits = 8;
-constexpr int kEnemyWorkers = 2;
 constexpr double kCorpseSeconds = 25.0;  // how long a body stays (the last 5 s it fades)
 constexpr std::size_t kMaxCorpses = 60;
 constexpr int kMineSize = 3;
 constexpr myrts::Stock kStartingStock{2000, 1000, 0};
-constexpr myrts::Stock kEnemyStock{1000, 300, 0};
-constexpr const char* kDefaultMap = "maps/Cramped BNE.pud";
+constexpr const char* kDefaultMap = "maps/Gold Rush BNE.pud";
 
 /// The free spot closest to `near` where `def` fits, leaving a one-tile gap around it so units can walk past.
 std::optional<myrts::Point> find_spot(const myrts::World& world, const myrts::BuildingDef& def, myrts::Point near) {
@@ -44,7 +42,9 @@ std::optional<myrts::Point> find_spot(const myrts::World& world, const myrts::Bu
 
 // ---- setup ------------------------------------------------------------------------
 
-std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContext& ctx) {
+std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContext& ctx, std::size_t level_index) {
+  const myrts::Level fallback = myrts::Campaign::single(kDefaultMap).level(0);
+  const myrts::Level& level = ctx.campaign ? ctx.campaign->level(level_index) : fallback;
   std::unique_ptr<Game> game(new Game());
   game->font_ = ctx.font;
   game->cursors_ = ctx.cursors;
@@ -65,8 +65,7 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
     return std::unexpected("game data is missing the starting units or buildings (assets/data)");
 
   // The map: a Warcraft II .pud. Its terrain, start locations and gold mines define the match.
-  const char* map_path = std::getenv("MYRTS_MAP");
-  auto pud = myrts::load_pud(map_path ? map_path : kDefaultMap);
+  auto pud = myrts::load_pud(level.map);
   if (!pud) return std::unexpected(pud.error());
   auto terrain = myrts::TileMap::from_pud(*pud, ctx.tilesets);
   if (!terrain) return std::unexpected(terrain.error());
@@ -88,7 +87,7 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   const myrts::StartSlot& ours = scenario.starts[0];
   const myrts::StartSlot& theirs = scenario.starts[*scenario.farthest_from(0)];
   game->local_player_ = world.add_player("Player", "orcs", kStartingStock);
-  const myrts::PlayerId enemy = world.add_player("Alliance", "alliance", kEnemyStock);
+  const myrts::PlayerId enemy = world.add_player("Alliance", "alliance", level.enemy_stock);
 
   /// A player's hall goes where the map put one, or at the nearest free spot to the start location.
   const auto place_hall = [&](const myrts::BuildingDef& def, const myrts::StartSlot& slot,
@@ -109,7 +108,7 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   for (const myrts::BuildingDef* def : {enemy_barracks, enemy_stables, enemy_aviary}) {
     if (const auto at = find_spot(world, *def, *their_hall)) world.add_building(*def, enemy, *at, true);
   }
-  myrts::AiConfig ai_config;
+  myrts::AiConfig ai_config = level.ai;
   if (const char* delay = std::getenv("MYRTS_AI_DELAY")) ai_config.start_delay = std::max(0.0, std::atof(delay));
   game->ais_.push_back(std::make_unique<myrts::Ai>(world, registry, enemy, ai_config));
 
@@ -131,7 +130,7 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
       if (spot) world.spawn_unit(def, owner, *spot);
   };
   spawn_workers(*peon, game->local_player_, *our_hall, *hall, kInitialUnits);
-  spawn_workers(*peasant, enemy, *their_hall, *town_hall, kEnemyWorkers);
+  spawn_workers(*peasant, enemy, *their_hall, *town_hall, level.enemy_workers);
 
   myrts::Point focus{our_hall->x + hall->size / 2, our_hall->y + hall->size / 2};
   if (std::getenv("MYRTS_ROSTER")) {  // testing aid: one of every unit type, next to our hall
@@ -143,8 +142,16 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
       ++n;
     }
   }
+  if (std::getenv("MYRTS_ROSTER")) {  // ...and a few Alliance footmen close by, so the ranged units have targets
+    if (const myrts::UnitDef* footman = registry.unit("alliance_footman"))
+      for (int i = 0; i < 6; ++i) world.spawn_unit(*footman, enemy, {our_hall->x + 3 + i, our_hall->y - 12});
+  }
   game->camera_.center_on(static_cast<float>(focus.x * game->tile_size_), static_cast<float>(focus.y * game->tile_size_));
   game->subscribe_to_world();
+  game->set_message(ctx.campaign && ctx.campaign->size() > 1
+                        ? "Level " + std::to_string(level_index + 1) + ": " + level.name + ". " + level.briefing
+                        : level.briefing,
+                    8.0);
   game->register_commands();
   world.events().dispatch();  // spawn / placement events of the initial setup
   return game;
@@ -165,6 +172,7 @@ void Game::subscribe_to_world() {
       }
       if (selected_.empty()) close_build_menu();
     });
+    myrts::on_event<myrts::ev::Attacked>(e, [&](const myrts::ev::Attacked& a) { spawn_projectile(a); });
     myrts::on_event<myrts::ev::BuildingDestroyed>(e, [&](const myrts::ev::BuildingDestroyed& d) {
       if (selected_building_ == d.building) selected_building_ = myrts::kNoEntity;
     });
@@ -175,6 +183,28 @@ void Game::subscribe_to_world() {
       if (n.player == local_player_) set_message(n.text);
     });
   });
+}
+
+/// A ranged strike sends a visible missile; the damage itself was already dealt by the World.
+void Game::spawn_projectile(const myrts::ev::Attacked& a) {
+  const myrts::Unit* attacker = world_->units().get(a.attacker);
+  if (!attacker || attacker->def->projectile.empty() || attacker->def->stats.range <= 1) return;
+  using K = Projectile::Kind;
+  static const std::unordered_map<std::string, std::pair<K, float>> kKinds = {  // kind and speed (pixels per second)
+      {"arrow", {K::Arrow, 460}}, {"bolt", {K::Bolt, 520}},  {"axe", {K::Axe, 320}}, {"boulder", {K::Boulder, 280}},
+      {"fire", {K::Fire, 340}},   {"magic", {K::Magic, 400}}, {"coil", {K::Coil, 360}}};
+  const auto it = kKinds.find(attacker->def->projectile);
+  if (it == kKinds.end()) return;
+  Projectile p;
+  p.kind = it->second.first;
+  const float lift = lift_of(*attacker->def);
+  p.x0 = a.from_x;
+  p.y0 = a.from_y - lift - 6;
+  p.x1 = a.to_x;
+  p.y1 = a.to_y;
+  const float dist = std::hypot(p.x1 - p.x0, p.y1 - p.y0);
+  p.duration = std::clamp(static_cast<double>(dist / it->second.second), 0.12, 1.2);
+  if (projectiles_.size() < 200) projectiles_.push_back(p);
 }
 
 /// The behaviour behind each command id. The data (label, icon, hotkey, how it is targeted)
@@ -503,6 +533,8 @@ void Game::update(double dt) {
     if (const SpriteDef* sprite = sprite_of(*c.def)) update_animation(*sprite, c.anim, dt);
   }
   std::erase_if(corpses_, [](const Corpse& c) { return c.age > kCorpseSeconds; });
+  for (Projectile& p : projectiles_) p.age += dt;
+  std::erase_if(projectiles_, [](const Projectile& p) { return p.age >= p.duration; });
 
   if (message_time_left_ > 0 && (message_time_left_ -= dt) <= 0 && !awaiting_target_) message_.clear();
 }

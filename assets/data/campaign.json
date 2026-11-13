@@ -1,0 +1,132 @@
+{
+ "levels": [
+  {
+   "name": "Gold Rush",
+   "map": "maps/Gold Rush BNE.pud",
+   "briefing": "Mines to the horizon; take them before the Alliance does.",
+   "ai": {
+    "start_delay": 150,
+    "first_wave": 5,
+    "wave_growth": 3,
+    "desired_workers": 3
+   },
+   "enemy_stock": {
+    "gold": 1000.0,
+    "lumber": 300.0
+   },
+   "enemy_workers": 2
+  },
+  {
+   "name": "Dark Paths",
+   "map": "maps/Dark Paths BNE.pud",
+   "briefing": "Narrow swamp paths favour whoever holds the chokepoints.",
+   "ai": {
+    "start_delay": 137,
+    "first_wave": 6,
+    "wave_growth": 3,
+    "desired_workers": 3
+   },
+   "enemy_stock": {
+    "gold": 1300.0,
+    "lumber": 500.0
+   },
+   "enemy_workers": 2
+  },
+  {
+   "name": "Skirmish",
+   "map": "maps/Skirmish BNE.pud",
+   "briefing": "Open ground. Expect larger waves.",
+   "ai": {
+    "start_delay": 124,
+    "first_wave": 8,
+    "wave_growth": 4,
+    "desired_workers": 4
+   },
+   "enemy_stock": {
+    "gold": 1600.0,
+    "lumber": 600.0
+   },
+   "enemy_workers": 3
+  },
+  {
+   "name": "Murky River",
+   "map": "maps/Murky River BNE.pud",
+   "briefing": "The river splits the swamp; the Alliance is on the far side.",
+   "ai": {
+    "start_delay": 111,
+    "first_wave": 9,
+    "wave_growth": 4,
+    "desired_workers": 4
+   },
+   "enemy_stock": {
+    "gold": 1900.0,
+    "lumber": 800.0
+   },
+   "enemy_workers": 3
+  },
+  {
+   "name": "Winding Ways",
+   "map": "maps/Winding Ways BNE.pud",
+   "briefing": "Long marches through twisting passes.",
+   "ai": {
+    "start_delay": 99,
+    "first_wave": 10,
+    "wave_growth": 4,
+    "desired_workers": 4
+   },
+   "enemy_stock": {
+    "gold": 2100.0,
+    "lumber": 1000.0
+   },
+   "enemy_workers": 4
+  },
+  {
+   "name": "Big Rock Candy Mountain",
+   "map": "maps/Big Rock Candy Mountain BNE.pud",
+   "briefing": "Rich ground; the Alliance will not be idle.",
+   "ai": {
+    "start_delay": 86,
+    "first_wave": 11,
+    "wave_growth": 4,
+    "desired_workers": 4
+   },
+   "enemy_stock": {
+    "gold": 2400.0,
+    "lumber": 1200.0
+   },
+   "enemy_workers": 4
+  },
+  {
+   "name": "Widow's End",
+   "map": "maps/Widow's End BNE.pud",
+   "briefing": "The Alliance now sends large armies.",
+   "ai": {
+    "start_delay": 73,
+    "first_wave": 13,
+    "wave_growth": 5,
+    "desired_workers": 5
+   },
+   "enemy_stock": {
+    "gold": 2700.0,
+    "lumber": 1300.0
+   },
+   "enemy_workers": 5
+  },
+  {
+   "name": "Mountain Pass",
+   "map": "maps/Mountain Pass BNE.pud",
+   "briefing": "The final push through the mountains.",
+   "ai": {
+    "start_delay": 60,
+    "first_wave": 14,
+    "wave_growth": 5,
+    "desired_workers": 5
+   },
+   "enemy_stock": {
+    "gold": 3000.0,
+    "lumber": 1500.0
+   },
+   "enemy_workers": 5
+  }
+ ]
+}

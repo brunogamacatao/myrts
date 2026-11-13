@@ -26,7 +26,14 @@ struct UnitSpawned { EntityId unit; };
 /// Carries where and how the unit fell so the view can show a body.
 struct UnitDied { EntityId unit; PlayerId owner; const UnitDef* def; float x; float y; Facing facing; };
 /// `damage` is what was actually taken off after armor.
-struct Attacked { EntityId attacker; EntityId target; bool target_is_building; int damage; };
+/// `from_*` / `to_*` are where the strike started and landed (world pixels), for drawing projectiles.
+struct Attacked {
+  EntityId attacker;
+  EntityId target;
+  bool target_is_building;
+  int damage;
+  float from_x, from_y, to_x, to_y;
+};
 struct BuildingDestroyed { EntityId building; PlayerId owner; Point origin; int size; };
 /// A unit finished training and left its building.
 struct UnitTrained { EntityId unit; PlayerId owner; };
