@@ -38,3 +38,9 @@ The HUD uses the original Warcraft II interface art, gathered by `scripts/extrac
 The tileset images, sprites and the maps in `assets/maps/` are Warcraft II material (Blizzard Entertainment), taken from the
 sources above and from The Spriters Resource (sprites ripped by Maxim). They are used here as the project's author asked;
 check their terms before redistributing the game.
+
+## Sounds
+The WAV files in `assets/sounds/` come from the Warcraft II sound pack and are Blizzard Entertainment material; check the
+terms before redistributing them. Which sound plays on which event follows the naming convention of the originals and the
+event names used by Wargus (`scripts/sound.lua`, GPLv2), used only as a behaviour reference: none of its code was copied.
+`scripts/import_sounds.py` regenerates `assets/sounds/` and `assets/data/sounds.json` from the original folder.

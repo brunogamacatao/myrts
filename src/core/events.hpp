@@ -27,7 +27,9 @@ struct UnitSpawned { EntityId unit; };
 struct UnitDied { EntityId unit; PlayerId owner; const UnitDef* def; float x; float y; Facing facing; };
 /// `damage` is what was actually taken off after armor.
 struct Attacked { EntityId attacker; EntityId target; bool target_is_building; int damage; };
-struct BuildingDestroyed { EntityId building; PlayerId owner; };
+struct BuildingDestroyed { EntityId building; PlayerId owner; Point origin; int size; };
+/// A unit finished training and left its building.
+struct UnitTrained { EntityId unit; PlayerId owner; };
 struct BuildingPlaced { EntityId building; PlayerId owner; };
 struct BuildingCompleted { EntityId building; PlayerId owner; };
 struct Delivered { PlayerId player; Stock amount; };
@@ -41,7 +43,7 @@ namespace myrts {
 
 using Event = std::variant<ev::TreeFelled, ev::TerrainChanged, ev::MineDepleted, ev::UnitSpawned, ev::UnitDied, ev::Attacked,
                            ev::BuildingPlaced, ev::BuildingCompleted, ev::BuildingDestroyed, ev::Delivered,
-                           ev::Notice>;
+                           ev::Notice, ev::UnitTrained>;
 
 /// Decouples "something happened" (the simulation) from "who cares" (HUD, sound, victory rules).
 /// Events are queued by publish() and delivered, in order, by dispatch(), so a handler never

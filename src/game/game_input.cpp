@@ -128,13 +128,13 @@ void Game::right_click_at(myrts::Point tile) {
   const bool enemy_unit = foe_unit && myrts::World::is_enemy(local_player_, foe_unit->owner);
   const bool enemy_building = b && myrts::World::is_enemy(local_player_, b->owner);
   if (enemy_unit || enemy_building) {
-    apply(world_->order_attack(selected_, tile));
+    ordered(world_->order_attack(selected_, tile));
   } else if (world_->trees().has_tree(tile) || world_->mine_at(tile) >= 0) {
-    apply(world_->order_harvest(selected_, tile));
+    ordered(world_->order_harvest(selected_, tile));
   } else if (b && !b->complete) {
-    apply(world_->order_resume_build(selected_, site));
+    ordered(world_->order_resume_build(selected_, site));
   } else {
-    apply(world_->order_move(selected_, tile));
+    ordered(world_->order_move(selected_, tile));
   }
 }
 
@@ -163,7 +163,7 @@ void Game::on_mouse_down(const ALLEGRO_EVENT& e) {
       if (const auto tile = tile_at_world(w)) right_click_at(*tile);
     } else if (in_minimap) {
       const auto w = minimap_.mini_to_world(mouse_x_ - ui::kMinimap.x, mouse_y_ - ui::kMinimap.y);
-      if (const auto tile = tile_at_world(w)) apply(world_->order_move(selected_, *tile));
+      if (const auto tile = tile_at_world(w)) ordered(world_->order_move(selected_, *tile));
     }
     return;
   }
@@ -237,7 +237,9 @@ void Game::box_select(float x1, float y1, float x2, float y2) {
     for (const auto id : selected_)
       if (std::ranges::find(ids, id) == ids.end()) ids.push_back(id);
   }
+  const bool any = !ids.empty();
   select_only(std::move(ids));
+  if (any) play_selection_sound(false);
 }
 
 void Game::click_in_viewport(float sx, float sy) {
@@ -267,13 +269,16 @@ void Game::click_in_viewport(float sx, float sy) {
     if (shift_down()) {
       toggle_selected(id);
     } else {
+      const bool again = selected_.size() == 1 && selected_.front() == id;
       select_only({id});
+      play_selection_sound(again);
     }
   } else if (const auto tile = tile_at_world(world); tile && !shift_down() &&
                                                        world_->building_at(*tile).valid() &&
                                                        world_->buildings().get(world_->building_at(*tile))->owner ==
                                                            local_player_) {
     select_building(world_->building_at(*tile));  // one of our buildings
+    if (const auto* sel = world_->buildings().get(selected_building_)) director_->building(sel->def->id);
   } else if (!shift_down()) {
     select_only({});  // clicking empty ground (or an enemy) deselects
   }

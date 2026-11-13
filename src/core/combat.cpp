@@ -250,8 +250,10 @@ void World::destroy_building(EntityId id) {
   if (Unit* builder = units_.get(b->builder)) cancel_order(*builder);
   const PlayerId owner = b->owner;
   const std::string name = b->def->name;
+  const Point origin = b->origin;
+  const int size = b->def->size;
   buildings_.erase(id);
-  events_.publish(ev::BuildingDestroyed{id, owner});
+  events_.publish(ev::BuildingDestroyed{id, owner, origin, size});
   notice(owner, "Your " + name + " was destroyed");
 }
 
@@ -293,6 +295,7 @@ void World::update_training(double dt) {
     b->queue.erase(b->queue.begin());
     const EntityId spawned = spawn_unit(def, owner, *tile);
     notice(owner, def.name + " ready");
+    if (spawned.valid()) events_.publish(ev::UnitTrained{spawned, owner});
 
     // Head for the rally point; workers sent to a tree or a mine start gathering.
     if (spawned.valid() && rally) {

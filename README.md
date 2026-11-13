@@ -59,6 +59,14 @@ resource icons and the mouse cursors (crosshairs while choosing a target, scroll
 unit, building and command is set in `assets/data/*.json` (an index into `assets/ui/icons.png`). To rebuild the assets from their
 sources run `scripts/extract_ui_assets.py` (see its docstring).
 
+## Sound
+Units speak the way they do in Warcraft II: a line when selected (`what`), when given an order (`yessir`), a sequence of
+increasingly annoyed ones when clicked repeatedly (`pissed`), when they finish training (`ready`), when hit (`help`, at most
+once every six seconds) and when they die; buildings have their own sound when selected, and construction, errors, chopping,
+strikes and explosions have effects, panned and attenuated by where they happen on screen. Which file plays for which event
+is in `assets/data/sounds.json` (`scripts/import_sounds.py "<WarCraft 2 Sounds folder>"` copies the WAVs into `assets/sounds/`
+and regenerates it). `MYRTS_MUTE=1` turns the sound off; with no sound card the game stays silent.
+
 ## Group movement
 A* stays single-agent. For a group order, `assign_destinations` picks the closest free, connected tiles around
 the target and pairs them with units; each unit then runs A* to its own tile. While moving, units reserve

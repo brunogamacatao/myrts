@@ -42,7 +42,8 @@ add_library(myrts_core STATIC
   src/core/tileset.cpp
   src/core/pud.cpp
   src/core/tilemap.cpp
-  src/core/scenario.cpp)
+  src/core/scenario.cpp
+  src/core/sounds.cpp)
 target_include_directories(myrts_core PUBLIC src)
 target_compile_features(myrts_core PUBLIC cxx_std_23)
 target_link_libraries(myrts_core PRIVATE myrts_warnings nlohmann_json::nlohmann_json)
@@ -57,11 +58,18 @@ if(MYRTS_BUILD_GAME)
   find_package(Allegro CONFIG QUIET)
   if(TARGET Allegro::allegro)
     set(MYRTS_ALLEGRO_LIBS Allegro::allegro Allegro::allegro_font
-        Allegro::allegro_image Allegro::allegro_primitives)
+        Allegro::allegro_image Allegro::allegro_primitives
+        Allegro::allegro_audio Allegro::allegro_acodec)
+    # The static OpenAL that vcpkg builds into Allegro's audio needs fmt.
+    find_package(fmt CONFIG QUIET)
+    if(TARGET fmt::fmt)
+      # It is listed after allegro_audio's own libraries (OpenAL), which is where the linker needs it.
+      set_property(TARGET Allegro::allegro_audio APPEND PROPERTY INTERFACE_LINK_LIBRARIES fmt::fmt)
+    endif()
   else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(ALLEGRO REQUIRED IMPORTED_TARGET
-      allegro-5 allegro_font-5 allegro_image-5 allegro_primitives-5)
+      allegro-5 allegro_font-5 allegro_image-5 allegro_primitives-5 allegro_audio-5 allegro_acodec-5)
     set(MYRTS_ALLEGRO_LIBS PkgConfig::ALLEGRO)
   endif()
 
@@ -78,6 +86,8 @@ if(MYRTS_BUILD_GAME)
     src/game/scene_manager.cpp
     src/game/scenes.cpp
     src/game/assets.cpp
+    src/game/audio.cpp
+    src/game/sound_director.cpp
     src/game/game.cpp
     src/game/game_input.cpp
     src/game/game_render.cpp)
@@ -106,7 +116,8 @@ if(MYRTS_BUILD_TESTS)
     tests/defs_test.cpp
     tests/world_test.cpp
     tests/combat_test.cpp
-    tests/terrain_test.cpp)
+    tests/terrain_test.cpp
+    tests/sounds_test.cpp)
   target_compile_definitions(myrts_tests PRIVATE MYRTS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   target_link_libraries(myrts_tests PRIVATE myrts_core myrts_warnings nlohmann_json::nlohmann_json Catch2::Catch2WithMain)
   if(catch2_SOURCE_DIR)

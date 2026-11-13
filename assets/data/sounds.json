@@ -1,0 +1,472 @@
+{
+ "voices": {
+  "orc": {
+   "selected": [
+    "owhat1.wav",
+    "owhat2.wav",
+    "owhat3.wav",
+    "owhat4.wav",
+    "owhat5.wav",
+    "owhat6.wav"
+   ],
+   "acknowledge": [
+    "oyessir1.wav",
+    "oyessir2.wav",
+    "oyessir3.wav",
+    "oyessir4.wav"
+   ],
+   "annoyed": [
+    "opissed1.wav",
+    "opissed2.wav",
+    "opissed3.wav",
+    "opissed4.wav",
+    "opissed5.wav",
+    "opissed6.wav",
+    "opissed7.wav"
+   ],
+   "help": [
+    "ohelp1.wav",
+    "ohelp2.wav"
+   ],
+   "dead": [
+    "odead.wav"
+   ],
+   "work_done": [
+    "owrkdone.wav"
+   ]
+  },
+  "human": {
+   "selected": [
+    "hwhat1.wav",
+    "hwhat2.wav",
+    "hwhat3.wav",
+    "hwhat4.wav",
+    "hwhat5.wav",
+    "hwhat6.wav"
+   ],
+   "acknowledge": [
+    "hyessir1.wav",
+    "hyessir2.wav",
+    "hyessir3.wav",
+    "hyessir4.wav"
+   ],
+   "annoyed": [
+    "hpissed1.wav",
+    "hpissed2.wav",
+    "hpissed3.wav",
+    "hpissed4.wav",
+    "hpissed5.wav",
+    "hpissed6.wav",
+    "hpissed7.wav"
+   ],
+   "help": [
+    "hhelp1.wav",
+    "hhelp2.wav"
+   ],
+   "dead": [
+    "hdead.wav"
+   ],
+   "work_done": [
+    "hwrkdone.wav"
+   ]
+  }
+ },
+ "units": {
+  "orc_peon": {
+   "voice": "orc",
+   "ready": [
+    "pnready.wav"
+   ],
+   "attack": [
+    "peonatak.wav"
+   ]
+  },
+  "orc_grunt": {
+   "voice": "orc",
+   "ready": [
+    "oready.wav"
+   ],
+   "attack": [
+    "sword1.wav",
+    "sword2.wav",
+    "sword3.wav"
+   ]
+  },
+  "orc_troll_axethrower": {
+   "voice": "orc",
+   "selected": [
+    "trwhat1.wav",
+    "trwhat2.wav",
+    "trwhat3.wav"
+   ],
+   "acknowledge": [
+    "tryessr1.wav",
+    "tryessr2.wav",
+    "tryessr3.wav"
+   ],
+   "annoyed": [
+    "trpissd1.wav",
+    "trpissd2.wav",
+    "trpissd3.wav"
+   ],
+   "ready": [
+    "trready.wav"
+   ],
+   "attack": [
+    "bowfire.wav"
+   ]
+  },
+  "orc_ogre": {
+   "voice": "orc",
+   "selected": [
+    "ogwhat1.wav",
+    "ogwhat2.wav",
+    "ogwhat3.wav",
+    "ogwhat4.wav"
+   ],
+   "acknowledge": [
+    "ogyessr1.wav",
+    "ogyessr2.wav",
+    "ogyessr3.wav"
+   ],
+   "annoyed": [
+    "ogpissd1.wav",
+    "ogpissd2.wav",
+    "ogpissd3.wav",
+    "ogpissd4.wav",
+    "ogpissd5.wav"
+   ],
+   "ready": [
+    "ogready.wav"
+   ],
+   "attack": [
+    "punch.wav"
+   ]
+  },
+  "orc_death_knight": {
+   "voice": "orc",
+   "selected": [
+    "dkwhat1.wav",
+    "dkwhat2.wav"
+   ],
+   "acknowledge": [
+    "dkyessr1.wav",
+    "dkyessr2.wav",
+    "dkyessr3.wav"
+   ],
+   "annoyed": [
+    "dkpissd1.wav",
+    "dkpissd2.wav",
+    "dkpissd3.wav"
+   ],
+   "ready": [
+    "dkready.wav"
+   ],
+   "attack": [
+    "fireball.wav"
+   ]
+  },
+  "orc_dragon": {
+   "voice": "orc",
+   "selected": [
+    "drwhat.wav"
+   ],
+   "acknowledge": [
+    "dryessr1.wav",
+    "dryessr2.wav"
+   ],
+   "annoyed": [
+    "dryessr1.wav",
+    "dryessr2.wav"
+   ],
+   "ready": [
+    "drready.wav"
+   ],
+   "attack": [
+    "firehit.wav"
+   ]
+  },
+  "orc_zeppelin": {
+   "voice": "orc",
+   "selected": [
+    "gbyessr1.wav"
+   ],
+   "acknowledge": [
+    "gbyessr1.wav"
+   ],
+   "annoyed": [
+    "gbpissd1.wav",
+    "gbpissd2.wav"
+   ],
+   "ready": [
+    "gbready.wav"
+   ]
+  },
+  "orc_catapult": {
+   "voice": "orc",
+   "selected": [
+    "catyessr.wav"
+   ],
+   "acknowledge": [
+    "catyessr.wav"
+   ],
+   "annoyed": [
+    "catyessr.wav"
+   ],
+   "attack": [
+    "catapult.wav"
+   ]
+  },
+  "alliance_peasant": {
+   "voice": "human",
+   "selected": [
+    "pswhat1.wav",
+    "pswhat2.wav",
+    "pswhat3.wav",
+    "pswhat4.wav"
+   ],
+   "acknowledge": [
+    "psyessr1.wav",
+    "psyessr2.wav",
+    "psyessr3.wav",
+    "psyessr4.wav"
+   ],
+   "annoyed": [
+    "pspissd1.wav",
+    "pspissd2.wav",
+    "pspissd3.wav",
+    "pspissd4.wav",
+    "pspissd5.wav",
+    "pspissd6.wav",
+    "pspissd7.wav"
+   ],
+   "ready": [
+    "psready.wav"
+   ],
+   "work_done": [
+    "pswrkdon.wav"
+   ],
+   "attack": [
+    "sword1.wav",
+    "sword2.wav",
+    "sword3.wav"
+   ]
+  },
+  "alliance_footman": {
+   "voice": "human",
+   "ready": [
+    "hready.wav"
+   ],
+   "attack": [
+    "sword1.wav",
+    "sword2.wav",
+    "sword3.wav"
+   ]
+  },
+  "alliance_archer": {
+   "voice": "human",
+   "selected": [
+    "ewhat1.wav",
+    "ewhat2.wav",
+    "ewhat3.wav",
+    "ewhat4.wav"
+   ],
+   "acknowledge": [
+    "eyessir1.wav",
+    "eyessir2.wav",
+    "eyessir3.wav",
+    "eyessir4.wav"
+   ],
+   "annoyed": [
+    "epissed1.wav",
+    "epissed2.wav",
+    "epissed3.wav"
+   ],
+   "ready": [
+    "eready.wav"
+   ],
+   "attack": [
+    "bowfire.wav"
+   ]
+  },
+  "alliance_knight": {
+   "voice": "human",
+   "selected": [
+    "knwhat1.wav",
+    "knwhat2.wav",
+    "knwhat3.wav",
+    "knwhat4.wav"
+   ],
+   "acknowledge": [
+    "knyessr1.wav",
+    "knyessr2.wav",
+    "knyessr3.wav",
+    "knyessr4.wav"
+   ],
+   "annoyed": [
+    "knpissd1.wav",
+    "knpissd2.wav",
+    "knpissd3.wav"
+   ],
+   "ready": [
+    "knready.wav"
+   ],
+   "attack": [
+    "sword1.wav",
+    "sword2.wav",
+    "sword3.wav"
+   ]
+  },
+  "alliance_mage": {
+   "voice": "human",
+   "selected": [
+    "wzwhat1.wav",
+    "wzwhat2.wav",
+    "wzwhat3.wav"
+   ],
+   "acknowledge": [
+    "wzyessr1.wav",
+    "wzyessr2.wav",
+    "wzyessr3.wav"
+   ],
+   "annoyed": [
+    "wzpissd1.wav",
+    "wzpissd2.wav",
+    "wzpissd3.wav"
+   ],
+   "ready": [
+    "wzready.wav"
+   ],
+   "attack": [
+    "firehit.wav"
+   ]
+  },
+  "alliance_gryphon": {
+   "voice": "human",
+   "selected": [
+    "grwhat.wav"
+   ],
+   "acknowledge": [
+    "griffon1.wav",
+    "griffon2.wav"
+   ],
+   "annoyed": [
+    "griffon1.wav",
+    "griffon2.wav"
+   ],
+   "ready": [
+    "griffon1.wav",
+    "griffon2.wav"
+   ],
+   "attack": [
+    "punch.wav"
+   ]
+  },
+  "alliance_ballista": {
+   "voice": "human",
+   "selected": [
+    "catyessr.wav"
+   ],
+   "acknowledge": [
+    "catyessr.wav"
+   ],
+   "annoyed": [
+    "catyessr.wav"
+   ],
+   "attack": [
+    "catapult.wav"
+   ]
+  }
+ },
+ "buildings": {
+  "great_hall": {
+   "selected": [
+    "ochant.wav"
+   ]
+  },
+  "pig_farm": {
+   "selected": [
+    "ofarm.wav"
+   ]
+  },
+  "barracks": {
+   "selected": [
+    "ochant.wav"
+   ]
+  },
+  "ogre_mound": {
+   "selected": [
+    "ogrecamp.wav"
+   ]
+  },
+  "temple_of_the_damned": {
+   "selected": [
+    "dthtower.wav"
+   ]
+  },
+  "dragon_roost": {
+   "selected": [
+    "dragon.wav"
+   ]
+  },
+  "alchemist": {
+   "selected": [
+    "alchemst.wav"
+   ]
+  },
+  "alliance_town_hall": {
+   "selected": [
+    "hchant.wav"
+   ]
+  },
+  "alliance_farm": {
+   "selected": [
+    "hfarm.wav"
+   ]
+  },
+  "alliance_barracks": {
+   "selected": [
+    "hchant.wav"
+   ]
+  },
+  "alliance_stables": {
+   "selected": [
+    "stables.wav"
+   ]
+  },
+  "alliance_mage_tower": {
+   "selected": [
+    "wzrdtowr.wav"
+   ]
+  },
+  "alliance_aviary": {
+   "selected": [
+    "aviary.wav"
+   ]
+  },
+  "alliance_blacksmith": {
+   "selected": [
+    "smith.wav"
+   ]
+  }
+ },
+ "effects": {
+  "construct": [
+   "constrct.wav"
+  ],
+  "error": [
+   "error.wav"
+  ],
+  "tree": [
+   "tree1.wav",
+   "tree2.wav",
+   "tree3.wav",
+   "tree4.wav"
+  ],
+  "building_destroyed": [
+   "bldexpl1.wav",
+   "bldexpl2.wav",
+   "bldexpl3.wav"
+  ]
+ }
+}

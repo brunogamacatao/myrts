@@ -21,6 +21,7 @@
 #include "core/world.hpp"
 #include "raii.hpp"
 #include "scene.hpp"
+#include "sound_director.hpp"
 #include "tile_renderer.hpp"
 #include "ui_art.hpp"
 #include "ui.hpp"
@@ -65,6 +66,10 @@ class Game {
   void register_commands();
   void set_message(std::string text, double seconds = 3.0);
   void apply(const myrts::Result& result);
+  /// Like apply(), and the selected units answer an order that was accepted ("yes, sir").
+  void ordered(const myrts::Result& result);
+  void play_selection_sound(bool same_unit_again);
+  void play_world_sound(const myrts::Event& e);
   [[nodiscard]] const SpriteDef* sprite_of(const myrts::UnitDef& def);
 
   // ---- commands & selection (game.cpp)
@@ -112,6 +117,10 @@ class Game {
   UiArt ui_art_;
   Assets* assets_ = nullptr;
   const myrts::Registry* registry_ = nullptr;
+  std::shared_ptr<const myrts::SoundTable> sounds_;
+  std::unique_ptr<SoundDirector> director_;
+  myrts::EntityId last_clicked_;  // for the "annoyed" lines when the same unit is clicked over and over
+  int repeat_clicks_ = 0;
 
   // simulation
   std::unique_ptr<myrts::World> world_;

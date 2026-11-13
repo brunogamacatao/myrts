@@ -50,6 +50,8 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   game->cursors_ = ctx.cursors;
   game->assets_ = ctx.assets;
   game->registry_ = ctx.registry;
+  game->sounds_ = ctx.sounds ? ctx.sounds : std::make_shared<const myrts::SoundTable>();
+  game->director_ = std::make_unique<SoundDirector>(ctx.audio, game->sounds_.get());
   const myrts::Registry& registry = *ctx.registry;
 
   const myrts::UnitDef* peon = registry.unit("orc_peon");
@@ -150,6 +152,7 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
 
 void Game::subscribe_to_world() {
   world_->events().subscribe([this](const myrts::Event& e) {
+    play_world_sound(e);
     myrts::on_event<myrts::ev::UnitDied>(e, [&](const myrts::ev::UnitDied& d) {
       std::erase(selected_, d.unit);
       anims_.erase(d.unit);
@@ -177,10 +180,10 @@ void Game::subscribe_to_world() {
 /// The behaviour behind each command id. The data (label, icon, hotkey, how it is targeted)
 /// lives in assets/data/commands.json; adding a command means a JSON entry plus a line here.
 void Game::register_commands() {
-  instant_commands_["stop"] = [this] { apply(world_->order_stop(selected_)); };
-  targeted_commands_["move"] = [this](myrts::Point t) { apply(world_->order_move(selected_, t)); };
-  targeted_commands_["harvest"] = [this](myrts::Point t) { apply(world_->order_harvest(selected_, t)); };
-  targeted_commands_["attack"] = [this](myrts::Point t) { apply(world_->order_attack(selected_, t)); };
+  instant_commands_["stop"] = [this] { ordered(world_->order_stop(selected_)); };
+  targeted_commands_["move"] = [this](myrts::Point t) { ordered(world_->order_move(selected_, t)); };
+  targeted_commands_["harvest"] = [this](myrts::Point t) { ordered(world_->order_harvest(selected_, t)); };
+  targeted_commands_["attack"] = [this](myrts::Point t) { ordered(world_->order_attack(selected_, t)); };
 }
 
 const SpriteDef* Game::sprite_of(const myrts::UnitDef& def) {
@@ -199,7 +202,72 @@ void Game::set_message(std::string text, double seconds) {
 }
 
 void Game::apply(const myrts::Result& result) {
-  if (!result.ok && !result.message.empty()) set_message(result.message);
+  if (!result.ok && !result.message.empty()) {
+    set_message(result.message);
+    director_->effect("error");
+  }
+}
+
+void Game::ordered(const myrts::Result& result) {
+  apply(result);
+  if (!result.ok) return;
+  for (const auto id : selected_)
+    if (const myrts::Unit* u = world_->units().get(id)) {
+      director_->unit(*u->def, myrts::SoundEvent::Acknowledge);
+      return;
+    }
+}
+
+/// Selecting a unit makes it speak; clicking the same one again and again makes it lose patience.
+void Game::play_selection_sound(bool same_unit_again) {
+  if (selected_.empty()) return;
+  const myrts::Unit* u = world_->units().get(selected_.front());
+  if (!u) return;
+  if (same_unit_again) {
+    director_->annoyed(*u->def, repeat_clicks_++);
+  } else {
+    repeat_clicks_ = 0;
+    director_->unit(*u->def, myrts::SoundEvent::Selected);
+  }
+}
+
+/// The sounds of what happens in the match, as the World reports it (the orders and clicks play theirs directly).
+void Game::play_world_sound(const myrts::Event& e) {
+  using myrts::SoundEvent;
+  const float tile = static_cast<float>(tile_size_);
+  const auto centre = [&](myrts::Point p, int size) {
+    return myrts::Vec2{(static_cast<float>(p.x) + static_cast<float>(size) / 2) * tile,
+                       (static_cast<float>(p.y) + static_cast<float>(size) / 2) * tile};
+  };
+  myrts::on_event<myrts::ev::UnitDied>(e, [&](const myrts::ev::UnitDied& d) {
+    director_->unit(*d.def, SoundEvent::Dead, myrts::Vec2{d.x, d.y});
+  });
+  myrts::on_event<myrts::ev::Attacked>(e, [&](const myrts::ev::Attacked& a) {
+    const myrts::Unit* attacker = world_->units().get(a.attacker);
+    if (attacker) director_->unit(*attacker->def, SoundEvent::Attack, myrts::Vec2{attacker->x, attacker->y});
+    const myrts::Unit* target = a.target_is_building ? nullptr : world_->units().get(a.target);
+    if (target && target->owner == local_player_)  // one of ours is being hit
+      director_->unit(*target->def, SoundEvent::Help, myrts::Vec2{target->x, target->y});
+  });
+  myrts::on_event<myrts::ev::UnitTrained>(e, [&](const myrts::ev::UnitTrained& t) {
+    const myrts::Unit* u = world_->units().get(t.unit);
+    if (u && t.owner == local_player_) director_->unit(*u->def, SoundEvent::Ready);
+  });
+  myrts::on_event<myrts::ev::BuildingPlaced>(e, [&](const myrts::ev::BuildingPlaced& p) {
+    if (p.owner == local_player_) director_->effect("construct");
+  });
+  myrts::on_event<myrts::ev::BuildingCompleted>(e, [&](const myrts::ev::BuildingCompleted& c) {
+    const myrts::Building* b = world_->buildings().get(c.building);
+    if (!b || c.owner != local_player_) return;
+    for (const myrts::UnitDef& def : registry_->units())  // the builders of that side announce it
+      if (def.faction == b->def->faction && def.worker) return director_->unit(def, SoundEvent::WorkDone);
+  });
+  myrts::on_event<myrts::ev::BuildingDestroyed>(e, [&](const myrts::ev::BuildingDestroyed& d) {
+    director_->effect("building_destroyed", centre(d.origin, d.size));
+  });
+  myrts::on_event<myrts::ev::TreeFelled>(e, [&](const myrts::ev::TreeFelled& t) {
+    director_->effect("tree", centre(t.tile, 1));
+  });
 }
 
 std::string Game::selected_faction() const {
@@ -393,6 +461,7 @@ std::string Game::unit_animation(const myrts::Unit& u, const SpriteDef& sprite) 
 }
 
 void Game::update(double dt) {
+  director_->update(dt, camera_.visible());
   // Camera: arrow keys and edge scrolling (not while dragging a selection box or the minimap).
   float dx = 0, dy = 0;
   if (keys_[ALLEGRO_KEY_LEFT]) dx -= 1;

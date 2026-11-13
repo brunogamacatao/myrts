@@ -9,7 +9,9 @@
 #include <string>
 
 #include "assets.hpp"
+#include "audio.hpp"
 #include "core/defs.hpp"
+#include "core/sounds.hpp"
 #include "core/tileset.hpp"
 #include "cursors.hpp"
 
@@ -22,6 +24,8 @@ struct SceneContext {
   Assets* assets = nullptr;                    // shared, reference-counted resources
   const myrts::Registry* registry = nullptr;   // game data (units, buildings, commands)
   Cursors* cursors = nullptr;                   // the mouse cursors (a scene may change them each frame)
+  Audio* audio = nullptr;                       // the sound device (silent when there is none)
+  std::shared_ptr<const myrts::SoundTable> sounds;  // which file plays for which event
   std::shared_ptr<const myrts::TileSets> tilesets;  // which tile code is drawn where, per terrain era
 };
 

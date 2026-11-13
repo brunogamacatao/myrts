@@ -8,6 +8,7 @@
 
 #include "assets.hpp"
 #include "core/defs.hpp"
+#include "core/sounds.hpp"
 #include "core/tileset.hpp"
 #include "scene_manager.hpp"
 #include "scenes.hpp"
@@ -57,10 +58,18 @@ int main() {
   }
   const auto shared_tilesets = std::make_shared<const myrts::TileSets>(std::move(*tilesets));
   Assets assets;
+  Audio audio;
+  if (!std::getenv("MYRTS_MUTE")) audio.init("sounds");  // no sound card is fine: the game stays silent
+  auto sound_table = myrts::SoundTable::load_file("data/sounds.json");
+  if (!sound_table) {
+    std::fprintf(stderr, "warning: %s\n", sound_table.error().c_str());
+    sound_table = myrts::SoundTable{};
+  }
+  const auto shared_sounds = std::make_shared<const myrts::SoundTable>(std::move(*sound_table));
   Cursors cursors;
   cursors.load(display);
 
-  SceneManager scenes({display, font, &assets, &*registry, &cursors, shared_tilesets});
+  SceneManager scenes({display, font, &assets, &*registry, &cursors, &audio, shared_sounds, shared_tilesets});
   if (!scenes.start(make_intro([] { return Transition::replace(make_main_menu()); }))) return EXIT_FAILURE;
 
   bool redraw = true;
