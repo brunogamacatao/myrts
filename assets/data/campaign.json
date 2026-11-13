@@ -4,7 +4,7 @@
    "chapter": "Land warfare",
    "kind": "land",
    "name": "First Steps",
-   "map": "maps/Gold Rush BNE.pud",
+   "map": "maps/Skirmish BNE.pud",
    "briefing": "Learn to gather, build and train. The Alliance is slow to react.",
    "allow": [
     "orc_peon",
@@ -40,7 +40,7 @@
    "chapter": "Land warfare",
    "kind": "land",
    "name": "Ranged Fighters",
-   "map": "maps/Dark Paths BNE.pud",
+   "map": "maps/Murky River BNE.pud",
    "briefing": "Axethrowers hit from afar; keep tougher units in front.",
    "allow": [
     "orc_peon",
@@ -71,7 +71,7 @@
    "chapter": "Land warfare",
    "kind": "land",
    "name": "Heavy Hitters",
-   "map": "maps/Skirmish BNE.pud",
+   "map": "maps/Mine in the center BNE.pud",
    "briefing": "Ogres and catapults break defences.",
    "allow": [
     "orc_peon",
@@ -105,7 +105,7 @@
    "chapter": "Land warfare",
    "kind": "land",
    "name": "Dark Arts",
-   "map": "maps/Murky River BNE.pud",
+   "map": "maps/Great White North BNE.pud",
    "briefing": "The Temple of the Damned opens up.",
    "allow": [
     "orc_peon",
@@ -295,8 +295,8 @@
    "chapter": "Air war",
    "kind": "air",
    "name": "The Last Mines",
-   "map": "maps/More Precious than Gold BNE.pud",
-   "briefing": "Hold your mines while the dragons strike.",
+   "map": "maps/Gold Rush BNE.pud",
+   "briefing": "Gold everywhere, walled in by rock: only the air gets through.",
    "allow": [
     "orc_peon",
     "great_hall",

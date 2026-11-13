@@ -1,3 +1,6 @@
+#include <vector>
+#include <string>
+#include <sstream>
 #include "ui.hpp"
 
 #include <allegro5/allegro_primitives.h>
@@ -333,7 +336,26 @@ void draw_hud(ALLEGRO_FONT* font, const HudData& hud) {
 
   // Status message
   if (!hud.message.empty()) {
-    draw_text(font, kViewport.x + 12, kViewport.y + kViewport.h - 20, ALLEGRO_ALIGN_LEFT, hud.message, al_map_rgb(250, 210, 60));
+    // Long messages (the tutorial hints) wrap onto several lines, growing upwards from the bottom of the viewport.
+    const float max_w = kViewport.w - 24;
+    std::vector<std::string> lines;
+    std::string line;
+    std::istringstream words(hud.message);
+    for (std::string word; words >> word;) {
+      const std::string trial = line.empty() ? word : line + " " + word;
+      if (!line.empty() && static_cast<float>(al_get_text_width(font, trial.c_str())) > max_w) {
+        lines.push_back(line);
+        line = word;
+      } else {
+        line = trial;
+      }
+    }
+    if (!line.empty()) lines.push_back(line);
+    const float line_h = 12;
+    const float top = kViewport.y + kViewport.h - 8 - line_h * static_cast<float>(lines.size());
+    al_draw_filled_rectangle(kViewport.x, top - 4, kViewport.x + kViewport.w, kViewport.y + kViewport.h, al_map_rgba_f(0, 0, 0, 0.55f));
+    for (std::size_t i = 0; i < lines.size(); ++i)
+      draw_text(font, kViewport.x + 12, top + line_h * static_cast<float>(i), ALLEGRO_ALIGN_LEFT, lines[i], al_map_rgb(250, 210, 60));
   }
 }
 

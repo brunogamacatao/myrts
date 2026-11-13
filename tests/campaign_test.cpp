@@ -34,7 +34,7 @@ TEST_CASE("an invalid campaign is rejected") {
   CHECK_FALSE(Campaign::parse("nope").has_value());
 }
 
-TEST_CASE("every level of the shipped campaign loads, and its bases connect by land exactly when it is a land level") {
+TEST_CASE("every level of the shipped campaign loads, and its bases connect on foot (forests and mines count as walls) exactly when it is a land level") {
   const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
   const auto campaign = Campaign::load_file((assets / "data" / "campaign.json").string());
   REQUIRE(campaign.has_value());
@@ -53,7 +53,9 @@ TEST_CASE("every level of the shipped campaign loads, and its bases connect by l
     const auto far = scenario.farthest_from(0);
     REQUIRE(far.has_value());
     Grid land = map->land_blocked();
-    for (const Point t : map->tree_tiles()) land.set_blocked(t, false);  // forests can be chopped through
+    for (const MineSpec& m : scenario.mines)  // the gold mines are solid too
+      for (int dy = 0; dy < 3; ++dy)
+        for (int dx = 0; dx < 3; ++dx) land.set_blocked({m.origin.x + dx, m.origin.y + dy});
     const Point a = scenario.starts[0].start, b = scenario.starts[*far].start;
     const auto path = a_star_closest(land, a, b);
     REQUIRE_FALSE(path.empty());

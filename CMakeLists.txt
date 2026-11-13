@@ -96,10 +96,11 @@ if(MYRTS_BUILD_GAME)
   target_link_libraries(myrts PRIVATE
     myrts_core myrts_warnings nlohmann_json::nlohmann_json ${MYRTS_ALLEGRO_LIBS})
 
-  # Make assets available next to the executable (run it from there).
-  add_custom_command(TARGET myrts POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:myrts>)
+  # Make assets available next to the executable (run it from there). A separate target, so that a change to the data
+  # alone (a level, a sound table) is copied too, even when the executable itself did not need relinking.
+  add_custom_target(copy_assets ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:myrts>)
+  add_dependencies(myrts copy_assets)
 endif()
 
 # ---- tests ---------------------------------------------------------------

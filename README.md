@@ -52,12 +52,12 @@ only allow a few units and buildings and show tutorial hints, and in the air cha
 player must build a Dragon Roost. Naval levels are not there yet (there are no ships). Everything is in `assets/data/campaign.json`: each level has a name, a briefing line, a Warcraft II map and how hard
 the Alliance plays (delay before its first attack, size and growth of its waves, workers, starting stock). Winning a level offers
 the next one; losing offers to retry it. Add a level by adding an entry (the map must have two start locations connected by
-land once the forests are chopped; `tests/campaign_test.cpp` checks this for every level). `MYRTS_MAP=<pud>` plays a single map.
+land (forests and gold mines count as walls); `tests/campaign_test.cpp` checks this for every level). `MYRTS_MAP=<pud>` plays a single map.
 
 ## Maps
 Maps are Warcraft II `.pud` files, drawn with the same tile scheme the game uses (every tile is built from four terrain
 quadrants, so forests, coasts and cliffs get proper borders, and a felled tree redraws its surroundings).
-The default is `maps/Cramped BNE.pud`; pick another with `MYRTS_MAP`, for example
+The campaign decides which map is played (see above); play one map on its own with `MYRTS_MAP`, for example
 `MYRTS_MAP="maps/Gold Rush BNE.pud" scripts/run.sh`. The sample maps (forest, wasteland and swamp eras) are in `assets/maps/`,
 and any `.pud` with two or more start locations works. See [NOTICE.md](NOTICE.md) for the sources.
 
