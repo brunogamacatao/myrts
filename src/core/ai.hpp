@@ -8,6 +8,7 @@ namespace myrts {
 struct AiConfig {
   double think_interval = 1.0;  // seconds between decisions
   int desired_workers = 3;
+  int desired_tankers = 2;      // water workers pumping oil (only when the map has oil and a shipyard can be built)
   int first_wave = 5;           // fighters needed for the first attack
   int wave_growth = 3;          // extra fighters needed for each later attack
   double start_delay = 150.0;   // no attack before this many seconds have passed
@@ -33,7 +34,8 @@ class Ai {
  private:
   void think();                ///< runs the four managers below, in order
   void manage_workers();       ///< keep AiConfig::desired_workers mining (one on wood if a farm is needed)
-  void manage_construction();  ///< build a farm when food is nearly used up
+  void manage_tankers();       ///< water workers pump oil patches and deliver to a shipyard
+  void manage_construction();  ///< build a farm when food is nearly used up, a shipyard when there is oil to pump
   void manage_production();    ///< queue whatever fighters the buildings can train
   void manage_army();          ///< send a wave, attack-moving, once enough fighters have gathered
 

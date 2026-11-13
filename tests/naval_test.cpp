@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <array>
 
+#include "core/ai.hpp"
 #include "core/world.hpp"
 
 using namespace myrts;
@@ -10,12 +11,12 @@ namespace {
 
 constexpr const char* kUnits = R"({"units":[
   {"id":"tanker","name":"Tanker","hp":90,"move_speed":96,"move_class":"water","sprite":"s",
-   "worker":{"oil_per_trip":100,"oil_seconds":1.0}},
+   "cost":{"gold":50},"train_seconds":5,"worker":{"oil_per_trip":100,"oil_seconds":1.0}},
   {"id":"peon","name":"Peon","hp":30,"move_speed":96,"sprite":"s",
-   "worker":{"gold_per_trip":100,"mine_seconds":1.0}}]})";
+   "worker":{"gold_per_trip":100,"mine_seconds":1.0},"builds":["shipyard"]}]})";
 constexpr const char* kBuildings = R"({"buildings":[
-  {"id":"hall","name":"Hall","size":3,"build_seconds":10,"is_depot":true,"sprite":"h"},
-  {"id":"shipyard","name":"Shipyard","size":3,"build_seconds":10,"placement":"coast","accepts_oil":true,"sprite":"y"},
+  {"id":"hall","name":"Hall","size":3,"build_seconds":10,"is_depot":true,"food":10,"sprite":"h"},
+  {"id":"shipyard","name":"Shipyard","size":3,"build_seconds":10,"placement":"coast","accepts_oil":true,"cost":{"gold":100},"trains":["tanker"],"sprite":"y"},
   {"id":"platform","name":"Platform","size":3,"build_seconds":10,"placement":"water","sprite":"p"}]})";
 
 const Registry& registry() {
@@ -27,11 +28,11 @@ const Registry& registry() {
   return r;
 }
 
-World make_world() {
+World make_world(WorldConfig config = {}) {
   Grid land(24, 10), water(24, 10);
   for (int y = 0; y < 10; ++y)
     for (int x = 0; x < 24; ++x) (x < 10 ? water : land).set_blocked({x, y});
-  return World(WorldConfig{}, std::move(land), std::move(water));
+  return World(config, std::move(land), std::move(water));
 }
 
 }  // namespace
@@ -112,4 +113,46 @@ TEST_CASE("oil needs a shipyard, and land workers cannot reach an oil patch") {
   const EntityId peon = w.spawn_unit(*registry().unit("peon"), me, {4, 6});
   const std::array p{peon};
   CHECK_FALSE(w.order_harvest(p, {15, 3}).ok);  // the patch is out of a peon's reach
+}
+
+TEST_CASE("the AI builds a shipyard when the map has oil, trains tankers and keeps them pumping") {
+  WorldConfig config;
+  config.build_speed = 10;
+  config.train_speed = 10;
+  World w = make_world(config);
+  const PlayerId me = w.add_player("ai", "orcs", Stock{2000, 500, 0});
+  w.add_building(*registry().building("hall"), me, {1, 1}, true);
+  w.spawn_unit(*registry().unit("peon"), me, {5, 6});
+  w.add_mine({15, 3}, 3, 5000, ResourceKind::Oil);
+
+  AiConfig cfg;
+  cfg.desired_workers = 1;
+  cfg.desired_tankers = 2;
+  Ai ai(w, registry(), me, cfg);
+  for (double t = 0; t < 120; t += 0.1) {
+    ai.update(0.1);
+    w.update(0.1);
+  }
+
+  int shipyards = 0, tankers = 0;
+  w.buildings().for_each([&](const Building& b) { shipyards += (b.owner == me && b.def->id == "shipyard" && b.complete) ? 1 : 0; });
+  w.units().for_each([&](const Unit& u) { tankers += (u.owner == me && u.def->id == "tanker") ? 1 : 0; });
+  CHECK(shipyards == 1);  // one, not one per think
+  CHECK(tankers == 2);
+  CHECK(w.player(me).stock.oil > 0);  // the tankers are working
+}
+
+TEST_CASE("on a map without oil the AI builds no shipyard") {
+  WorldConfig config;
+  config.build_speed = 10;
+  World w = make_world(config);
+  const PlayerId me = w.add_player("ai", "orcs", Stock{2000, 500, 0});
+  w.add_building(*registry().building("hall"), me, {1, 1}, true);
+  w.spawn_unit(*registry().unit("peon"), me, {5, 6});
+  Ai ai(w, registry(), me);
+  for (double t = 0; t < 60; t += 0.1) {
+    ai.update(0.1);
+    w.update(0.1);
+  }
+  w.buildings().for_each([&](const Building& b) { CHECK(b.def->id != "shipyard"); });
 }

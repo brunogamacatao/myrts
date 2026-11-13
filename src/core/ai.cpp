@@ -13,6 +13,12 @@ namespace {
 
 double dist(Point a, Point b) { return std::hypot(static_cast<double>(a.x - b.x), static_cast<double>(a.y - b.y)); }
 
+bool is_water_worker(const UnitDef& d) { return d.worker && d.move_class == MoveClass::Water; }
+
+bool has_oil(const World& world) {
+  return std::ranges::any_of(world.mines(), [](const Mine& m) { return m.kind() == ResourceKind::Oil && !m.site.depleted(); });
+}
+
 bool is_free(const Unit& u) { return std::holds_alternative<order::Idle>(u.order) && u.is_idle() && !u.hidden; }
 
 }  // namespace
@@ -27,6 +33,7 @@ void Ai::update(double dt) {
 
 void Ai::think() {
   manage_workers();
+  manage_tankers();
   manage_construction();
   manage_production();
   manage_army();
@@ -52,7 +59,7 @@ void Ai::manage_workers() {
   int lumberjacks = 0;
   const UnitDef* any_worker = nullptr;
   world_.units().for_each([&](const Unit& u) {
-    if (u.owner != me_ || !u.def->worker || u.locked()) return;
+    if (u.owner != me_ || !u.def->worker || is_water_worker(*u.def) || u.locked()) return;
     workers.push_back(u.id);
     any_worker = u.def;
     if (const auto* h = std::get_if<order::Harvest>(&u.order)) lumberjacks += h->kind == ResourceKind::Lumber ? 1 : 0;
@@ -120,42 +127,73 @@ void Ai::manage_workers() {
   }
 }
 
-/// One farm at a time, whenever food is about to run out, on free ground near the first depot.
+/// Tankers pump the nearest oil patch and bring the oil to a shipyard; they wait while there is no oil depot yet.
+void Ai::manage_tankers() {
+  if (world_.depot_tiles(me_, ResourceKind::Oil).empty()) return;
+  world_.units().for_each([&](const Unit& u) {
+    if (u.owner != me_ || !is_water_worker(*u.def) || !is_free(u)) return;
+    std::optional<Point> best;
+    double best_d = std::numeric_limits<double>::max();
+    for (const Mine& m : world_.mines())
+      if (m.kind() == ResourceKind::Oil && !m.site.depleted())
+        if (const double d = dist(u.tile, m.site.origin()); d < best_d) {
+          best_d = d;
+          best = m.site.origin();
+        }
+    if (!best) return;
+    const std::array one{u.id};
+    world_.order_harvest(one, *best);
+  });
+}
+
+/// One building at a time, on free ground near the first depot: a farm whenever food is about to run out, or else a
+/// coastal oil depot (shipyard) when the map has oil to pump and the player has none yet.
 void Ai::manage_construction() {
   bool building = false;
+  bool oil_depot = false;  // built or being built
   Point centre{};
   bool have_depot = false;
   world_.buildings().for_each([&](const Building& b) {
     if (b.owner != me_) return;
     building = building || !b.complete;
+    oil_depot = oil_depot || b.def->accepts_oil;
     if (b.complete && b.def->is_depot && !have_depot) {
       centre = {b.origin.x + b.def->size / 2, b.origin.y + b.def->size / 2};
       have_depot = true;
     }
   });
   if (building || !have_depot) return;
-  if (world_.food_cap(me_) - world_.food_used(me_) > cfg_.farm_margin) return;
 
   EntityId builder;
   const UnitDef* worker_def = nullptr;
   world_.units().for_each([&](const Unit& u) {
-    if (u.owner != me_ || !u.def->worker || u.locked() || builder.valid()) return;
+    if (u.owner != me_ || !u.def->worker || is_water_worker(*u.def) || u.locked() || builder.valid()) return;
     builder = u.id;
     worker_def = u.def;
   });
   if (!builder.valid()) return;
-  const BuildingDef* farm = farm_def(registry_, *worker_def);
-  if (!farm || !can_afford(world_.player(me_).stock, farm->cost)) return;
 
-  // The free spot closest to the depot (a gap of one tile around is kept so units can pass).
+  const BuildingDef* want = nullptr;
+  if (world_.food_cap(me_) - world_.food_used(me_) <= cfg_.farm_margin) want = farm_def(registry_, *worker_def);
+  if (!want && !oil_depot && has_oil(world_)) {
+    for (const std::string& id : worker_def->builds) {
+      const BuildingDef* b = registry_.building(id);
+      if (b && b->accepts_oil && b->placement == Placement::Coast) want = b;
+    }
+  }
+  if (!want || !can_afford(world_.player(me_).stock, want->cost)) return;
+
+  // The free spot closest to the depot. Land buildings keep a gap of one tile around them so units can pass; a
+  // shipyard has to find a shore, which may be further away.
+  const int reach = want->placement == Placement::Land ? 10 : 30;
   std::optional<Point> spot;
   double best_d = std::numeric_limits<double>::max();
-  for (int y = centre.y - 10; y <= centre.y + 10; ++y)
-    for (int x = centre.x - 10; x <= centre.x + 10; ++x) {
+  for (int y = centre.y - reach; y <= centre.y + reach; ++y)
+    for (int x = centre.x - reach; x <= centre.x + reach; ++x) {
       const Point origin{x, y};
-      if (world_.placement_status(*farm, origin) != PlaceStatus::Ok) continue;
-      const Point padded{x - 1, y - 1};
-      if (!can_place(world_.grid(MoveClass::Land), padded, farm->size + 2)) continue;
+      if (world_.placement_status(*want, origin) != PlaceStatus::Ok) continue;
+      if (want->placement == Placement::Land && !can_place(world_.grid(MoveClass::Land), {x - 1, y - 1}, want->size + 2))
+        continue;
       const double d = dist(centre, origin);
       if (d < best_d) {
         best_d = d;
@@ -163,24 +201,28 @@ void Ai::manage_construction() {
       }
     }
   if (!spot) return;
-  world_.order_build(me_, std::array{builder}, *farm, *spot);
+  world_.order_build(me_, std::array{builder}, *want, *spot);
 }
 
 /// Every finished building with an empty queue trains the useful unit it has the fewest of, so the army
 /// ends up varied (footmen and archers, knights, gryphons...). Buildings wait until they can afford it.
 void Ai::manage_production() {
   std::unordered_map<std::string, int> have;  // living + queued, by unit id
-  int workers = 0;
+  int workers = 0, tankers = 0;
+  const auto count = [&](const UnitDef& d) {
+    if (is_water_worker(d)) ++tankers;
+    else if (d.worker) ++workers;
+  };
   world_.units().for_each([&](const Unit& u) {
     if (u.owner != me_) return;
     ++have[u.def->id];
-    workers += u.def->worker ? 1 : 0;
+    count(*u.def);
   });
   world_.buildings().for_each([&](const Building& b) {
     if (b.owner != me_) return;
     for (const TrainItem& q : b.queue) {
       ++have[q.unit->id];
-      workers += q.unit->worker ? 1 : 0;
+      count(*q.unit);
     }
   });
 
@@ -192,13 +234,16 @@ void Ai::manage_production() {
     for (const std::string& unit_id : b->def->trains) {
       const UnitDef* def = registry_.unit(unit_id);
       if (!def) continue;
-      const bool wanted = def->worker ? workers < cfg_.desired_workers : (def->aggressive && def->can_attack());
+      const bool wanted = is_water_worker(*def) ? (tankers < cfg_.desired_tankers && has_oil(world_) &&
+                                                   !world_.depot_tiles(me_, ResourceKind::Oil).empty())
+                          : def->worker  ? workers < cfg_.desired_workers
+                                         : (def->aggressive && def->can_attack());
       if (!wanted) continue;
       if (!pick || have[def->id] < have[pick->id]) pick = def;
     }
     if (pick && world_.order_train(me_, id, *pick).ok) {
       ++have[pick->id];
-      workers += pick->worker ? 1 : 0;
+      count(*pick);
     }
   }
 }

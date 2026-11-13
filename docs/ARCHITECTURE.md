@@ -101,8 +101,11 @@ The build menu pages itself when a worker can build more than five things.
   disappear into gold mines (one at a time) but tankers stay in sight and several may pump the same patch.
 * A worker delivers to a depot that accepts what it carries: `is_depot` for gold and lumber, `accepts_oil` for oil
   (`World::depot_tiles(owner, kind)`). `WorkerDef` has `oil_per_trip` and `oil_seconds`.
+* The `Ai` is map-driven: when the map has oil it builds a `coast` building that `accepts_oil` (a shipyard) next to its
+  hall, trains `AiConfig.desired_tankers` water workers (`ai.desired_tankers` in `campaign.json`) and keeps them pumping;
+  land workers ignore oil and water workers ignore gold. Without oil nothing changes.
 * Still missing for a naval campaign: map loading of oil patches (the `.pud` oil units), ships and their sprites, the HUD's
-  oil counter and the AI's naval plan.
+  oil counter, and a naval army (the attack waves still go out as one attack-move, which suits land and air units).
 
 ## Adding content
 

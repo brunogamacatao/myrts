@@ -34,6 +34,7 @@ std::expected<Campaign, std::string> Campaign::parse(std::string_view json_text)
         level.ai.first_wave = a.value("first_wave", level.ai.first_wave);
         level.ai.wave_growth = a.value("wave_growth", level.ai.wave_growth);
         level.ai.desired_workers = a.value("desired_workers", level.ai.desired_workers);
+        level.ai.desired_tankers = a.value("desired_tankers", level.ai.desired_tankers);
         level.ai.think_interval = a.value("think_interval", level.ai.think_interval);
       }
       if (l.contains("enemy_stock")) {
