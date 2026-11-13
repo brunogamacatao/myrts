@@ -67,6 +67,10 @@ if(MYRTS_BUILD_GAME)
       # It is listed after allegro_audio's own libraries (OpenAL), which is where the linker needs it.
       set_property(TARGET Allegro::allegro_audio APPEND PROPERTY INTERFACE_LINK_LIBRARIES fmt::fmt)
     endif()
+    if(WIN32)
+      # The static OpenAL's WASAPI backend; must come after OpenAL on the link line, like fmt above.
+      set_property(TARGET Allegro::allegro_audio APPEND PROPERTY INTERFACE_LINK_LIBRARIES avrt ole32 uuid winmm)
+    endif()
   else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(ALLEGRO REQUIRED IMPORTED_TARGET
