@@ -92,3 +92,21 @@ TEST_CASE("every level has a music track that exists, and the tracks repeat in t
   }
   for (const char* f : {"intro", "war_room", "victory", "defeat"}) CHECK(fs::exists(assets / "music" / (std::string(f) + ".ogg")));
 }
+
+TEST_CASE("levels name factions that exist; the default sides are orcs against the alliance") {
+  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  const auto campaign = Campaign::load_file((assets / "data" / "campaign.json").string());
+  const auto registry = Registry::load_directory((assets / "data").string());
+  REQUIRE(campaign.has_value());
+  REQUIRE(registry.has_value());
+  for (const Level& level : campaign->levels()) {
+    INFO(level.name);
+    CHECK(registry->faction(level.player_faction) != nullptr);
+    CHECK(registry->faction(level.enemy_faction) != nullptr);
+  }
+  const auto c = Campaign::parse(R"({"levels":[{"name":"x","map":"m"},{"name":"y","map":"m","player_faction":"alliance","enemy_faction":"orcs"}]})");
+  REQUIRE(c.has_value());
+  CHECK(c->level(0).player_faction == "orcs");
+  CHECK(c->level(1).player_faction == "alliance");
+  CHECK(c->level(1).enemy_faction == "orcs");
+}

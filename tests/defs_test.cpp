@@ -197,3 +197,30 @@ TEST_CASE("Every unit, building and command in the shipped data has an icon in t
     CHECK(fs::exists(assets / "buildings" / (std::string("gold_mine_active_") + era + ".png")));
   }
 }
+
+TEST_CASE("Factions name real workers, halls and base buildings") {
+  const auto r = Registry::load_directory(MYRTS_SOURCE_DIR "/assets/data");
+  REQUIRE(r);
+  for (const char* id : {"orcs", "alliance"}) {
+    const FactionDef* f = r->faction(id);
+    REQUIRE(f);
+    CHECK(r->unit(f->worker)->faction == id);
+    CHECK(r->building(f->town_hall)->is_depot);
+    for (const auto& b : f->base_buildings) CHECK(r->building(b)->faction == id);
+  }
+  CHECK(r->faction("elves") == nullptr);
+}
+
+TEST_CASE("A faction with a broken reference is rejected") {
+  const char* units = R"({"units":[{"id":"w","name":"W","hp":1,"sprite":"s","worker":{}},{"id":"f","name":"F","hp":1,"sprite":"s"}]})";
+  const char* buildings = R"({"buildings":[{"id":"h","name":"H","size":3,"build_seconds":1,"sprite":"s","is_depot":true}]})";
+  const char* commands = R"({"commands":[]})";
+  CHECK(Registry::parse(units, buildings, commands,
+                        R"({"factions":[{"id":"a","worker":"w","town_hall":"h"}]})").has_value());
+  CHECK_FALSE(Registry::parse(units, buildings, commands,
+                              R"({"factions":[{"id":"a","worker":"f","town_hall":"h"}]})").has_value());  // not a worker
+  CHECK_FALSE(Registry::parse(units, buildings, commands,
+                              R"({"factions":[{"id":"a","worker":"w","town_hall":"nope"}]})").has_value());
+  CHECK_FALSE(Registry::parse(units, buildings, commands,
+                              R"({"factions":[{"id":"a","worker":"w","town_hall":"h","base_buildings":["x"]}]})").has_value());
+}

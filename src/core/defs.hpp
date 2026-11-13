@@ -102,6 +102,15 @@ struct CommandDef {
   bool implemented = true;
 };
 
+/// A playable side: what its players start with. Loaded from assets/data/factions.json.
+struct FactionDef {
+  std::string id;                              ///< matches `faction` of its units and buildings ("orcs", "alliance")
+  std::string name;                            ///< shown to the player ("Horde")
+  std::string worker;                          ///< unit id of the starting workers
+  std::string town_hall;                       ///< building id every player of this side starts with
+  std::vector<std::string> base_buildings;     ///< production buildings a computer player starts with, around its hall
+};
+
 /// All game data. Immutable after loading; units and buildings refer to each other by id and
 /// every reference is checked when the registry is built.
 class Registry {
@@ -112,25 +121,29 @@ class Registry {
   Registry(Registry&&) = default;
   Registry& operator=(Registry&&) = default;
 
-  /// Parses the three JSON documents and cross-checks every reference (`builds`, `trains`, `commands`...).
+  /// Parses the JSON documents and cross-checks every reference (`builds`, `trains`, `commands`, factions...).
+  /// `factions_json` may be empty for data that defines no playable sides (most unit tests).
   /// @return the registry, or a message naming the first problem found.
   static std::expected<Registry, std::string> parse(std::string_view units_json, std::string_view buildings_json,
-                                                    std::string_view commands_json);
-  /// Reads units.json, buildings.json and commands.json from `directory`.
+                                                    std::string_view commands_json, std::string_view factions_json = {});
+  /// Reads units.json, buildings.json, commands.json and factions.json from `directory`.
   static std::expected<Registry, std::string> load_directory(const std::string& directory);
 
   [[nodiscard]] const UnitDef* unit(std::string_view id) const;
   [[nodiscard]] const BuildingDef* building(std::string_view id) const;
   [[nodiscard]] const CommandDef* command(std::string_view id) const;
+  [[nodiscard]] const FactionDef* faction(std::string_view id) const;
 
   [[nodiscard]] std::span<const UnitDef> units() const { return units_; }
   [[nodiscard]] std::span<const BuildingDef> buildings() const { return buildings_; }
   [[nodiscard]] std::span<const CommandDef> commands() const { return commands_; }
+  [[nodiscard]] std::span<const FactionDef> factions() const { return factions_; }
 
  private:
   std::vector<UnitDef> units_;
   std::vector<BuildingDef> buildings_;
   std::vector<CommandDef> commands_;
+  std::vector<FactionDef> factions_;
 };
 
 }  // namespace myrts

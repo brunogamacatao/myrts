@@ -94,8 +94,10 @@ The build menu pages itself when a worker can build more than five things.
 
 ## Adding content
 
-**A faction**: units and buildings tagged with its `faction`, plus a player for it in `Game::create` (and an `Ai` if it is
-computer-controlled). The Alliance (human) is the example: Peasant, Footman, Town Hall, Farm, Barracks.
+**A faction**: units and buildings tagged with its `faction`, plus an entry in `assets/data/factions.json` (its `worker`,
+`town_hall` and the `base_buildings` a computer player starts with); the registry checks every reference. A level picks
+the sides with `player_faction` / `enemy_faction` in `campaign.json` (default: orcs against the alliance), and
+`Game::create` builds the match from them, with no unit or building ids hard-coded.
 
 **A unit** (any faction): add an entry to `assets/data/units.json` and a sprite JSON under `assets/sprites/`
 (`scripts/extract_unit_sprites.py` builds them from the Spriters Resource sheets: add the rows of each animation to

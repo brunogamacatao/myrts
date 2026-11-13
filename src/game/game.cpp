@@ -53,15 +53,18 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   game->director_ = std::make_unique<SoundDirector>(ctx.audio, game->sounds_.get());
   const myrts::Registry& registry = *ctx.registry;
 
-  const myrts::UnitDef* peon = registry.unit("orc_peon");
-  const myrts::UnitDef* peasant = registry.unit("alliance_peasant");
-  const myrts::BuildingDef* hall = registry.building("great_hall");
-  const myrts::BuildingDef* town_hall = registry.building("alliance_town_hall");
-  const myrts::BuildingDef* enemy_barracks = registry.building("alliance_barracks");
-  const myrts::BuildingDef* enemy_stables = registry.building("alliance_stables");
-  const myrts::BuildingDef* enemy_aviary = registry.building("alliance_aviary");
-  if (!peon || !hall || !peasant || !town_hall || !enemy_barracks || !enemy_stables || !enemy_aviary)
+  // The two sides of this level: their workers, halls and (for the computer) production buildings come from factions.json.
+  const myrts::FactionDef* our_faction = registry.faction(level.player_faction);
+  const myrts::FactionDef* their_faction = registry.faction(level.enemy_faction);
+  if (!our_faction) return std::unexpected("level '" + level.name + "': unknown faction '" + level.player_faction + "'");
+  if (!their_faction) return std::unexpected("level '" + level.name + "': unknown faction '" + level.enemy_faction + "'");
+  const myrts::UnitDef* peon = registry.unit(our_faction->worker);
+  const myrts::UnitDef* peasant = registry.unit(their_faction->worker);
+  const myrts::BuildingDef* hall = registry.building(our_faction->town_hall);
+  const myrts::BuildingDef* town_hall = registry.building(their_faction->town_hall);
+  if (!peon || !hall || !peasant || !town_hall)
     return std::unexpected("game data is missing the starting units or buildings (assets/data)");
+  game->player_faction_ = our_faction->id;
 
   // The map: a Warcraft II .pud. Its terrain, start locations and gold mines define the match.
   auto pud = myrts::load_pud(level.map);
@@ -85,8 +88,8 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   // Two players: the first start location is ours, the opponent takes the one farthest away.
   const myrts::StartSlot& ours = scenario.starts[0];
   const myrts::StartSlot& theirs = scenario.starts[*scenario.farthest_from(0)];
-  game->local_player_ = world.add_player("Player", "orcs", level.player_stock);
-  const myrts::PlayerId enemy = world.add_player("Alliance", "alliance", level.enemy_stock);
+  game->local_player_ = world.add_player("Player", our_faction->id, level.player_stock);
+  const myrts::PlayerId enemy = world.add_player(their_faction->name, their_faction->id, level.enemy_stock);
 
   /// A player's hall goes where the map put one, or at the nearest free spot to the start location.
   const auto place_hall = [&](const myrts::BuildingDef& def, const myrts::StartSlot& slot,
@@ -104,7 +107,9 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   if (!their_hall) return std::unexpected(their_hall.error());
 
   // The opponent's production buildings, next to its town hall.
-  for (const myrts::BuildingDef* def : {enemy_barracks, enemy_stables, enemy_aviary}) {
+  for (const std::string& id : their_faction->base_buildings) {
+    const myrts::BuildingDef* def = registry.building(id);
+    if (!def) continue;
     if (const auto at = find_spot(world, *def, *their_hall)) world.add_building(*def, enemy, *at, true);
   }
   myrts::AiConfig ai_config = level.ai;
@@ -141,9 +146,12 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
       ++n;
     }
   }
-  if (std::getenv("MYRTS_ROSTER")) {  // ...and a few Alliance footmen close by, so the ranged units have targets
-    if (const myrts::UnitDef* footman = registry.unit("alliance_footman"))
-      for (int i = 0; i < 6; ++i) world.spawn_unit(*footman, enemy, {our_hall->x + 3 + i, our_hall->y - 12});
+  if (std::getenv("MYRTS_ROSTER")) {  // ...and a few enemy soldiers close by, so the ranged units have targets
+    for (const myrts::UnitDef& def : registry.units()) {
+      if (def.faction != their_faction->id || def.worker || !def.can_attack() || def.move_class != myrts::MoveClass::Land) continue;
+      for (int i = 0; i < 6; ++i) world.spawn_unit(def, enemy, {our_hall->x + 3 + i, our_hall->y - 12});
+      break;
+    }
   }
   game->camera_.center_on(static_cast<float>(focus.x * game->tile_size_), static_cast<float>(focus.y * game->tile_size_));
   game->subscribe_to_world();
@@ -305,7 +313,7 @@ void Game::play_world_sound(const myrts::Event& e) {
 std::string Game::selected_faction() const {
   for (const auto id : selected_)
     if (const myrts::Unit* u = world_->units().get(id)) return u->def->faction;
-  return "orcs";
+  return player_faction_;
 }
 
 /// The cursor tells what a click would do: scroll arrows at the edge, crosshairs while choosing a target (red over an

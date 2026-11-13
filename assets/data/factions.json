@@ -1,0 +1,18 @@
+{
+  "factions": [
+    {
+      "id": "orcs",
+      "name": "Horde",
+      "worker": "orc_peon",
+      "town_hall": "great_hall",
+      "base_buildings": ["barracks", "ogre_mound", "dragon_roost"]
+    },
+    {
+      "id": "alliance",
+      "name": "Alliance",
+      "worker": "alliance_peasant",
+      "town_hall": "alliance_town_hall",
+      "base_buildings": ["alliance_barracks", "alliance_stables", "alliance_aviary"]
+    }
+  ]
+}

@@ -112,6 +112,16 @@ CommandDef parse_command(const json& j) {
   return c;
 }
 
+FactionDef parse_faction(const json& j) {
+  FactionDef f;
+  f.id = j.at("id").get<std::string>();
+  f.name = j.value("name", f.id);
+  f.worker = j.at("worker").get<std::string>();
+  f.town_hall = j.at("town_hall").get<std::string>();
+  f.base_buildings = parse_strings(j, "base_buildings");
+  return f;
+}
+
 template <class T, class Parse>
 std::vector<T> parse_list(std::string_view text, const char* key, Parse parse) {
   const json doc = json::parse(text);
@@ -131,17 +141,18 @@ std::string find_duplicate(const std::vector<T>& items) {
 }  // namespace
 
 std::expected<Registry, std::string> Registry::parse(std::string_view units_json, std::string_view buildings_json,
-                                                     std::string_view commands_json) {
+                                                     std::string_view commands_json, std::string_view factions_json) {
   Registry r;
   try {
     r.units_ = parse_list<UnitDef>(units_json, "units", parse_unit);
     r.buildings_ = parse_list<BuildingDef>(buildings_json, "buildings", parse_building);
     r.commands_ = parse_list<CommandDef>(commands_json, "commands", parse_command);
+    if (!factions_json.empty()) r.factions_ = parse_list<FactionDef>(factions_json, "factions", parse_faction);
   } catch (const std::exception& e) {
     return std::unexpected(std::string("invalid game data: ") + e.what());
   }
 
-  for (const auto& dup : {find_duplicate(r.units_), find_duplicate(r.buildings_), find_duplicate(r.commands_)})
+  for (const auto& dup : {find_duplicate(r.units_), find_duplicate(r.buildings_), find_duplicate(r.commands_), find_duplicate(r.factions_)})
     if (!dup.empty()) return std::unexpected("invalid game data: duplicate id '" + dup + "'");
 
   // Every reference must resolve, so a typo fails at startup rather than mid-game.
@@ -156,6 +167,14 @@ std::expected<Registry, std::string> Registry::parse(std::string_view units_json
   for (const auto& b : r.buildings_)
     for (const auto& t : b.trains)
       if (!r.unit(t)) return std::unexpected("building '" + b.id + "' trains unknown unit '" + t + "'");
+  for (const auto& f : r.factions_) {
+    const UnitDef* worker = r.unit(f.worker);
+    if (!worker || !worker->worker)
+      return std::unexpected("faction '" + f.id + "': '" + f.worker + "' is not a worker unit");
+    if (!r.building(f.town_hall)) return std::unexpected("faction '" + f.id + "' has unknown town hall '" + f.town_hall + "'");
+    for (const auto& b : f.base_buildings)
+      if (!r.building(b)) return std::unexpected("faction '" + f.id + "' has unknown base building '" + b + "'");
+  }
   return r;
 }
 
@@ -171,7 +190,9 @@ std::expected<Registry, std::string> Registry::load_directory(const std::string&
   if (!buildings) return std::unexpected(buildings.error());
   const auto commands = read("commands.json");
   if (!commands) return std::unexpected(commands.error());
-  return parse(*units, *buildings, *commands);
+  const auto factions = read("factions.json");
+  if (!factions) return std::unexpected(factions.error());
+  return parse(*units, *buildings, *commands, *factions);
 }
 
 const UnitDef* Registry::unit(std::string_view id) const {
@@ -181,6 +202,10 @@ const UnitDef* Registry::unit(std::string_view id) const {
 const BuildingDef* Registry::building(std::string_view id) const {
   const auto it = std::ranges::find(buildings_, id, &BuildingDef::id);
   return it == buildings_.end() ? nullptr : &*it;
+}
+const FactionDef* Registry::faction(std::string_view id) const {
+  const auto it = std::ranges::find(factions_, id, &FactionDef::id);
+  return it == factions_.end() ? nullptr : &*it;
 }
 const CommandDef* Registry::command(std::string_view id) const {
   const auto it = std::ranges::find(commands_, id, &CommandDef::id);

@@ -141,6 +141,7 @@ class Game {
   // simulation
   std::unique_ptr<myrts::World> world_;
   myrts::PlayerId local_player_ = myrts::kNoPlayer;
+  std::string player_faction_;  // the local player's side (picks the icons and voices of the panel)
   std::vector<std::unique_ptr<myrts::Ai>> ais_;  // the computer players
 
   // map graphics

@@ -18,6 +18,8 @@ struct Level {
   std::string music;     ///< the track that loops during the level (path relative to the assets)
   std::string chapter;   ///< the group it belongs to ("Land warfare", "Air war"...), shown on the level screens
   std::string kind = "land";  ///< "land": the bases connect on foot; "air": they do not, so the way across is by air
+  std::string player_faction = "orcs";     ///< the side the player commands (see assets/data/factions.json)
+  std::string enemy_faction = "alliance";  ///< the computer's side
   std::string briefing;  ///< one line shown when the level starts
   std::vector<std::string> hints;  ///< tutorial lines shown one after another while the level begins
   std::vector<std::string> allow;  ///< unit and building ids the player may use; empty means everything
