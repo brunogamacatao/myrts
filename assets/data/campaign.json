@@ -22,11 +22,11 @@
     "Drag a box to select an army, then right-click an enemy to attack. Destroy every Alliance unit and building to win."
    ],
    "player_stock": {
-    "gold": 1500,
-    "lumber": 800
+    "gold": 2500,
+    "lumber": 1800
    },
    "ai": {
-    "start_delay": 420,
+    "start_delay": 820,
     "first_wave": 3,
     "wave_growth": 2,
     "desired_workers": 2
@@ -58,7 +58,7 @@
     "Ranged units fire visible missiles. Keep them back, behind your front line."
    ],
    "ai": {
-    "start_delay": 225,
+    "start_delay": 725,
     "first_wave": 5,
     "wave_growth": 3,
     "desired_workers": 3
@@ -93,7 +93,7 @@
     "Mix the army: Ogres in front, Axethrowers and Catapults behind."
    ],
    "ai": {
-    "start_delay": 209,
+    "start_delay": 709,
     "first_wave": 6,
     "wave_growth": 3,
     "desired_workers": 3
@@ -129,7 +129,7 @@
     "Watch the minimap (top left): red dots are the Alliance. Click it to jump the camera there."
    ],
    "ai": {
-    "start_delay": 194,
+    "start_delay": 694,
     "first_wave": 7,
     "wave_growth": 4,
     "desired_workers": 4
@@ -165,7 +165,7 @@
     "Winning is about economy as much as fighting: more peons on gold means a bigger army sooner."
    ],
    "ai": {
-    "start_delay": 178,
+    "start_delay": 578,
     "first_wave": 8,
     "wave_growth": 4,
     "desired_workers": 4
@@ -210,7 +210,7 @@
     "lumber": 1500
    },
    "ai": {
-    "start_delay": 163,
+    "start_delay": 563,
     "first_wave": 9,
     "wave_growth": 4,
     "desired_workers": 4
@@ -249,7 +249,7 @@
     "Your ground army cannot cross, so spend on Dragons and farms to feed them."
    ],
    "ai": {
-    "start_delay": 147,
+    "start_delay": 547,
     "first_wave": 9,
     "wave_growth": 4,
     "desired_workers": 4
@@ -288,7 +288,7 @@
     "Scout with a Zeppelin: its sight range is long and it is cheap."
    ],
    "ai": {
-    "start_delay": 132,
+    "start_delay": 432,
     "first_wave": 10,
     "wave_growth": 4,
     "desired_workers": 4
@@ -327,7 +327,7 @@
     "Defend the Great Hall while your dragons strike; the Alliance Gryphons target whatever is exposed."
    ],
    "ai": {
-    "start_delay": 116,
+    "start_delay": 416,
     "first_wave": 11,
     "wave_growth": 4,
     "desired_workers": 4
@@ -350,7 +350,7 @@
     "All units and buildings are yours. Combine ground and air."
    ],
    "ai": {
-    "start_delay": 101,
+    "start_delay": 401,
     "first_wave": 12,
     "wave_growth": 5,
     "desired_workers": 5
@@ -371,7 +371,7 @@
    "allow": [],
    "hints": [],
    "ai": {
-    "start_delay": 85,
+    "start_delay": 385,
     "first_wave": 13,
     "wave_growth": 5,
     "desired_workers": 5
@@ -392,7 +392,7 @@
    "allow": [],
    "hints": [],
    "ai": {
-    "start_delay": 70,
+    "start_delay": 370,
     "first_wave": 14,
     "wave_growth": 5,
     "desired_workers": 5
