@@ -44,3 +44,7 @@ The WAV files in `assets/sounds/` come from the Warcraft II sound pack and are B
 terms before redistributing them. Which sound plays on which event follows the naming convention of the originals and the
 event names used by Wargus (`scripts/sound.lua`, GPLv2), used only as a behaviour reference: none of its code was copied.
 `scripts/import_sounds.py` regenerates `assets/sounds/` and `assets/data/sounds.json` from the original folder.
+
+## Music
+The tracks in `assets/music/` are the remastered Warcraft II soundtrack (Blizzard Entertainment material), converted to Ogg
+Vorbis by `scripts/import_music.py`. Check the terms before redistributing them.

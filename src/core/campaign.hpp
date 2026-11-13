@@ -15,6 +15,7 @@ namespace myrts {
 struct Level {
   std::string name;
   std::string map;       ///< .pud path, relative to the game's assets
+  std::string music;     ///< the track that loops during the level (path relative to the assets)
   std::string chapter;   ///< the group it belongs to ("Land warfare", "Air war"...), shown on the level screens
   std::string kind = "land";  ///< "land": the bases connect on foot; "air": they do not, so the way across is by air
   std::string briefing;  ///< one line shown when the level starts

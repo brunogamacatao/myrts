@@ -18,6 +18,8 @@ struct MenuConfig {
   std::string subtitle;
   ALLEGRO_COLOR title_color = al_map_rgb(240, 200, 60);
   std::vector<MenuItem> items;
+  std::string music;                      // track to play while this menu is up (empty: leave the music as it is)
+  bool music_loop = true;                 // false: play it once (the victory and defeat jingles)
   bool overlay = false;                   // dim and draw over the scene below
   std::function<Transition()> on_escape;  // optional: what ESC does
 };
@@ -29,10 +31,15 @@ class MenuScene : public Scene {
   MenuScene(const SceneContext& ctx, MenuConfig config) : ctx_(ctx), cfg_(std::move(config)) {}
 
   [[nodiscard]] bool is_overlay() const override { return cfg_.overlay; }
+  void on_enter() override { start_music(); }
+  void on_resume() override { start_music(); }  // back from the credits, say
   Transition handle_event(const ALLEGRO_EVENT& e) override;
   void draw() override;
 
  private:
+  void start_music() {
+    if (ctx_.audio && !cfg_.music.empty()) ctx_.audio->play_music(cfg_.music, cfg_.music_loop);
+  }
   [[nodiscard]] float button_y(std::size_t i) const;
   [[nodiscard]] int button_at(float x, float y) const;
 

@@ -5,6 +5,7 @@
    "kind": "land",
    "name": "First Steps",
    "map": "maps/Skirmish BNE.pud",
+   "music": "music/orc1.ogg",
    "briefing": "Learn to gather, build and train. The Alliance is slow to react.",
    "allow": [
     "orc_peon",
@@ -41,6 +42,7 @@
    "kind": "land",
    "name": "Ranged Fighters",
    "map": "maps/Murky River BNE.pud",
+   "music": "music/orc2.ogg",
    "briefing": "Axethrowers hit from afar; keep tougher units in front.",
    "allow": [
     "orc_peon",
@@ -72,6 +74,7 @@
    "kind": "land",
    "name": "Heavy Hitters",
    "map": "maps/Mine in the center BNE.pud",
+   "music": "music/orc3.ogg",
    "briefing": "Ogres and catapults break defences.",
    "allow": [
     "orc_peon",
@@ -106,6 +109,7 @@
    "kind": "land",
    "name": "Dark Arts",
    "map": "maps/Great White North BNE.pud",
+   "music": "music/orc4.ogg",
    "briefing": "The Temple of the Damned opens up.",
    "allow": [
     "orc_peon",
@@ -141,6 +145,7 @@
    "kind": "land",
    "name": "Full Army",
    "map": "maps/Winding Ways BNE.pud",
+   "music": "music/orc5.ogg",
    "briefing": "Everything on foot, against larger waves.",
    "allow": [
     "orc_peon",
@@ -176,6 +181,7 @@
    "kind": "air",
    "name": "Wings Over the Cliffs",
    "map": "maps/Cramped BNE.pud",
+   "music": "music/orc6.ogg",
    "briefing": "The Alliance cannot be reached on foot. Take to the sky.",
    "allow": [
     "orc_peon",
@@ -220,6 +226,7 @@
    "kind": "air",
    "name": "Frozen Skies",
    "map": "maps/Kaboom BNE.pud",
+   "music": "music/orc1.ogg",
    "briefing": "A winter map and a bigger Alliance air force.",
    "allow": [
     "orc_peon",
@@ -258,6 +265,7 @@
    "kind": "air",
    "name": "Islands in the Mist",
    "map": "maps/Isolation BNE.pud",
+   "music": "music/orc2.ogg",
    "briefing": "Far from everything.",
    "allow": [
     "orc_peon",
@@ -296,6 +304,7 @@
    "kind": "air",
    "name": "The Last Mines",
    "map": "maps/Gold Rush BNE.pud",
+   "music": "music/orc3.ogg",
    "briefing": "Gold everywhere, walled in by rock: only the air gets through.",
    "allow": [
     "orc_peon",
@@ -334,6 +343,7 @@
    "kind": "land",
    "name": "Rich Ground",
    "map": "maps/Big Rock Candy Mountain BNE.pud",
+   "music": "music/orc4.ogg",
    "briefing": "Everything is available; the Alliance is not idle.",
    "allow": [],
    "hints": [
@@ -356,6 +366,7 @@
    "kind": "land",
    "name": "Widow's End",
    "map": "maps/Widow's End BNE.pud",
+   "music": "music/orc5.ogg",
    "briefing": "Large armies on both sides.",
    "allow": [],
    "hints": [],
@@ -376,6 +387,7 @@
    "kind": "land",
    "name": "Mountain Pass",
    "map": "maps/Mountain Pass BNE.pud",
+   "music": "music/orc6.ogg",
    "briefing": "The final push through the mountains.",
    "allow": [],
    "hints": [],

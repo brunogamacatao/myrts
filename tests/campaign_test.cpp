@@ -80,3 +80,15 @@ TEST_CASE("a level only allows units and buildings that exist, and air levels al
     CHECK_FALSE(level.chapter.empty());
   }
 }
+
+TEST_CASE("every level has a music track that exists, and the tracks repeat in turn") {
+  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  const auto campaign = Campaign::load_file((assets / "data" / "campaign.json").string());
+  REQUIRE(campaign.has_value());
+  for (const Level& level : campaign->levels()) {
+    INFO(level.name);
+    REQUIRE_FALSE(level.music.empty());
+    CHECK(fs::exists(assets / level.music));
+  }
+  for (const char* f : {"intro", "war_room", "victory", "defeat"}) CHECK(fs::exists(assets / "music" / (std::string(f) + ".ogg")));
+}

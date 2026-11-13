@@ -25,10 +25,19 @@ SceneFactory factory_of(Args... args) {
 // ---- opening credits ---------------------------------------------------------
 
 /// Slides separated by blank lines in assets/credits.txt; the first line of each is the heading.
+constexpr const char* kIntroMusic = "music/intro.ogg";       // the credits
+constexpr const char* kMenuMusic = "music/war_room.ogg";      // the main menu
+constexpr const char* kVictoryMusic = "music/victory.ogg";    // played once
+constexpr const char* kDefeatMusic = "music/defeat.ogg";      // played once
+
 class IntroScene : public Scene {
  public:
   IntroScene(const SceneContext& ctx, std::function<Transition()> when_done)
       : ctx_(ctx), when_done_(std::move(when_done)), slides_(load_slides()) {}
+
+  void on_enter() override {
+    if (ctx_.audio) ctx_.audio->play_music(kIntroMusic, true);
+  }
 
   Transition handle_event(const ALLEGRO_EVENT& e) override {
     const bool key = e.type == ALLEGRO_EVENT_KEY_DOWN;
@@ -119,7 +128,12 @@ class IntroScene : public Scene {
 
 class GameScene : public Scene {
  public:
-  GameScene(std::unique_ptr<Game> game, std::size_t level) : game_(std::move(game)), level_(level) {}
+  GameScene(std::unique_ptr<Game> game, std::size_t level, Audio* audio, std::string music)
+      : game_(std::move(game)), level_(level), audio_(audio), music_(std::move(music)) {}
+
+  void on_enter() override {
+    if (audio_ && !music_.empty()) audio_->play_music(music_, true);  // the level's track, looping
+  }
 
   void on_resume() override { game_->release_input(); }  // keys may have changed while paused
 
@@ -147,6 +161,8 @@ class GameScene : public Scene {
  private:
   std::unique_ptr<Game> game_;
   std::size_t level_;
+  Audio* audio_;
+  std::string music_;
 };
 
 }  // namespace
@@ -161,7 +177,8 @@ SceneFactory make_game(std::size_t level) {
   return [level](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
     auto game = Game::create(ctx, level);
     if (!game) return std::unexpected(game.error());
-    return std::make_unique<GameScene>(std::move(*game), level);
+    return std::make_unique<GameScene>(std::move(*game), level, ctx.audio,
+                                       ctx.campaign ? ctx.campaign->level(level).music : std::string{});
   };
 }
 
@@ -170,6 +187,7 @@ SceneFactory make_main_menu() {
     MenuConfig cfg;
     cfg.title = "MYRTS";
     cfg.subtitle = "A real-time strategy game";
+    cfg.music = kMenuMusic;
     cfg.items = {
         {"New Game", [] { return Transition::replace(make_game()); }},
         {"Options", [] { return Transition::push(make_options()); }},
@@ -206,6 +224,8 @@ SceneFactory make_game_over(GameResult result, std::size_t level) {
     cfg.title = won ? (multi && !next ? "Campaign Complete!" : "Victory!") : "Defeat";
     cfg.subtitle = won ? (next ? "Next: " + ctx.campaign->level(*next).chapter + " - " + ctx.campaign->level(*next).name : "Your enemies have been crushed.")
                        : "Your forces have been destroyed.";
+    cfg.music = won ? kVictoryMusic : kDefeatMusic;
+    cfg.music_loop = false;
     cfg.title_color = won ? al_map_rgb(240, 200, 60) : al_map_rgb(220, 60, 50);
     if (won && next) {
       const std::size_t n = *next;

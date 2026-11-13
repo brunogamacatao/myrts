@@ -76,7 +76,13 @@ increasingly annoyed ones when clicked repeatedly (`pissed`), when they finish t
 once every six seconds) and when they die; buildings have their own sound when selected, and construction, errors, chopping,
 strikes and explosions have effects, panned and attenuated by where they happen on screen. Which file plays for which event
 is in `assets/data/sounds.json` (`scripts/import_sounds.py "<WarCraft 2 Sounds folder>"` copies the WAVs into `assets/sounds/`
-and regenerates it). Volume and mute are in Options (main and game menus); `MYRTS_MUTE=1` turns the sound off; with no sound card the game stays silent.
+and regenerates it). Volume (music and effects separately) and a global mute are in Options (main and game menus); `MYRTS_MUTE=1` turns the sound off; with no sound card the game stays silent.
+
+## Music
+The credits, the main menu and every level have their own track (`assets/music/*.ogg`, streamed); level tracks loop and are set per
+level with `"music"` in `assets/data/campaign.json` (the six tracks repeat in turn over the levels), while the victory and defeat
+tunes play once. Music volume is independent of the effects volume; mute silences both. `scripts/import_music.py "<songs folder>"`
+converts the original mp3 files to Ogg Vorbis (needs ffmpeg).
 
 ## Group movement
 A* stays single-agent. For a group order, `assign_destinations` picks the closest free, connected tiles around
