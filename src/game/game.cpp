@@ -5,37 +5,14 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "core/formation.hpp"
-#include "core/pud.hpp"
-#include "core/scenario.hpp"
+#include "core/match_setup.hpp"
 
 namespace {
 constexpr float kScrollSpeed = 420.0f;  // pixels per second
 constexpr float kEdgeScrollMargin = 6.0f;
-constexpr int kInitialUnits = 8;
 constexpr double kCorpseSeconds = 25.0;  // how long a body stays (the last 5 s it fades)
 constexpr std::size_t kMaxCorpses = 60;
-constexpr int kMineSize = 3;
 constexpr const char* kDefaultMap = "maps/Gold Rush BNE.pud";
-
-/// The free spot closest to `near` where `def` fits, leaving a one-tile gap around it so units can walk past.
-std::optional<myrts::Point> find_spot(const myrts::World& world, const myrts::BuildingDef& def, myrts::Point near) {
-  std::optional<myrts::Point> best;
-  double best_d = 1e9;
-  for (int y = near.y - 14; y <= near.y + 14; ++y) {
-    for (int x = near.x - 14; x <= near.x + 14; ++x) {
-      const myrts::Point origin{x, y};
-      if (world.placement_status(def, origin) != myrts::PlaceStatus::Ok) continue;
-      if (!myrts::can_place(world.grid(myrts::MoveClass::Land), {x - 1, y - 1}, def.size + 2)) continue;
-      const double d = std::hypot(static_cast<double>(x - near.x), static_cast<double>(y - near.y));
-      if (d < best_d) {
-        best_d = d;
-        best = origin;
-      }
-    }
-  }
-  return best;
-}
 
 }  // namespace
 
@@ -53,69 +30,26 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   game->director_ = std::make_unique<SoundDirector>(ctx.audio, game->sounds_.get());
   const myrts::Registry& registry = *ctx.registry;
 
-  // The two sides of this level: their workers, halls and (for the computer) production buildings come from factions.json.
-  const myrts::FactionDef* our_faction = registry.faction(level.player_faction);
-  const myrts::FactionDef* their_faction = registry.faction(level.enemy_faction);
-  if (!our_faction) return std::unexpected("level '" + level.name + "': unknown faction '" + level.player_faction + "'");
-  if (!their_faction) return std::unexpected("level '" + level.name + "': unknown faction '" + level.enemy_faction + "'");
-  const myrts::UnitDef* peon = registry.unit(our_faction->worker);
-  const myrts::UnitDef* peasant = registry.unit(their_faction->worker);
-  const myrts::BuildingDef* hall = registry.building(our_faction->town_hall);
-  const myrts::BuildingDef* town_hall = registry.building(their_faction->town_hall);
-  if (!peon || !hall || !peasant || !town_hall)
-    return std::unexpected("game data is missing the starting units or buildings (assets/data)");
-  game->player_faction_ = our_faction->id;
-
-  // The map: a Warcraft II .pud. Its terrain, start locations and gold mines define the match.
-  auto pud = myrts::load_pud(level.map);
-  if (!pud) return std::unexpected(pud.error());
-  auto terrain = myrts::TileMap::from_pud(*pud, ctx.tilesets);
-  if (!terrain) return std::unexpected(terrain.error());
-  const myrts::Scenario scenario = myrts::scenario_from(*pud);
-  if (scenario.starts.size() < 2) return std::unexpected("this map has fewer than two start locations");
-
-  myrts::WorldConfig config;
-  config.tile_size = game->tile_size_;
+  // Everything that is a rule of the setup (map, sides, halls, workers, the opponent) is built by the core.
+  myrts::Level setup_level = level;
+  if (const char* delay = std::getenv("MYRTS_AI_DELAY")) setup_level.ai.start_delay = std::max(0.0, std::atof(delay));
+  myrts::MatchOptions options;
+  options.world.tile_size = game->tile_size_;
   // Testing aids: speed up construction and training.
-  if (const char* speed = std::getenv("MYRTS_BUILD_SPEED")) config.build_speed = std::max(0.01, std::atof(speed));
-  if (const char* speed = std::getenv("MYRTS_TRAIN_SPEED")) config.train_speed = std::max(0.01, std::atof(speed));
-  game->world_ = std::make_unique<myrts::World>(config, std::move(*terrain));
+  if (const char* speed = std::getenv("MYRTS_BUILD_SPEED")) options.world.build_speed = std::max(0.01, std::atof(speed));
+  if (const char* speed = std::getenv("MYRTS_TRAIN_SPEED")) options.world.train_speed = std::max(0.01, std::atof(speed));
+  auto match = myrts::build_match(registry, ctx.tilesets, setup_level, options);
+  if (!match) return std::unexpected(match.error());
+  game->world_ = std::move(match->world);
+  game->ais_ = std::move(match->ais);
+  game->local_player_ = match->local;
+  game->player_faction_ = match->local_faction->id;
   myrts::World& world = *game->world_;
+  const myrts::PlayerId enemy = match->enemy;
+  const myrts::Point our_hall = match->local_hall;
+  const myrts::BuildingDef* hall = match->local_hall_def;
+
   if (auto drawn = game->terrain_view_.load(*world.terrain(), *ctx.assets); !drawn) return std::unexpected(drawn.error());
-
-  for (const myrts::MineSpec& mine : scenario.mines) world.add_mine(mine.origin, kMineSize, mine.gold);
-
-  // Two players: the first start location is ours, the opponent takes the one farthest away.
-  const myrts::StartSlot& ours = scenario.starts[0];
-  const myrts::StartSlot& theirs = scenario.starts[*scenario.farthest_from(0)];
-  game->local_player_ = world.add_player("Player", our_faction->id, level.player_stock);
-  const myrts::PlayerId enemy = world.add_player(their_faction->name, their_faction->id, level.enemy_stock);
-
-  /// A player's hall goes where the map put one, or at the nearest free spot to the start location.
-  const auto place_hall = [&](const myrts::BuildingDef& def, const myrts::StartSlot& slot,
-                              myrts::PlayerId owner) -> std::expected<myrts::Point, std::string> {
-    std::optional<myrts::Point> at;
-    if (slot.hall && world.placement_status(def, *slot.hall) == myrts::PlaceStatus::Ok) at = slot.hall;
-    if (!at) at = find_spot(world, def, slot.start);
-    if (!at) return std::unexpected("no room for a " + def.name + " near the start location");
-    world.add_building(def, owner, *at, true);
-    return *at;
-  };
-  const auto our_hall = place_hall(*hall, ours, game->local_player_);
-  if (!our_hall) return std::unexpected(our_hall.error());
-  const auto their_hall = place_hall(*town_hall, theirs, enemy);
-  if (!their_hall) return std::unexpected(their_hall.error());
-
-  // The opponent's production buildings, next to its town hall.
-  for (const std::string& id : their_faction->base_buildings) {
-    const myrts::BuildingDef* def = registry.building(id);
-    if (!def) continue;
-    if (const auto at = find_spot(world, *def, *their_hall)) world.add_building(*def, enemy, *at, true);
-  }
-  myrts::AiConfig ai_config = level.ai;
-  if (const char* delay = std::getenv("MYRTS_AI_DELAY")) ai_config.start_delay = std::max(0.0, std::atof(delay));
-  game->ais_.push_back(std::make_unique<myrts::Ai>(world, registry, enemy, ai_config));
-
   const auto world_w = static_cast<float>(world.width() * game->tile_size_);
   const auto world_h = static_cast<float>(world.height() * game->tile_size_);
   game->camera_ = {0, 0, ui::kViewport.w, ui::kViewport.h, world_w, world_h};
@@ -123,33 +57,23 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
 
   game->art_.load(registry, *ctx.assets, world.terrain()->tileset().name());
   if (auto loaded = game->ui_art_.load(*ctx.assets); !loaded) return std::unexpected(loaded.error());
-  if (!game->sprite_of(*peon)) return std::unexpected("cannot load the sprite of " + peon->id);
+  if (const myrts::UnitDef* worker = registry.unit(match->local_faction->worker); !worker || !game->sprite_of(*worker))
+    return std::unexpected("cannot load the sprite of " + match->local_faction->worker);
 
-  // Starting workers stand around their hall.
-  const auto spawn_workers = [&](const myrts::UnitDef& def, myrts::PlayerId owner, myrts::Point hall_origin,
-                                 const myrts::BuildingDef& hall_def, int count) {
-    const myrts::Point around{hall_origin.x + hall_def.size / 2, hall_origin.y + hall_def.size};
-    const std::vector<myrts::Point> wanted(static_cast<std::size_t>(count), around);
-    for (const auto& spot : myrts::assign_destinations(world.grid(myrts::MoveClass::Land), nullptr, wanted, around))
-      if (spot) world.spawn_unit(def, owner, *spot);
-  };
-  spawn_workers(*peon, game->local_player_, *our_hall, *hall, kInitialUnits);
-  spawn_workers(*peasant, enemy, *their_hall, *town_hall, level.enemy_workers);
-
-  myrts::Point focus{our_hall->x + hall->size / 2, our_hall->y + hall->size / 2};
+  myrts::Point focus{our_hall.x + hall->size / 2, our_hall.y + hall->size / 2};
   if (std::getenv("MYRTS_ROSTER")) {  // testing aid: one of every unit type, next to our hall
     int n = 0;
     for (const myrts::UnitDef& def : registry.units()) {
       if (def.worker) continue;
-      const myrts::Point tile{our_hall->x + (n % 8), our_hall->y - 3 - (n / 8) * 2};
+      const myrts::Point tile{our_hall.x + (n % 8), our_hall.y - 3 - (n / 8) * 2};
       world.spawn_unit(def, game->local_player_, tile);
       ++n;
     }
   }
   if (std::getenv("MYRTS_ROSTER")) {  // ...and a few enemy soldiers close by, so the ranged units have targets
     for (const myrts::UnitDef& def : registry.units()) {
-      if (def.faction != their_faction->id || def.worker || !def.can_attack() || def.move_class != myrts::MoveClass::Land) continue;
-      for (int i = 0; i < 6; ++i) world.spawn_unit(def, enemy, {our_hall->x + 3 + i, our_hall->y - 12});
+      if (def.faction != match->enemy_faction->id || def.worker || !def.can_attack() || def.move_class != myrts::MoveClass::Land) continue;
+      for (int i = 0; i < 6; ++i) world.spawn_unit(def, enemy, {our_hall.x + 3 + i, our_hall.y - 12});
       break;
     }
   }

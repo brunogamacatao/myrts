@@ -17,6 +17,7 @@ tests/      Catch2 tests for src/core (scripts/test.sh).
 | `EventBus` | `core/events.hpp` | The World publishes (`TreeFelled`, `UnitDied`, `BuildingCompleted`, `Notice`...); the HUD and rules listen. |
 | `rules` | `core/rules.*` | Victory / defeat from the World state. |
 | `TileMap`, `terrain`, `TileSet`, `PudMap` | `core/tilemap.*`, `terrain.*`, `tileset.*`, `pud.*` | The terrain: Warcraft II map tiles, their borders and movement rules (see "Maps and terrain"). |
+| `build_match` | `core/match_setup.*` | Builds a match from a `Level`: map, both sides (from `factions.json`), halls, workers, the opponent's buildings and its `Ai`. Headless and tested; `Game::create` only adds the view. |
 | `Scenario` | `core/scenario.*` | Who starts where and which gold mines a map holds, read from its units. |
 | `Ai` | `core/ai.*` | A computer player. Uses only the World's public orders (same as a human): mines, trains, attacks in waves. |
 | `SceneStack` | `core/scene_stack.hpp` | Scene lifecycle (enter / exit / pause / resume, overlays). |

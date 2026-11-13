@@ -44,7 +44,8 @@ add_library(myrts_core STATIC
   src/core/tilemap.cpp
   src/core/scenario.cpp
   src/core/sounds.cpp
-  src/core/campaign.cpp)
+  src/core/campaign.cpp
+  src/core/match_setup.cpp)
 target_include_directories(myrts_core PUBLIC src)
 target_compile_features(myrts_core PUBLIC cxx_std_23)
 target_link_libraries(myrts_core PRIVATE myrts_warnings nlohmann_json::nlohmann_json)
@@ -125,7 +126,8 @@ if(MYRTS_BUILD_TESTS)
     tests/combat_test.cpp
     tests/terrain_test.cpp
     tests/sounds_test.cpp
-    tests/campaign_test.cpp)
+    tests/campaign_test.cpp
+    tests/match_setup_test.cpp)
   target_compile_definitions(myrts_tests PRIVATE MYRTS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   target_link_libraries(myrts_tests PRIVATE myrts_core myrts_warnings nlohmann_json::nlohmann_json Catch2::Catch2WithMain)
   if(catch2_SOURCE_DIR)
