@@ -1,7 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
+#include <algorithm>
 #include <filesystem>
 
 #include "core/campaign.hpp"
+#include "core/defs.hpp"
 #include "core/pathfinding.hpp"
 #include "core/pud.hpp"
 #include "core/scenario.hpp"
@@ -32,7 +34,7 @@ TEST_CASE("an invalid campaign is rejected") {
   CHECK_FALSE(Campaign::parse("nope").has_value());
 }
 
-TEST_CASE("every level of the shipped campaign loads and its two bases are connected by land") {
+TEST_CASE("every level of the shipped campaign loads, and its bases connect by land exactly when it is a land level") {
   const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
   const auto campaign = Campaign::load_file((assets / "data" / "campaign.json").string());
   REQUIRE(campaign.has_value());
@@ -57,6 +59,22 @@ TEST_CASE("every level of the shipped campaign loads and its two bases are conne
     REQUIRE_FALSE(path.empty());
     const Point end = path.back();
     INFO("a=" << a.x << "," << a.y << " b=" << b.x << "," << b.y << " end=" << end.x << "," << end.y << " blockedB=" << land.is_blocked(b));
-    CHECK(std::abs(end.x - b.x) + std::abs(end.y - b.y) <= 4);  // the walk gets (next to) the enemy's start
+    const bool connected = std::abs(end.x - b.x) + std::abs(end.y - b.y) <= 4;  // the walk gets (next to) the enemy's start
+    CHECK(connected == (level.kind == "land"));  // an "air" level is exactly one where walking cannot get there
+  }
+}
+
+TEST_CASE("a level only allows units and buildings that exist, and air levels allow flyers") {
+  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  const auto campaign = Campaign::load_file((assets / "data" / "campaign.json").string());
+  const auto registry = Registry::load_directory((assets / "data").string());
+  REQUIRE(campaign.has_value());
+  REQUIRE(registry.has_value());
+  for (const Level& level : campaign->levels()) {
+    INFO(level.name);
+    for (const auto& id : level.allow) CHECK((registry->unit(id) != nullptr || registry->building(id) != nullptr));
+    if (level.kind == "air" && !level.allow.empty())
+      CHECK(std::ranges::find(level.allow, "orc_dragon") != level.allow.end());
+    CHECK_FALSE(level.chapter.empty());
   }
 }

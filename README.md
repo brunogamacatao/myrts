@@ -47,7 +47,9 @@ Tests: `cmake --preset tests-only && cmake --build --preset tests-only && ctest 
 - `tests/` – Catch2 tests
 
 ## Campaign
-The levels are listed in order in `assets/data/campaign.json`: each has a name, a briefing line, a Warcraft II map and how hard
+The levels are listed in order, grouped in chapters (land warfare, air war, total war) that introduce the game step by step: early levels
+only allow a few units and buildings and show tutorial hints, and in the air chapter the bases are not connected on foot, so the
+player must build a Dragon Roost. Naval levels are not there yet (there are no ships). Everything is in `assets/data/campaign.json`: each level has a name, a briefing line, a Warcraft II map and how hard
 the Alliance plays (delay before its first attack, size and growth of its waves, workers, starting stock). Winning a level offers
 the next one; losing offers to retry it. Add a level by adding an entry (the map must have two start locations connected by
 land once the forests are chopped; `tests/campaign_test.cpp` checks this for every level). `MYRTS_MAP=<pud>` plays a single map.

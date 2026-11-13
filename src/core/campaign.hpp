@@ -15,7 +15,12 @@ namespace myrts {
 struct Level {
   std::string name;
   std::string map;       ///< .pud path, relative to the game's assets
+  std::string chapter;   ///< the group it belongs to ("Land warfare", "Air war"...), shown on the level screens
+  std::string kind = "land";  ///< "land": the bases connect on foot; "air": they do not, so the way across is by air
   std::string briefing;  ///< one line shown when the level starts
+  std::vector<std::string> hints;  ///< tutorial lines shown one after another while the level begins
+  std::vector<std::string> allow;  ///< unit and building ids the player may use; empty means everything
+  Stock player_stock{2000, 1000, 0};
   AiConfig ai;           ///< the opponent's pace (waves, delay, workers)
   Stock enemy_stock{1000, 300, 0};
   int enemy_workers = 2;

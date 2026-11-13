@@ -15,7 +15,16 @@ std::expected<Campaign, std::string> Campaign::parse(std::string_view json_text)
       Level level;
       level.name = l.at("name").get<std::string>();
       level.map = l.at("map").get<std::string>();
+      level.chapter = l.value("chapter", std::string{});
+      level.kind = l.value("kind", level.kind);
+      if (level.kind != "land" && level.kind != "air") throw std::runtime_error("unknown kind '" + level.kind + "'");
       level.briefing = l.value("briefing", std::string{});
+      if (l.contains("hints")) level.hints = l.at("hints").get<std::vector<std::string>>();
+      if (l.contains("allow")) level.allow = l.at("allow").get<std::vector<std::string>>();
+      if (l.contains("player_stock")) {
+        const json& s = l.at("player_stock");
+        level.player_stock = Stock{s.value("gold", 0), s.value("lumber", 0), s.value("oil", 0)};
+      }
       if (l.contains("ai")) {
         const json& a = l.at("ai");
         level.ai.start_delay = a.value("start_delay", level.ai.start_delay);

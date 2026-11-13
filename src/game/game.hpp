@@ -131,6 +131,10 @@ class Game {
   const myrts::Registry* registry_ = nullptr;
   std::shared_ptr<const myrts::SoundTable> sounds_;
   std::unique_ptr<SoundDirector> director_;
+  std::vector<std::string> allow_;       // what the level lets the player use (empty: everything)
+  std::vector<std::string> hints_;       // tutorial lines still to show
+  double hint_timer_ = 0.0;
+  [[nodiscard]] bool allowed(const std::string& id) const;
   myrts::EntityId last_clicked_;  // for the "annoyed" lines when the same unit is clicked over and over
   int repeat_clicks_ = 0;
 

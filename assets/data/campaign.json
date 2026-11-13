@@ -1,59 +1,210 @@
 {
  "levels": [
   {
-   "name": "Gold Rush",
+   "chapter": "Land warfare",
+   "kind": "land",
+   "name": "First Steps",
    "map": "maps/Gold Rush BNE.pud",
-   "briefing": "Mines to the horizon; take them before the Alliance does.",
+   "briefing": "Learn to gather, build and train. The Alliance is slow to react.",
+   "allow": [
+    "orc_peon",
+    "great_hall",
+    "pig_farm",
+    "barracks",
+    "orc_grunt"
+   ],
+   "hints": [
+    "Click a peon to select it, then right-click a gold mine or a tree: it gathers and brings the load to the Great Hall.",
+    "Gold and lumber are at the top of the screen. The last number is food: every unit eats, so build Pig Farms.",
+    "With a peon selected, press Build and pick a Pig Farm, then click where it should go.",
+    "A Barracks trains Grunts. Select it, click a Grunt, and set a rally point with a right-click.",
+    "Drag a box to select an army, then right-click an enemy to attack. Destroy every Alliance unit and building to win."
+   ],
+   "player_stock": {
+    "gold": 1500,
+    "lumber": 800
+   },
    "ai": {
-    "start_delay": 150,
+    "start_delay": 420,
+    "first_wave": 3,
+    "wave_growth": 2,
+    "desired_workers": 2
+   },
+   "enemy_stock": {
+    "gold": 500,
+    "lumber": 200
+   },
+   "enemy_workers": 1
+  },
+  {
+   "chapter": "Land warfare",
+   "kind": "land",
+   "name": "Ranged Fighters",
+   "map": "maps/Dark Paths BNE.pud",
+   "briefing": "Axethrowers hit from afar; keep tougher units in front.",
+   "allow": [
+    "orc_peon",
+    "great_hall",
+    "pig_farm",
+    "barracks",
+    "orc_grunt",
+    "orc_troll_axethrower"
+   ],
+   "hints": [
+    "Troll Axethrowers attack from a distance but are fragile: let Grunts take the blows.",
+    "Use the Attack button and click the ground to attack-move: the army fights whatever it meets on the way.",
+    "Ranged units fire visible missiles. Keep them back, behind your front line."
+   ],
+   "ai": {
+    "start_delay": 225,
     "first_wave": 5,
     "wave_growth": 3,
     "desired_workers": 3
    },
    "enemy_stock": {
-    "gold": 1000.0,
-    "lumber": 300.0
+    "gold": 1200.0,
+    "lumber": 400.0
    },
    "enemy_workers": 2
   },
   {
-   "name": "Dark Paths",
-   "map": "maps/Dark Paths BNE.pud",
-   "briefing": "Narrow swamp paths favour whoever holds the chokepoints.",
+   "chapter": "Land warfare",
+   "kind": "land",
+   "name": "Heavy Hitters",
+   "map": "maps/Skirmish BNE.pud",
+   "briefing": "Ogres and catapults break defences.",
+   "allow": [
+    "orc_peon",
+    "great_hall",
+    "pig_farm",
+    "barracks",
+    "orc_grunt",
+    "orc_troll_axethrower",
+    "ogre_mound",
+    "orc_ogre",
+    "orc_catapult"
+   ],
+   "hints": [
+    "The Ogre Mound trains Ogres (strong in melee) and Catapults.",
+    "Catapults outrange everything and are deadly to buildings, but are slow and weak up close: escort them.",
+    "Mix the army: Ogres in front, Axethrowers and Catapults behind."
+   ],
    "ai": {
-    "start_delay": 137,
+    "start_delay": 209,
     "first_wave": 6,
     "wave_growth": 3,
     "desired_workers": 3
    },
    "enemy_stock": {
-    "gold": 1300.0,
+    "gold": 1400.0,
     "lumber": 500.0
    },
-   "enemy_workers": 2
+   "enemy_workers": 3
   },
   {
-   "name": "Skirmish",
-   "map": "maps/Skirmish BNE.pud",
-   "briefing": "Open ground. Expect larger waves.",
+   "chapter": "Land warfare",
+   "kind": "land",
+   "name": "Dark Arts",
+   "map": "maps/Murky River BNE.pud",
+   "briefing": "The Temple of the Damned opens up.",
+   "allow": [
+    "orc_peon",
+    "great_hall",
+    "pig_farm",
+    "barracks",
+    "orc_grunt",
+    "orc_troll_axethrower",
+    "ogre_mound",
+    "orc_ogre",
+    "orc_catapult",
+    "temple_of_the_damned",
+    "orc_death_knight"
+   ],
+   "hints": [
+    "Death Knights are the strongest ground units. Their Temple is costly, so expand your gold first.",
+    "Watch the minimap (top left): red dots are the Alliance. Click it to jump the camera there."
+   ],
    "ai": {
-    "start_delay": 124,
-    "first_wave": 8,
+    "start_delay": 194,
+    "first_wave": 7,
     "wave_growth": 4,
     "desired_workers": 4
    },
    "enemy_stock": {
-    "gold": 1600.0,
+    "gold": 1500.0,
     "lumber": 600.0
    },
    "enemy_workers": 3
   },
   {
-   "name": "Murky River",
-   "map": "maps/Murky River BNE.pud",
-   "briefing": "The river splits the swamp; the Alliance is on the far side.",
+   "chapter": "Land warfare",
+   "kind": "land",
+   "name": "Full Army",
+   "map": "maps/Winding Ways BNE.pud",
+   "briefing": "Everything on foot, against larger waves.",
+   "allow": [
+    "orc_peon",
+    "great_hall",
+    "pig_farm",
+    "barracks",
+    "orc_grunt",
+    "orc_troll_axethrower",
+    "ogre_mound",
+    "orc_ogre",
+    "orc_catapult",
+    "temple_of_the_damned",
+    "orc_death_knight"
+   ],
+   "hints": [
+    "The Alliance now attacks in bigger waves. Keep an army near your Great Hall.",
+    "Winning is about economy as much as fighting: more peons on gold means a bigger army sooner."
+   ],
    "ai": {
-    "start_delay": 111,
+    "start_delay": 178,
+    "first_wave": 8,
+    "wave_growth": 4,
+    "desired_workers": 4
+   },
+   "enemy_stock": {
+    "gold": 1700.0,
+    "lumber": 700.0
+   },
+   "enemy_workers": 3
+  },
+  {
+   "chapter": "Air war",
+   "kind": "air",
+   "name": "Wings Over the Cliffs",
+   "map": "maps/Cramped BNE.pud",
+   "briefing": "The Alliance cannot be reached on foot. Take to the sky.",
+   "allow": [
+    "orc_peon",
+    "great_hall",
+    "pig_farm",
+    "barracks",
+    "orc_grunt",
+    "orc_troll_axethrower",
+    "ogre_mound",
+    "orc_ogre",
+    "orc_catapult",
+    "temple_of_the_damned",
+    "orc_death_knight",
+    "alchemist",
+    "orc_zeppelin",
+    "dragon_roost",
+    "orc_dragon"
+   ],
+   "hints": [
+    "No land route connects the two bases. Fly: select a peon, Build a Dragon Roost, and train Dragons.",
+    "Dragons fly over any terrain and breathe fire, but they cost food and gold. Zeppelins (Alchemist) are cheap scouts.",
+    "Alliance Gryphons will come for you. Dragons are good at fighting them: keep a few at home."
+   ],
+   "player_stock": {
+    "gold": 3000,
+    "lumber": 1500
+   },
+   "ai": {
+    "start_delay": 163,
     "first_wave": 9,
     "wave_growth": 4,
     "desired_workers": 4
@@ -65,12 +216,34 @@
    "enemy_workers": 3
   },
   {
-   "name": "Winding Ways",
-   "map": "maps/Winding Ways BNE.pud",
-   "briefing": "Long marches through twisting passes.",
+   "chapter": "Air war",
+   "kind": "air",
+   "name": "Frozen Skies",
+   "map": "maps/Kaboom BNE.pud",
+   "briefing": "A winter map and a bigger Alliance air force.",
+   "allow": [
+    "orc_peon",
+    "great_hall",
+    "pig_farm",
+    "barracks",
+    "orc_grunt",
+    "orc_troll_axethrower",
+    "ogre_mound",
+    "orc_ogre",
+    "orc_catapult",
+    "temple_of_the_damned",
+    "orc_death_knight",
+    "alchemist",
+    "orc_zeppelin",
+    "dragon_roost",
+    "orc_dragon"
+   ],
+   "hints": [
+    "Your ground army cannot cross, so spend on Dragons and farms to feed them."
+   ],
    "ai": {
-    "start_delay": 99,
-    "first_wave": 10,
+    "start_delay": 147,
+    "first_wave": 9,
     "wave_growth": 4,
     "desired_workers": 4
    },
@@ -81,43 +254,133 @@
    "enemy_workers": 4
   },
   {
-   "name": "Big Rock Candy Mountain",
-   "map": "maps/Big Rock Candy Mountain BNE.pud",
-   "briefing": "Rich ground; the Alliance will not be idle.",
+   "chapter": "Air war",
+   "kind": "air",
+   "name": "Islands in the Mist",
+   "map": "maps/Isolation BNE.pud",
+   "briefing": "Far from everything.",
+   "allow": [
+    "orc_peon",
+    "great_hall",
+    "pig_farm",
+    "barracks",
+    "orc_grunt",
+    "orc_troll_axethrower",
+    "ogre_mound",
+    "orc_ogre",
+    "orc_catapult",
+    "temple_of_the_damned",
+    "orc_death_knight",
+    "alchemist",
+    "orc_zeppelin",
+    "dragon_roost",
+    "orc_dragon"
+   ],
+   "hints": [
+    "Scout with a Zeppelin: its sight range is long and it is cheap."
+   ],
    "ai": {
-    "start_delay": 86,
+    "start_delay": 132,
+    "first_wave": 10,
+    "wave_growth": 4,
+    "desired_workers": 4
+   },
+   "enemy_stock": {
+    "gold": 2300.0,
+    "lumber": 1100.0
+   },
+   "enemy_workers": 4
+  },
+  {
+   "chapter": "Air war",
+   "kind": "air",
+   "name": "The Last Mines",
+   "map": "maps/More Precious than Gold BNE.pud",
+   "briefing": "Hold your mines while the dragons strike.",
+   "allow": [
+    "orc_peon",
+    "great_hall",
+    "pig_farm",
+    "barracks",
+    "orc_grunt",
+    "orc_troll_axethrower",
+    "ogre_mound",
+    "orc_ogre",
+    "orc_catapult",
+    "temple_of_the_damned",
+    "orc_death_knight",
+    "alchemist",
+    "orc_zeppelin",
+    "dragon_roost",
+    "orc_dragon"
+   ],
+   "hints": [
+    "Defend the Great Hall while your dragons strike; the Alliance Gryphons target whatever is exposed."
+   ],
+   "ai": {
+    "start_delay": 116,
     "first_wave": 11,
     "wave_growth": 4,
     "desired_workers": 4
    },
    "enemy_stock": {
-    "gold": 2400.0,
+    "gold": 2500.0,
     "lumber": 1200.0
    },
    "enemy_workers": 4
   },
   {
+   "chapter": "Total war",
+   "kind": "land",
+   "name": "Rich Ground",
+   "map": "maps/Big Rock Candy Mountain BNE.pud",
+   "briefing": "Everything is available; the Alliance is not idle.",
+   "allow": [],
+   "hints": [
+    "All units and buildings are yours. Combine ground and air."
+   ],
+   "ai": {
+    "start_delay": 101,
+    "first_wave": 12,
+    "wave_growth": 5,
+    "desired_workers": 5
+   },
+   "enemy_stock": {
+    "gold": 2600.0,
+    "lumber": 1300.0
+   },
+   "enemy_workers": 4
+  },
+  {
+   "chapter": "Total war",
+   "kind": "land",
    "name": "Widow's End",
    "map": "maps/Widow's End BNE.pud",
-   "briefing": "The Alliance now sends large armies.",
+   "briefing": "Large armies on both sides.",
+   "allow": [],
+   "hints": [],
    "ai": {
-    "start_delay": 73,
+    "start_delay": 85,
     "first_wave": 13,
     "wave_growth": 5,
     "desired_workers": 5
    },
    "enemy_stock": {
-    "gold": 2700.0,
-    "lumber": 1300.0
+    "gold": 2800.0,
+    "lumber": 1400.0
    },
    "enemy_workers": 5
   },
   {
+   "chapter": "Total war",
+   "kind": "land",
    "name": "Mountain Pass",
    "map": "maps/Mountain Pass BNE.pud",
    "briefing": "The final push through the mountains.",
+   "allow": [],
+   "hints": [],
    "ai": {
-    "start_delay": 60,
+    "start_delay": 70,
     "first_wave": 14,
     "wave_growth": 5,
     "desired_workers": 5

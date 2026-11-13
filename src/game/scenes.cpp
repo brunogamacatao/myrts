@@ -204,7 +204,7 @@ SceneFactory make_game_over(GameResult result, std::size_t level) {
     const bool multi = ctx.campaign && ctx.campaign->size() > 1;
     MenuConfig cfg;
     cfg.title = won ? (multi && !next ? "Campaign Complete!" : "Victory!") : "Defeat";
-    cfg.subtitle = won ? (next ? "Next: " + ctx.campaign->level(*next).name : "Your enemies have been crushed.")
+    cfg.subtitle = won ? (next ? "Next: " + ctx.campaign->level(*next).chapter + " - " + ctx.campaign->level(*next).name : "Your enemies have been crushed.")
                        : "Your forces have been destroyed.";
     cfg.title_color = won ? al_map_rgb(240, 200, 60) : al_map_rgb(220, 60, 50);
     if (won && next) {

@@ -16,7 +16,6 @@ constexpr int kInitialUnits = 8;
 constexpr double kCorpseSeconds = 25.0;  // how long a body stays (the last 5 s it fades)
 constexpr std::size_t kMaxCorpses = 60;
 constexpr int kMineSize = 3;
-constexpr myrts::Stock kStartingStock{2000, 1000, 0};
 constexpr const char* kDefaultMap = "maps/Gold Rush BNE.pud";
 
 /// The free spot closest to `near` where `def` fits, leaving a one-tile gap around it so units can walk past.
@@ -86,7 +85,7 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   // Two players: the first start location is ours, the opponent takes the one farthest away.
   const myrts::StartSlot& ours = scenario.starts[0];
   const myrts::StartSlot& theirs = scenario.starts[*scenario.farthest_from(0)];
-  game->local_player_ = world.add_player("Player", "orcs", kStartingStock);
+  game->local_player_ = world.add_player("Player", "orcs", level.player_stock);
   const myrts::PlayerId enemy = world.add_player("Alliance", "alliance", level.enemy_stock);
 
   /// A player's hall goes where the map put one, or at the nearest free spot to the start location.
@@ -148,10 +147,13 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   }
   game->camera_.center_on(static_cast<float>(focus.x * game->tile_size_), static_cast<float>(focus.y * game->tile_size_));
   game->subscribe_to_world();
+  game->allow_ = level.allow;
+  game->hints_.assign(level.hints.rbegin(), level.hints.rend());  // popped from the back, so shown in order
+  game->hint_timer_ = 6.0;
   game->set_message(ctx.campaign && ctx.campaign->size() > 1
-                        ? "Level " + std::to_string(level_index + 1) + ": " + level.name + ". " + level.briefing
+                        ? (level.chapter.empty() ? "" : level.chapter + " - ") + "Level " + std::to_string(level_index + 1) + ": " + level.name + ". " + level.briefing
                         : level.briefing,
-                    8.0);
+                    6.0);
   game->register_commands();
   world.events().dispatch();  // spawn / placement events of the initial setup
   return game;
@@ -382,12 +384,16 @@ void Game::close_build_menu() {
   placing_ = nullptr;
 }
 
+bool Game::allowed(const std::string& id) const {
+  return allow_.empty() || std::ranges::find(allow_, id) != allow_.end();
+}
+
 std::vector<const myrts::UnitDef*> Game::current_train_options() const {
   std::vector<const myrts::UnitDef*> out;
   const myrts::Building* b = world_->buildings().get(selected_building_);
   if (!b || !b->complete) return out;
   for (const auto& id : b->def->trains)
-    if (const auto* def = registry_->unit(id)) out.push_back(def);
+    if (const auto* def = registry_->unit(id); def && allowed(id)) out.push_back(def);
   return out;
 }
 
@@ -407,7 +413,7 @@ std::vector<const myrts::BuildingDef*> Game::current_build_options() const {
     const myrts::Unit* u = world_->units().get(id);
     if (!u || u->locked() || u->def->builds.empty()) continue;
     for (const auto& b : u->def->builds)
-      if (const auto* def = registry_->building(b)) out.push_back(def);
+      if (const auto* def = registry_->building(b); def && allowed(b)) out.push_back(def);
     break;  // the first free builder decides the menu
   }
   return out;
@@ -533,6 +539,11 @@ void Game::update(double dt) {
     if (const SpriteDef* sprite = sprite_of(*c.def)) update_animation(*sprite, c.anim, dt);
   }
   std::erase_if(corpses_, [](const Corpse& c) { return c.age > kCorpseSeconds; });
+  if (!hints_.empty() && (hint_timer_ -= dt) <= 0 && !awaiting_target_ && !placing_) {  // the tutorial lines, in turn
+    set_message(hints_.back(), 9.0);
+    hints_.pop_back();
+    hint_timer_ = 11.0;
+  }
   for (Projectile& p : projectiles_) p.age += dt;
   std::erase_if(projectiles_, [](const Projectile& p) { return p.age >= p.duration; });
 
