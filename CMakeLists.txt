@@ -128,7 +128,8 @@ if(MYRTS_BUILD_TESTS)
     tests/sounds_test.cpp
     tests/campaign_test.cpp
     tests/match_setup_test.cpp
-    tests/naval_test.cpp)
+    tests/naval_test.cpp
+    tests/balance_sim_test.cpp)
   target_compile_definitions(myrts_tests PRIVATE MYRTS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   target_link_libraries(myrts_tests PRIVATE myrts_core myrts_warnings nlohmann_json::nlohmann_json Catch2::Catch2WithMain)
   if(catch2_SOURCE_DIR)
