@@ -700,6 +700,74 @@
         "stop",
         "attack"
       ]
+    },
+    {
+      "id": "orc_transport",
+      "name": "Orc Transport",
+      "faction": "orcs",
+      "level": 1,
+      "hp": 150,
+      "move_speed": 85,
+      "move_class": "water",
+      "sprite": "sprites/orcs_transport.json",
+      "stats": {
+        "armor": 5,
+        "damage_min": 0,
+        "damage_max": 0,
+        "range": 1,
+        "sight": 8,
+        "speed": 10
+      },
+      "attack_seconds": 2.0,
+      "cost": {
+        "gold": 600,
+        "lumber": 250,
+        "oil": 250
+      },
+      "train_seconds": 80,
+      "food": 1,
+      "icon": 206,
+      "capacity": 6,
+      "aggressive": false,
+      "commands": [
+        "move",
+        "stop",
+        "unload"
+      ]
+    },
+    {
+      "id": "alliance_transport",
+      "name": "Transport",
+      "faction": "alliance",
+      "level": 1,
+      "hp": 150,
+      "move_speed": 85,
+      "move_class": "water",
+      "sprite": "sprites/human_transport.json",
+      "stats": {
+        "armor": 5,
+        "damage_min": 0,
+        "damage_max": 0,
+        "range": 1,
+        "sight": 8,
+        "speed": 10
+      },
+      "attack_seconds": 2.0,
+      "cost": {
+        "gold": 600,
+        "lumber": 250,
+        "oil": 250
+      },
+      "train_seconds": 80,
+      "food": 1,
+      "icon": 207,
+      "capacity": 6,
+      "aggressive": false,
+      "commands": [
+        "move",
+        "stop",
+        "unload"
+      ]
     }
   ]
 }

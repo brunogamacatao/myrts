@@ -70,6 +70,7 @@ UnitDef parse_unit(const json& j) {
   u.sprite = j.at("sprite").get<std::string>();
   u.projectile = j.value("projectile", std::string{});
   u.mechanical = j.value("mechanical", false);
+  u.capacity = j.value("capacity", 0);
   u.commands = parse_strings(j, "commands");
   u.builds = parse_strings(j, "builds");
   if (j.contains("worker")) {

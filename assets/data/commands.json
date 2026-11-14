@@ -63,6 +63,18 @@
       "icons": {
         "default": 87
       }
+    },
+    {
+      "id": "unload",
+      "label": "Unload",
+      "icon": "unload",
+      "hotkey": "U",
+      "targeting": "ground",
+      "implemented": true,
+      "icons": {
+        "default": 208,
+        "orcs": 209
+      }
     }
   ]
 }

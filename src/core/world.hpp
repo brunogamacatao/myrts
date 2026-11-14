@@ -89,12 +89,24 @@ struct Repair {
   double owe_lumber = 0.0;
 };
 
+/// A land unit walks to a transport and climbs aboard.
+struct Board {
+  EntityId transport;
+  double timer = 0.0;  ///< delay before re-planning (the ship may sail on)
+};
+
+/// A transport sails to the shore and puts its passengers on land there.
+struct Unload {
+  Point shore{};       ///< the land tile the troops are to reach
+  double timer = 0.0;
+};
+
 }  // namespace order
 
 /// @}
 
 /// The activity of a unit: exactly one alternative of `order::*` at a time.
-using Order = std::variant<order::Idle, order::Harvest, order::Build, order::Attack, order::AttackMove, order::Repair>;
+using Order = std::variant<order::Idle, order::Harvest, order::Build, order::Attack, order::AttackMove, order::Repair, order::Board, order::Unload>;
 
 // ---- entities ---------------------------------------------------------------
 
@@ -122,7 +134,9 @@ struct Unit {
   double attack_flash = 0.0;  // > 0 while the strike animation should play
   Cargo cargo = Cargo::None;
   int carrying = 0;
-  bool hidden = false;  // inside a gold mine
+  EntityId aboard;                  // the transport this unit is inside (it is then off the map: hidden, no tile held)
+  std::vector<EntityId> passengers;  // for a transport: who is aboard
+  bool hidden = false;  // inside a gold mine (or aboard a ship)
 
   /// Tile the unit will occupy once its current step ends (where new paths must start).
   [[nodiscard]] Point anchor() const { return moving ? next : tile; }
@@ -225,6 +239,10 @@ class World {
   /// Workers go gather the tree or mine on `tile` and keep cycling between it and a depot.
   Result order_harvest(std::span<const EntityId> units, Point tile);
   /// Pays for and starts a building; the nearest free unit among `candidates` goes to build it.
+  /// Land units walk to `transport` (a ship of their side with room) and go aboard.
+  Result order_board(std::span<const EntityId> units, EntityId transport);
+  /// Transports sail to the water beside the land tile `shore` and put their passengers ashore around it.
+  Result order_unload(std::span<const EntityId> transports, Point shore);
   /// Workers go and repair the damaged building (or catapult, ballista...) of their own side on `tile`. Mending costs a quarter
   /// of the price over a full repair, paid as it goes; it stops when the target is whole, or the money runs out.
   Result order_repair(std::span<const EntityId> units, Point tile);
@@ -274,6 +292,8 @@ class World {
   [[nodiscard]] EntityStore<Unit>& units() { return units_; }
   [[nodiscard]] const EntityStore<Unit>& units() const { return units_; }
   [[nodiscard]] const EntityStore<Building>& buildings() const { return buildings_; }
+  /// A unit carried by a transport, without ever standing on the map (restoring a saved game).
+  EntityId spawn_aboard(const UnitDef& def, PlayerId owner, EntityId transport);
   [[nodiscard]] const std::vector<Mine>& mines() const { return mines_; }
   [[nodiscard]] const TreeField& trees() const { return trees_; }
   /// The tree nearest to `from` within `radius` tiles (square), if any.
@@ -330,6 +350,10 @@ class World {
   void update_harvest(Unit& u, order::Harvest& h, double dt);
   void update_build(Unit& u, order::Build& b, double dt);
   void update_repair(Unit& u, order::Repair& r, double dt);
+  void update_board(Unit& u, order::Board& b, double dt);
+  void update_unload(Unit& u, order::Unload& o, double dt);
+  void put_aboard(Unit& passenger, Unit& transport);
+  void land_passengers(Unit& transport, Point near_tile);
   bool start_repair(Unit& u, const order::Target& target);
   void cancel_order(Unit& u);
   [[nodiscard]] std::optional<ApproachPath> approach(const Unit& u, std::span<const Point> targets) const;

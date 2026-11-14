@@ -534,6 +534,56 @@
    "attack": [
     "catapult.wav"
    ]
+  },
+  "orc_transport": {
+   "voice": "orc",
+   "selected": [
+    "oshpwht1.wav",
+    "oshpwht2.wav",
+    "oshpwht3.wav"
+   ],
+   "acknowledge": [
+    "oshpyes1.wav",
+    "oshpyes2.wav",
+    "oshpyes3.wav"
+   ],
+   "annoyed": [
+    "oshppis1.wav",
+    "oshppis2.wav",
+    "oshppis3.wav"
+   ],
+   "ready": [
+    "oshpredy.wav"
+   ],
+   "dead": [
+    "shipsink.wav"
+   ],
+   "attack": []
+  },
+  "alliance_transport": {
+   "voice": "human",
+   "selected": [
+    "hshpwht1.wav",
+    "hshpwht2.wav",
+    "hshpwht3.wav"
+   ],
+   "acknowledge": [
+    "hshpyes1.wav",
+    "hshpyes2.wav",
+    "hshpyes3.wav"
+   ],
+   "annoyed": [
+    "hshppis1.wav",
+    "hshppis2.wav",
+    "hshppis3.wav"
+   ],
+   "ready": [
+    "hshpredy.wav"
+   ],
+   "dead": [
+    "shipsink.wav"
+   ],
+   "attack": []
   }
  },
  "buildings": {

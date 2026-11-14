@@ -59,7 +59,7 @@ Tests: `cmake --preset tests-only && cmake --build --preset tests-only && ctest 
 ## Campaign
 The levels are listed in order, grouped in chapters (land warfare, air war, sea power, total war) that introduce the game step by step: early levels
 only allow a few units and buildings and show tutorial hints, and in the air chapter the bases are not connected on foot, so the
-player must build a Dragon Roost. The sea chapter has shipyards, oil tankers, destroyers and the big warships (no transports yet). Everything is in `assets/data/campaign.json`: each level has a name, a briefing line, a Warcraft II map and how hard
+player must build a Dragon Roost. The sea chapter has shipyards, oil tankers, destroyers, the big warships and transports (see Transports). Everything is in `assets/data/campaign.json`: each level has a name, a briefing line, a Warcraft II map and how hard
 the Alliance plays (delay before its first attack, size and growth of its waves, workers, starting stock). Winning a level offers
 the next one; losing offers to retry it. Add a level by adding an entry (the map must have two start locations connected by
 land (forests and gold mines count as walls); `tests/campaign_test.cpp` checks this for every level). `MYRTS_MAP=<pud>` plays a single map.
@@ -111,6 +111,12 @@ under way are resumed when it is loaded. The file is `saves.json` in the user da
 Workers (peons and peasants) repair damaged buildings and machines (catapults, ballistas) of their own side: select them, press
 **Repair** (`R`) and click the target, or just right-click a damaged one. It restores hit points as fast as the building was built
 and costs a quarter of its price (gold and lumber) over a full repair, paid as it goes; it stops when the money runs out.
+
+## Transports
+A Transport (from the Shipyard) carries six land units. Sail it to a shore, select the troops and **right-click the transport** (or
+walk them next to it): they climb aboard and leave the map. To land them, select the transport, press **Unload** (`U`) and click
+the land where they should step ashore: it sails to the nearest water and puts them on free ground around it. Passengers are
+shown in the unit panel, and go down with the ship if it is sunk.
 
 ## Group movement
 A* stays single-agent. For a group order, `assign_destinations` picks the closest free, connected tiles around

@@ -76,6 +76,8 @@ UNITS.update({
 UNITS.update({
     "orcs_destroyer": {"sheet": "wc2_orc_troll_destroyer.png", "walk": range(0, 1), "death_sequence": [1]},
     "orcs_juggernaut": {"sheet": "wc2_orc_ogre_juggernaut.png", "walk": range(0, 1), "death_sequence": [1]},
+    "orcs_transport": {"sheet": "wc2_orc_transport.png", "walk": range(0, 1), "death_sequence": [1]},
+    "human_transport": {"sheet": "wc2_human_transport.png", "walk": range(0, 1)},  # (its other rows are per-direction swirls)
     "orcs_tanker": {"sheet": "wc2_orc_oil_tanker.png", "walk": range(0, 1), "walk_oil": range(2, 3), "death_sequence": [1]},
     "human_destroyer": {"sheet": "wc2_human_elven_destroyer.png", "walk": range(0, 1)},  # (its other rows are per-direction swirls: no death animation)
     # The battleship sheet has only four directions in its first row; the fifth (down) is the first sprite of the second row.

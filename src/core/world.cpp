@@ -290,9 +290,9 @@ void World::step_unit(Unit& u, double dt) {
 
 void World::update(double dt) {
   for (const EntityId id : units_.ids())
-    if (Unit* u = units_.get(id)) update_order(*u, dt);
+    if (Unit* u = units_.get(id); u && !u->aboard.valid()) update_order(*u, dt);
   for (const EntityId id : units_.ids())
-    if (Unit* u = units_.get(id)) step_unit(*u, dt);
+    if (Unit* u = units_.get(id); u && !u->aboard.valid()) step_unit(*u, dt);
   update_training(dt);
   if ((fog_timer_ -= dt) <= 0.0) {
     fog_timer_ = 0.2;
@@ -305,7 +305,7 @@ void World::refresh_fog() {
   if (!config_.fog) return;
   for (FogOfWar& f : fogs_) f.begin();
   units_.for_each([&](const Unit& u) {
-    if (u.owner < 0 || static_cast<std::size_t>(u.owner) >= fogs_.size()) return;
+    if (u.aboard.valid() || u.owner < 0 || static_cast<std::size_t>(u.owner) >= fogs_.size()) return;
     fogs_[static_cast<std::size_t>(u.owner)].reveal(u.tile, std::max(2, u.def->stats.sight));
   });
   buildings_.for_each([&](const Building& b) {
@@ -319,6 +319,16 @@ void World::refresh_fog() {
 void World::kill_unit(EntityId id) {
   Unit* u = units_.get(id);
   if (!u) return;
+  if (u->aboard.valid()) {  // (not used for passengers in normal play, but keep the ship's list honest)
+    if (Unit* ship = units_.get(u->aboard)) std::erase(ship->passengers, id);
+  }
+  for (const EntityId pid : std::vector<EntityId>(u->passengers)) {  // the ship takes everyone aboard down with it
+    if (const Unit* p = units_.get(pid)) {
+      events_.publish(ev::UnitDied{pid, p->owner, p->def, u->x, u->y, p->facing});
+      units_.erase(pid);
+    }
+  }
+  u->passengers.clear();
   cancel_order(*u);
   Layer& L = layer_of(*u);
   L.occupancy.release(u->tile, occ_id(*u));

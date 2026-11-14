@@ -216,6 +216,11 @@ void Game::draw() {
     const myrts::Unit* u = world_->units().get(id);
     if (!u) continue;
     cards.push_back({u->def->name, u->def->level, u->hp, u->def->max_hp, u->def->stats, u->def->icon});
+    if (u->def->capacity > 0) {
+      cards.back().capacity = u->def->capacity;
+      for (const myrts::EntityId pid : u->passengers)
+        if (const myrts::Unit* p = world_->units().get(pid)) cards.back().cargo_icons.push_back(p->def->icon);
+    }
   }
   std::vector<ui::MinimapDot> dots;
   world_->buildings().for_each([&](const myrts::Building& b) {

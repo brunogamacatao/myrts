@@ -88,6 +88,27 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
       ++n;
     }
   }
+  if (std::getenv("MYRTS_NAVY")) {  // testing aid: a transport and a destroyer at the nearest shore (their tiles are printed)
+    const myrts::Grid& sea = world.grid(myrts::MoveClass::Water);
+    const myrts::Grid& land = world.grid(myrts::MoveClass::Land);
+    int spawned = 0;
+    for (int r = 2; r < 40 && spawned < 2; ++r)
+      for (int dy = -r; dy <= r && spawned < 2; ++dy)
+        for (int dx = -r; dx <= r && spawned < 2; ++dx) {
+          const myrts::Point p{our_hall.x + dx, our_hall.y + dy};
+          if (std::max(std::abs(dx), std::abs(dy)) != r || !sea.is_walkable(p) || !land.is_blocked(p)) continue;
+          bool shore = false;
+          for (int ey = -1; ey <= 1; ++ey)
+            for (int ex = -1; ex <= 1; ++ex) shore = shore || land.is_walkable({p.x + ex, p.y + ey});
+          if (!shore) continue;
+          const char* id = spawned == 0 ? match->local_faction->id == "orcs" ? "orc_transport" : "alliance_transport"
+                                        : match->local_faction->id == "orcs" ? "orc_destroyer" : "alliance_destroyer";
+          if (const myrts::UnitDef* def = registry.unit(id); def && world.spawn_unit(*def, game->local_player_, p).valid()) {
+            std::fprintf(stderr, "NAVY %s at %d,%d (hall %d,%d)\n", id, p.x, p.y, our_hall.x, our_hall.y);
+            ++spawned;
+          }
+        }
+  }
   if (std::getenv("MYRTS_ROSTER")) {  // ...and a few enemy soldiers close by, so the ranged units have targets
     for (const myrts::UnitDef& def : registry.units()) {
       if (def.faction != match->enemy_faction->id || def.worker || !def.can_attack() || def.move_class != myrts::MoveClass::Land) continue;
@@ -131,6 +152,10 @@ void Game::subscribe_to_world() {
       if (selected_.empty()) close_build_menu();
     });
     myrts::on_event<myrts::ev::Attacked>(e, [&](const myrts::ev::Attacked& a) { spawn_projectile(a); });
+    myrts::on_event<myrts::ev::UnitBoarded>(e, [&](const myrts::ev::UnitBoarded& b) {
+      std::erase(selected_, b.unit);  // aboard: no longer on the map to be commanded
+      if (selected_.empty()) close_build_menu();
+    });
     myrts::on_event<myrts::ev::BuildingDestroyed>(e, [&](const myrts::ev::BuildingDestroyed& d) {
       if (selected_building_ == d.building) selected_building_ = myrts::kNoEntity;
     });
@@ -172,6 +197,7 @@ void Game::register_commands() {
   instant_commands_["stop"] = [this] { ordered(world_->order_stop(selected_)); };
   targeted_commands_["move"] = [this](myrts::Point t) { ordered(world_->order_move(selected_, t)); };
   targeted_commands_["harvest"] = [this](myrts::Point t) { ordered(world_->order_harvest(selected_, t)); };
+  targeted_commands_["unload"] = [this](myrts::Point t) { ordered(world_->order_unload(selected_, t)); };
   targeted_commands_["repair"] = [this](myrts::Point t) { ordered(world_->order_repair(selected_, t)); };
   targeted_commands_["attack"] = [this](myrts::Point t) { ordered(world_->order_attack(selected_, t)); };
 }

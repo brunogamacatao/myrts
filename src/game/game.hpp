@@ -125,6 +125,7 @@ class Game {
   void click_in_viewport(float screen_x, float screen_y);
   void right_click_at(myrts::Point tile);
   [[nodiscard]] bool selection_has_worker() const;
+  [[nodiscard]] bool selection_has_land_unit() const;
   void box_select(float x1, float y1, float x2, float y2);
   [[nodiscard]] bool shift_down() const;
   [[nodiscard]] std::optional<myrts::Point> tile_at_world(myrts::Vec2 w) const;

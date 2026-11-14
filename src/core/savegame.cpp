@@ -88,7 +88,8 @@ json World::save_state() const {
     }
     units.push_back({{"def", u.def->id}, {"owner", u.owner}, {"tile", point(u.anchor())}, {"hp", u.hp},
                      {"facing", static_cast<int>(u.facing)}, {"cargo", static_cast<int>(u.cargo)},
-                     {"carrying", u.carrying}, {"cooldown", u.cooldown}, {"order", std::move(o)}});
+                     {"carrying", u.carrying}, {"cooldown", u.cooldown}, {"order", std::move(o)},
+                     {"aboard", u.aboard.valid() && unit_index.contains(u.aboard) ? unit_index.at(u.aboard) : -1}});
   });
   out["units"] = std::move(units);
   return out;
@@ -160,11 +161,18 @@ std::expected<void, std::string> World::load_state(const json& state, const Regi
     }
 
     // ---- units
-    std::vector<EntityId> unit_ids;
-    for (const json& j : state.at("units")) {
+    // Units on the map first, then the ones aboard a ship (they need their ship to exist).
+    const json& saved_units = state.at("units");
+    std::vector<EntityId> unit_ids(saved_units.size());
+    for (int pass = 0; pass < 2; ++pass)
+    for (std::size_t k = 0; k < saved_units.size(); ++k) {
+      const json& j = saved_units[k];
+      const int ship_index = j.value("aboard", -1);
+      if ((ship_index >= 0) != (pass == 1)) continue;
       const UnitDef& def = *registry.unit(j.at("def").get<std::string>());
-      const EntityId id = spawn_unit(def, j.at("owner").get<int>(), to_point(j.at("tile")));
-      unit_ids.push_back(id);
+      const EntityId id = ship_index >= 0 ? (static_cast<std::size_t>(ship_index) < unit_ids.size() ? spawn_aboard(def, j.at("owner").get<int>(), unit_ids[static_cast<std::size_t>(ship_index)]) : kNoEntity)
+                                          : spawn_unit(def, j.at("owner").get<int>(), to_point(j.at("tile")));
+      unit_ids[k] = id;
       if (Unit* u = units_.get(id)) {
         u->hp = j.at("hp").get<int>();
         u->facing = static_cast<Facing>(j.at("facing").get<int>());

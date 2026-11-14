@@ -43,6 +43,8 @@ struct UnitCard {
   int max_hp = 1;
   myrts::UnitStats stats;
   int icon = -1;
+  int capacity = 0;                // a transport: how many it carries
+  std::vector<int> cargo_icons;    // and the icons of who is aboard
 };
 
 struct MinimapDot {

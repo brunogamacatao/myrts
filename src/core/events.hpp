@@ -35,6 +35,9 @@ struct Attacked {
   float from_x, from_y, to_x, to_y;
 };
 struct BuildingDestroyed { EntityId building; PlayerId owner; Point origin; int size; };
+/// A land unit climbed aboard a transport / stepped ashore from one.
+struct UnitBoarded { EntityId unit; EntityId transport; };
+struct UnitLanded { EntityId unit; EntityId transport; };
 /// A unit finished training and left its building.
 struct UnitTrained { EntityId unit; PlayerId owner; };
 struct BuildingPlaced { EntityId building; PlayerId owner; };
@@ -50,7 +53,7 @@ namespace myrts {
 
 using Event = std::variant<ev::TreeFelled, ev::TerrainChanged, ev::MineDepleted, ev::UnitSpawned, ev::UnitDied, ev::Attacked,
                            ev::BuildingPlaced, ev::BuildingCompleted, ev::BuildingDestroyed, ev::Delivered,
-                           ev::Notice, ev::UnitTrained>;
+                           ev::Notice, ev::UnitTrained, ev::UnitBoarded, ev::UnitLanded>;
 
 /// Decouples "something happened" (the simulation) from "who cares" (HUD, sound, victory rules).
 /// Events are queued by publish() and delivered, in order, by dispatch(), so a handler never

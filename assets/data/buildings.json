@@ -273,7 +273,8 @@
       "trains": [
         "orc_tanker",
         "orc_destroyer",
-        "orc_juggernaut"
+        "orc_juggernaut",
+        "orc_transport"
       ],
       "icon": 204
     },
@@ -295,7 +296,8 @@
       "trains": [
         "alliance_tanker",
         "alliance_destroyer",
-        "alliance_battleship"
+        "alliance_battleship",
+        "alliance_transport"
       ],
       "icon": 205
     }

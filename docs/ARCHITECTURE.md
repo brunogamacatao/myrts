@@ -86,7 +86,7 @@ war2edit and warcraft2-map-editor; see `NOTICE.md`).
 
 Everything is data (`assets/data/units.json`, `buildings.json`). Behaviour differences come from a few fields: `move_class`
 (air units cross walls and are drawn lifted with a shadow), `stats.range` (ranged attackers), `siege_multiplier`
-(catapults and ballistas hit buildings much harder), `food`, and `aggressive`. Ships (oil tankers, destroyers and the Juggernaut / Battleship) are trained at the Shipyard (see "Water and oil"); there are no transports. Not implemented yet, Goblin Sappers, summoned Skeletons and spells.
+(catapults and ballistas hit buildings much harder), `food`, and `aggressive`. Ships (oil tankers, destroyers and the Juggernaut / Battleship) are trained at the Shipyard (see "Water and oil"); transports carry six land units (see below). Not implemented yet, Goblin Sappers, summoned Skeletons and spells.
 
 `MYRTS_ROSTER=1` spawns one of every unit type, which is a quick way to eyeball new sprites.
 
@@ -106,7 +106,7 @@ The build menu pages itself when a worker can build more than five things.
   land workers ignore oil and water workers ignore gold. Without oil nothing changes.
 * Oil patches come from the map (`pud_unit::kOilPatch`, see `Scenario`). Ships are plain data in `units.json` (`move_class: water`);
   the attack waves go out as one attack-move, which suits ships too (they stop at the nearest water). There are no transports, so a
-  naval level is won with ships plus air units for whatever stands inland.
+  naval level is won with ships plus air units (or transported troops) for whatever stands inland.
 
 ## Adding content
 
@@ -165,3 +165,11 @@ The Allegro layer is checked by running the game.
   `game/slots_scene.cpp` lists them.
 * **Repair** is an order (`order::Repair`, `World::order_repair`): the worker walks next to a damaged building or `mechanical`
   unit and mends it, paying a quarter of the price over a full repair.
+
+## Transports
+
+`UnitDef.capacity > 0` makes a ship a transport (`core/transport.cpp`). A passenger is a normal `Unit` with `aboard` set to its ship
+(and `hidden`): it holds no tile, does not act, and does not reveal fog; the ship lists them in `passengers`. `order::Board` walks a
+land unit next to the ship and boards it (`World::order_board`); `order::Unload` sails the ship to the water beside a shore tile and
+lands the passengers on free land around it (`World::order_unload`). Passengers die with the ship, are saved by the index of their
+ship, and come back with `World::spawn_aboard`. The AI does not use transports.

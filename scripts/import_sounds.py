@@ -86,6 +86,8 @@ units.update({
     "alliance_tanker": {**ship("H", []), "voice": "human"},
     "alliance_destroyer": {**ship("H", f(M, "Catapult")), "voice": "human"},
     "alliance_battleship": {**ship("H", f(M, "Catapult")), "voice": "human"},
+    "orc_transport": {**ship("O", []), "voice": "orc"},
+    "alliance_transport": {**ship("H", []), "voice": "human"},
 })
 B = "Bldg"
 buildings = {

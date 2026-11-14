@@ -133,6 +133,9 @@ void Game::right_click_at(myrts::Point tile) {
     ordered(world_->order_attack(selected_, tile));
   } else if (world_->trees().has_tree(tile) || world_->mine_at(tile) >= 0) {
     ordered(world_->order_harvest(selected_, tile));
+  } else if (const myrts::Unit* ship = other.valid() ? world_->units().get(other) : nullptr;
+             ship && ship->owner == local_player_ && ship->def->capacity > 0 && selection_has_land_unit()) {
+    ordered(world_->order_board(selected_, other));  // right-click on one's own transport: climb aboard
   } else if (selection_has_worker() && ((b && b->owner == local_player_ && b->complete && b->hp < b->def->hp) ||
                                         (foe_unit == nullptr && other.valid() && world_->units().get(other)->owner == local_player_ &&
                                          world_->units().get(other)->def->mechanical &&
@@ -295,5 +298,12 @@ bool Game::selection_has_worker() const {
   return std::ranges::any_of(selected_, [&](myrts::EntityId id) {
     const myrts::Unit* u = world_->units().get(id);
     return u && u->def->worker.has_value();
+  });
+}
+
+bool Game::selection_has_land_unit() const {
+  return std::ranges::any_of(selected_, [&](myrts::EntityId id) {
+    const myrts::Unit* u = world_->units().get(id);
+    return u && u->def->move_class == myrts::MoveClass::Land;
   });
 }

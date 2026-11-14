@@ -237,14 +237,24 @@ void draw_unit_info(ALLEGRO_FONT* font, const HudData& hud) {
     draw_hp(font, p.x + 6, p.y + 50, kButtonW, u.hp, u.max_hp, true);
 
     const auto& s = u.stats;
-    const std::string lines[] = {"Armor: " + std::to_string(s.armor),
-                                 "Damage: " + std::to_string(s.damage_min) + "-" + std::to_string(s.damage_max),
-                                 "Range: " + std::to_string(s.range), "Sight: " + std::to_string(s.sight),
-                                 "Speed: " + std::to_string(s.speed)};
+    std::vector<std::string> lines = {"Armor: " + std::to_string(s.armor)};
+    if (u.capacity == 0)
+      lines.insert(lines.end(), {"Damage: " + std::to_string(s.damage_min) + "-" + std::to_string(s.damage_max), "Range: " + std::to_string(s.range)});
+    lines.insert(lines.end(), {"Sight: " + std::to_string(s.sight), "Speed: " + std::to_string(s.speed)});
     float y = p.y + 96;
     for (const auto& line : lines) {
       draw_text(font, p.x + 26, y, ALLEGRO_ALIGN_LEFT, line);
       y += 16;
+    }
+    if (u.capacity > 0) {  // a transport: who is aboard
+      draw_text(font, p.x + 26, y + 4, ALLEGRO_ALIGN_LEFT, "Cargo: " + std::to_string(u.cargo_icons.size()) + "/" + std::to_string(u.capacity));
+      constexpr int kCols = 3;
+      for (std::size_t i = 0; i < u.cargo_icons.size(); ++i) {
+        const float x = p.x + 8 + static_cast<float>(i % kCols) * 50;
+        const float cy = y + 22 + static_cast<float>(i / kCols) * 42;
+        hud.art.draw_icon(u.cargo_icons[i], x, cy);
+        draw_frame({x, cy, kButtonW, kButtonH}, false);
+      }
     }
     return;
   }

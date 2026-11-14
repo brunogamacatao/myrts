@@ -166,7 +166,7 @@ TEST_CASE("Every unit, building and command in the shipped data has an icon in t
   const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
   const auto r = Registry::load_directory((assets / "data").string());
   REQUIRE(r);
-  constexpr int kIcons = 206;  // icons in assets/ui/icons.png (the last eight are the ships and shipyards)
+  constexpr int kIcons = 210;  // icons in assets/ui/icons.png (the last twelve are the ships, shipyards and the unload command)
   for (const auto& u : r->units()) {
     INFO("unit " << u.id);
     CHECK(u.icon >= 0);

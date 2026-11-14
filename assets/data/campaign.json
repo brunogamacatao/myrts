@@ -347,7 +347,8 @@
    "hints": [
     "A Shipyard (Build menu) must stand on the shore. It trains Oil Tankers, Destroyers and the big warships.",
     "Ships cost oil. Train Oil Tankers, select them and right-click an oil patch (the black pools at sea): they pump it and deliver to the Shipyard.",
-    "Destroyers fight at range; the big ships (Juggernaut or Battleship) bombard coasts, but cannot go on land: use them with dragons to finish what stands inland."
+    "Destroyers fight at range; the big ships (Juggernaut or Battleship) bombard coasts, but cannot go on land: use them with dragons to finish what stands inland.",
+    "Transports carry six land units: select the troops and right-click the transport at the shore. Select the transport, press Unload and click the shore where they should land."
    ],
    "allow": [],
    "player_stock": {
@@ -406,7 +407,8 @@
    "map": "maps/Beetle Island BNE.pud",
    "briefing": "A map of islands and oil. Whoever controls the sea wins.",
    "hints": [
-    "Send your fleet to the enemy coast with an attack-move (Attack, then click the sea near their base)."
+    "Send your fleet to the enemy coast with an attack-move (Attack, then click the sea near their base).",
+    "The enemy base can be reached by land from the sea: load an army onto a Transport, escort it with your warships and land it next to their base."
    ],
    "allow": [],
    "player_stock": {

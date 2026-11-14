@@ -38,7 +38,7 @@ void World::notice(PlayerId to, std::string text) { events_.publish(ev::Notice{t
 void World::free_units(std::span<const EntityId> in, std::vector<EntityId>& out) const {
   for (const EntityId id : in) {
     const Unit* u = units_.get(id);
-    if (u && !u->locked()) out.push_back(id);
+    if (u && !u->locked() && !u->aboard.valid()) out.push_back(id);
   }
 }
 
@@ -336,7 +336,9 @@ void World::update_order(Unit& u, double dt) {
                         [&](order::Build& b) { update_build(u, b, dt); },
                         [&](order::Attack& a) { update_attack(u, a, dt); },
                         [&](order::AttackMove& m) { update_attack_move(u, m, dt); },
-                        [&](order::Repair& r) { update_repair(u, r, dt); }},
+                        [&](order::Repair& r) { update_repair(u, r, dt); },
+                        [&](order::Board& b) { update_board(u, b, dt); },
+                        [&](order::Unload& o) { update_unload(u, o, dt); }},
              u.order);
 }
 

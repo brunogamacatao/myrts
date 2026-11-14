@@ -54,3 +54,4 @@ The ship sprites, shipyard and oil patch art and the extra icons come from the W
 (`scripts/extract_unit_sprites.py`, `scripts/extract_sprites.py`) and are Blizzard Entertainment material; the ship sounds are from the
 same sound pack as the rest. The extra maps (`Forsaken Isles`, `Frosty Fjords`, `Beetle Island`, `Dark Peninsula`, `Winding Ways`...)
 come from the warcraft2-map-editor repository (MIT).
+The transport sprites and icons (and the unload command icons) come from the same Spriters Resource sheets.
