@@ -48,3 +48,9 @@ event names used by Wargus (`scripts/sound.lua`, GPLv2), used only as a behaviou
 ## Music
 The tracks in `assets/music/` are the remastered Warcraft II soundtrack (Blizzard Entertainment material), converted to Ogg
 Vorbis by `scripts/import_music.py`. Check the terms before redistributing them.
+
+## Ships, shipyards and oil
+The ship sprites, shipyard and oil patch art and the extra icons come from the Warcraft II sheets of The Spriters Resource
+(`scripts/extract_unit_sprites.py`, `scripts/extract_sprites.py`) and are Blizzard Entertainment material; the ship sounds are from the
+same sound pack as the rest. The extra maps (`Forsaken Isles`, `Frosty Fjords`, `Beetle Island`, `Dark Peninsula`, `Winding Ways`...)
+come from the warcraft2-map-editor repository (MIT).

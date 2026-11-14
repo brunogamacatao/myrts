@@ -1,6 +1,8 @@
 #pragma once
 
 #include <array>
+#include <expected>
+#include <nlohmann/json_fwd.hpp>
 #include <deque>
 #include <optional>
 #include <random>
@@ -12,6 +14,7 @@
 #include "building.hpp"
 #include "defs.hpp"
 #include "entity_store.hpp"
+#include "fog.hpp"
 #include "events.hpp"
 #include "facing.hpp"
 #include "grid.hpp"
@@ -75,12 +78,23 @@ struct AttackMove {
   double scan = 0.0;  ///< time since the surroundings were last scanned for enemies
 };
 
+/// Walk to a damaged building (or machine) of one's own side and mend it, which costs gold and lumber.
+struct Repair {
+  enum class State { ToTarget, Repairing };
+  State state = State::ToTarget;
+  Target target;
+  double timer = 0.0;       ///< delay before re-planning a blocked route
+  double healed = 0.0;      ///< hit points mended but not yet added (fractions)
+  double owe_gold = 0.0;    ///< the cost of what was mended, paid in whole pieces
+  double owe_lumber = 0.0;
+};
+
 }  // namespace order
 
 /// @}
 
 /// The activity of a unit: exactly one alternative of `order::*` at a time.
-using Order = std::variant<order::Idle, order::Harvest, order::Build, order::Attack, order::AttackMove>;
+using Order = std::variant<order::Idle, order::Harvest, order::Build, order::Attack, order::AttackMove, order::Repair>;
 
 // ---- entities ---------------------------------------------------------------
 
@@ -164,6 +178,7 @@ struct WorldConfig {
   double train_speed = 1.0;   // training time divisor (testing)
   int max_queue = 5;
   double scan_interval = 0.3; // how often idle fighters look for enemies
+  bool fog = true;            // false: every player sees the whole map
   unsigned seed = 1;          // damage rolls are reproducible for a given seed
 };
 
@@ -210,6 +225,9 @@ class World {
   /// Workers go gather the tree or mine on `tile` and keep cycling between it and a depot.
   Result order_harvest(std::span<const EntityId> units, Point tile);
   /// Pays for and starts a building; the nearest free unit among `candidates` goes to build it.
+  /// Workers go and repair the damaged building (or catapult, ballista...) of their own side on `tile`. Mending costs a quarter
+  /// of the price over a full repair, paid as it goes; it stops when the target is whole, or the money runs out.
+  Result order_repair(std::span<const EntityId> units, Point tile);
   Result order_build(PlayerId owner, std::span<const EntityId> candidates, const BuildingDef& def, Point origin);
   /// Sends a worker back to finish an unfinished building.
   Result order_resume_build(std::span<const EntityId> units, EntityId building);
@@ -266,6 +284,24 @@ class World {
   [[nodiscard]] const TileMap* terrain() const { return terrain_ ? &*terrain_ : nullptr; }
   [[nodiscard]] EventBus& events() { return events_; }
 
+  // ---- saved games (savegame.cpp)
+  /// Everything that changes during a match, as JSON: stocks, remaining trees and mines, buildings (with their training
+  /// queues), units (with what they are doing) and what each player has explored. The map itself is not saved: a match is
+  /// restored by building the same level again and calling load_state().
+  [[nodiscard]] nlohmann::json save_state() const;
+  /// Replaces the units, buildings and resources of this (freshly built) world with the saved ones. Orders that were under
+  /// way are resumed by planning their routes again. Returns a message (before changing anything) if the map size, the players or a unit or building id do not fit.
+  std::expected<void, std::string> load_state(const nlohmann::json& state, const Registry& registry);
+
+  // ---- fog of war
+  /// What `player` knows of the map. Refreshed by update() a few times a second, and by refresh_fog().
+  [[nodiscard]] const FogOfWar& fog(PlayerId player) const { return fogs_.at(static_cast<std::size_t>(player)); }
+  [[nodiscard]] FogOfWar& fog(PlayerId player) { return fogs_.at(static_cast<std::size_t>(player)); }
+  /// Recomputes who sees what now (units and buildings reveal the tiles around them).
+  void refresh_fog();
+  /// How far (in tiles) a building sees.
+  [[nodiscard]] static int building_sight(const BuildingDef& def) { return 3 + def.size; }
+
  private:
   struct Layer {
     Grid blocked;
@@ -293,6 +329,8 @@ class World {
   void update_order(Unit& u, double dt);
   void update_harvest(Unit& u, order::Harvest& h, double dt);
   void update_build(Unit& u, order::Build& b, double dt);
+  void update_repair(Unit& u, order::Repair& r, double dt);
+  bool start_repair(Unit& u, const order::Target& target);
   void cancel_order(Unit& u);
   [[nodiscard]] std::optional<ApproachPath> approach(const Unit& u, std::span<const Point> targets) const;
   bool start_gathering(Unit& u, ResourceKind kind, Point target);
@@ -326,6 +364,8 @@ class World {
   TreeField trees_;
   std::optional<TileMap> terrain_;
   std::vector<Player> players_;
+  std::vector<FogOfWar> fogs_;  // one per player
+  double fog_timer_ = 0.0;
   EventBus events_;
   std::mt19937 rng_;
 };

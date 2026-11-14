@@ -45,6 +45,9 @@ add_library(myrts_core STATIC
   src/core/scenario.cpp
   src/core/sounds.cpp
   src/core/campaign.cpp
+  src/core/fog.cpp
+  src/core/savegame.cpp
+  src/core/saves.cpp
   src/core/match_setup.cpp)
 target_include_directories(myrts_core PUBLIC src)
 target_compile_features(myrts_core PUBLIC cxx_std_23)
@@ -90,10 +93,12 @@ if(MYRTS_BUILD_GAME)
     src/game/draw_util.cpp
     src/game/menu_scene.cpp
     src/game/options_scene.cpp
+    src/game/slots_scene.cpp
     src/game/scene_manager.cpp
     src/game/scenes.cpp
     src/game/assets.cpp
     src/game/audio.cpp
+    src/game/fog_view.cpp
     src/game/sound_director.cpp
     src/game/game.cpp
     src/game/game_input.cpp
@@ -129,7 +134,9 @@ if(MYRTS_BUILD_TESTS)
     tests/campaign_test.cpp
     tests/match_setup_test.cpp
     tests/naval_test.cpp
-    tests/balance_sim_test.cpp)
+    tests/balance_sim_test.cpp
+    tests/fog_test.cpp
+    tests/saves_test.cpp)
   target_compile_definitions(myrts_tests PRIVATE MYRTS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   target_link_libraries(myrts_tests PRIVATE myrts_core myrts_warnings nlohmann_json::nlohmann_json Catch2::Catch2WithMain)
   if(catch2_SOURCE_DIR)

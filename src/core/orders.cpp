@@ -335,7 +335,8 @@ void World::update_order(Unit& u, double dt) {
                         [&](order::Harvest& h) { update_harvest(u, h, dt); },
                         [&](order::Build& b) { update_build(u, b, dt); },
                         [&](order::Attack& a) { update_attack(u, a, dt); },
-                        [&](order::AttackMove& m) { update_attack_move(u, m, dt); }},
+                        [&](order::AttackMove& m) { update_attack_move(u, m, dt); },
+                        [&](order::Repair& r) { update_repair(u, r, dt); }},
              u.order);
 }
 
@@ -489,6 +490,114 @@ void World::update_build(Unit& u, order::Build& o, double dt) {
   cancel_order(u);  // frees the builder slot and the unit
   events_.publish(ev::BuildingCompleted{id, owner});
   notice(owner, name + " completed");
+}
+
+// ---- repair ------------------------------------------------------------------------------------
+
+namespace {
+constexpr double kRepairCostShare = 0.25;  // a repair from nothing to whole costs this share of the price
+}
+
+bool World::start_repair(Unit& u, const order::Target& target) {
+  std::vector<Point> tiles;
+  if (!target_tiles(target, tiles)) return false;
+  auto route = approach(u, tiles);
+  if (!route) return false;
+  send_along(u, std::move(route->path));
+  u.order = order::Repair{order::Repair::State::ToTarget, target, 0.0};
+  return true;
+}
+
+Result World::order_repair(std::span<const EntityId> ids, Point tile) {
+  if (ids.empty()) return Result::success();
+  order::Target target;
+  PlayerId owner = kNoPlayer;
+  bool whole = false;
+  if (const EntityId site = building_at(tile); site.valid()) {
+    const Building* b = buildings_.get(site);
+    if (!b->complete) return Result::fail("That building is still being built");
+    target = {order::Target::Kind::Building, site};
+    owner = b->owner;
+    whole = b->hp >= b->def->hp;
+  } else if (const EntityId id = unit_at(tile); id.valid()) {
+    const Unit* t = units_.get(id);
+    if (!t->def->mechanical) return Result::fail("Only buildings and machines can be repaired");
+    target = {order::Target::Kind::Unit, id};
+    owner = t->owner;
+    whole = t->hp >= t->def->max_hp;
+  } else {
+    return Result::fail("Select a building or a machine to repair");
+  }
+
+  std::vector<EntityId> free;
+  free_units(ids, free);
+  if (free.empty()) return Result::fail("Builders cannot be interrupted");
+  std::erase_if(free, [&](EntityId id) { return !units_.get(id)->def->worker || units_.get(id)->owner != owner; });
+  if (free.empty()) return Result::fail("Only workers can repair, and only their own side's things");
+  if (whole) return Result::fail("Nothing to repair");
+
+  bool unreachable = false;
+  for (const EntityId id : free) {
+    Unit& u = *units_.get(id);
+    cancel_order(u);
+    stop_unit(u);
+    if (!start_repair(u, target)) unreachable = true;
+  }
+  return unreachable ? Result::fail("Cannot reach it") : Result::success();
+}
+
+void World::update_repair(Unit& u, order::Repair& r, double dt) {
+  std::vector<Point> tiles;
+  const order::Target target = r.target;
+  const bool is_building = target.kind == order::Target::Kind::Building;
+  Building* b = is_building ? buildings_.get(target.id) : nullptr;
+  Unit* t = is_building ? nullptr : units_.get(target.id);
+  if ((is_building && !b) || (!is_building && !t) || !target_tiles(target, tiles)) return cancel_order(u);
+  const int hp = is_building ? b->hp : t->hp;
+  const int max_hp = is_building ? b->def->hp : t->def->max_hp;
+  if (hp >= max_hp) return cancel_order(u);
+
+  const bool adjacent = adjacent_to_any(u.tile, tiles);
+  if (r.state == order::Repair::State::ToTarget || !adjacent) {
+    if (adjacent && u.is_idle()) {
+      r.state = order::Repair::State::Repairing;
+      face_tile(u, tiles.front());
+      return;
+    }
+    r.state = order::Repair::State::ToTarget;
+    if ((r.timer += dt) >= config_.retry_delay && (u.is_idle() || !is_building)) {  // machines move: follow them
+      r.timer = 0.0;
+      auto route = approach(u, tiles);
+      if (!route) return cancel_order(u);
+      send_along(u, std::move(route->path));
+    }
+    return;
+  }
+
+  // Mending: as fast as it was built, paying a share of the price in proportion.
+  const Cost price = is_building ? b->def->cost : t->def->cost;
+  const double seconds = is_building ? b->def->build_seconds / std::max(0.01, config_.build_speed)
+                                     : std::max(20.0, t->def->train_seconds);
+  const double mended = static_cast<double>(max_hp) / seconds * dt;
+  r.healed += mended;
+  r.owe_gold += mended / max_hp * kRepairCostShare * price.gold;
+  r.owe_lumber += mended / max_hp * kRepairCostShare * price.lumber;
+  Stock& stock = player(u.owner).stock;
+  while (r.owe_gold >= 1.0 || r.owe_lumber >= 1.0) {
+    if ((r.owe_gold >= 1.0 && stock.gold < 1) || (r.owe_lumber >= 1.0 && stock.lumber < 1)) {
+      notice(u.owner, "Not enough resources to repair");
+      return cancel_order(u);
+    }
+    if (r.owe_gold >= 1.0) --stock.gold, r.owe_gold -= 1.0;
+    if (r.owe_lumber >= 1.0) --stock.lumber, r.owe_lumber -= 1.0;
+  }
+  const int whole_points = static_cast<int>(r.healed);
+  if (whole_points > 0) {
+    r.healed -= whole_points;
+    int& target_hp = is_building ? b->hp : t->hp;
+    target_hp = std::min(max_hp, target_hp + whole_points);
+    if (target_hp >= max_hp) cancel_order(u);
+  }
 }
 
 }  // namespace myrts

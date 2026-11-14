@@ -3,6 +3,7 @@
 #include <filesystem>
 
 #include "core/campaign.hpp"
+#include "core/match_setup.hpp"
 #include "core/defs.hpp"
 #include "core/pathfinding.hpp"
 #include "core/pud.hpp"
@@ -61,6 +62,7 @@ TEST_CASE("every level of the shipped campaign loads, and its bases connect on f
     REQUIRE_FALSE(path.empty());
     const Point end = path.back();
     INFO("a=" << a.x << "," << a.y << " b=" << b.x << "," << b.y << " end=" << end.x << "," << end.y << " blockedB=" << land.is_blocked(b));
+    if (level.kind == "naval") continue;  // checked below
     const bool connected = std::abs(end.x - b.x) + std::abs(end.y - b.y) <= 4;  // the walk gets (next to) the enemy's start
     CHECK(connected == (level.kind == "land"));  // an "air" level is exactly one where walking cannot get there
   }
@@ -155,4 +157,56 @@ TEST_CASE("translate_text replaces in one pass and prefers the longest term") {
   t.terms = {{"Alliance", "Horde"}, {"Horde", "Alliance"}, {"Alliance Gryphons", "Horde Dragons"}};
   CHECK(translate_text("The Alliance and the Horde. Alliance Gryphons.", t) == "The Horde and the Alliance. Horde Dragons.");
   CHECK(translate_text("nothing to do", t) == "nothing to do");
+}
+
+TEST_CASE("a naval level has a shore for a shipyard at both bases, oil to pump, and a sea route between them") {
+  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  const auto campaign = Campaign::load_file((assets / "data" / "campaign.json").string());
+  const auto registry = Registry::load_directory((assets / "data").string());
+  const auto tilesets = TileSets::load_file((assets / "data" / "tilesets.json").string());
+  REQUIRE(campaign.has_value());
+  REQUIRE(registry.has_value());
+  REQUIRE(tilesets.has_value());
+  const auto shared = std::make_shared<const TileSets>(*tilesets);
+  int naval_levels = 0;
+  for (const Level& level : campaign->levels()) {
+    if (level.kind != "naval") continue;
+    ++naval_levels;
+    INFO(level.name);
+    MatchOptions options;
+    options.assets_dir = assets.string();
+    auto match = build_match(*registry, shared, play_as(level, *registry, ""), options);
+    REQUIRE(match.has_value());
+    World& w = *match->world;
+    const BuildingDef& yard = *registry->building(match->local_faction->id == "orcs" ? "orc_shipyard" : "alliance_shipyard");
+    const auto shore_near = [&](Point near) -> std::optional<Point> {
+      std::optional<Point> best;
+      double best_d = 1e9;
+      for (int y = near.y - 14; y <= near.y + 14; ++y)
+        for (int x = near.x - 14; x <= near.x + 14; ++x)
+          if (w.placement_status(yard, {x, y}) == PlaceStatus::Ok) {
+            const double d = std::hypot(x - near.x, y - near.y);
+            if (d < best_d) best_d = d, best = Point{x, y};
+          }
+      return best;
+    };
+    const auto a = shore_near(match->local_hall);
+    const auto b = shore_near(match->enemy_hall);
+    REQUIRE(a.has_value());
+    REQUIRE(b.has_value());
+    const Grid& sea = w.grid(MoveClass::Water);
+    const auto water_next_to = [&](Point yard_origin) {
+      for (int r = 1; r < 8; ++r)
+        for (int dy = -r; dy <= r; ++dy)
+          for (int dx = -r; dx <= r; ++dx)
+            if (const Point q{yard_origin.x + 2 + dx, yard_origin.y + 1 + dy}; sea.is_walkable(q)) return q;
+      return yard_origin;
+    };
+    const Point from = water_next_to(*a), to = water_next_to(*b);
+    CHECK_FALSE(a_star(sea, from, to).empty());
+    int oil = 0;
+    for (const Mine& m : w.mines()) oil += m.kind() == ResourceKind::Oil ? 1 : 0;
+    CHECK(oil >= 2);
+  }
+  CHECK(naval_levels >= 3);
 }

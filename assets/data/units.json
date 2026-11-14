@@ -43,7 +43,8 @@
         "ogre_mound",
         "temple_of_the_damned",
         "dragon_roost",
-        "alchemist"
+        "alchemist",
+        "orc_shipyard"
       ],
       "icon": 1
     },
@@ -119,7 +120,8 @@
         "alliance_stables",
         "alliance_mage_tower",
         "alliance_aviary",
-        "alliance_blacksmith"
+        "alliance_blacksmith",
+        "alliance_shipyard"
       ],
       "icon": 0
     },
@@ -332,7 +334,8 @@
       "siege_multiplier": 2.0,
       "food": 2,
       "aggressive": true,
-      "icon": 17
+      "icon": 17,
+      "mechanical": true
     },
     {
       "id": "alliance_archer",
@@ -485,7 +488,218 @@
       "attack_seconds": 3.0,
       "siege_multiplier": 2.0,
       "food": 2,
-      "icon": 16
+      "icon": 16,
+      "mechanical": true
+    },
+    {
+      "id": "orc_tanker",
+      "name": "Oil Tanker",
+      "faction": "orcs",
+      "level": 1,
+      "hp": 90,
+      "move_speed": 95,
+      "move_class": "water",
+      "sprite": "sprites/orcs_tanker.json",
+      "stats": {
+        "armor": 0,
+        "damage_min": 0,
+        "damage_max": 0,
+        "range": 1,
+        "sight": 4,
+        "speed": 10
+      },
+      "attack_seconds": 2.0,
+      "cost": {
+        "gold": 400,
+        "lumber": 200
+      },
+      "train_seconds": 60,
+      "food": 1,
+      "icon": 198,
+      "worker": {
+        "oil_per_trip": 100,
+        "oil_seconds": 4.0
+      },
+      "aggressive": false,
+      "commands": [
+        "move",
+        "stop",
+        "harvest"
+      ]
+    },
+    {
+      "id": "orc_destroyer",
+      "name": "Troll Destroyer",
+      "faction": "orcs",
+      "level": 1,
+      "hp": 100,
+      "move_speed": 95,
+      "move_class": "water",
+      "sprite": "sprites/orcs_destroyer.json",
+      "stats": {
+        "armor": 5,
+        "damage_min": 10,
+        "damage_max": 25,
+        "range": 5,
+        "sight": 8,
+        "speed": 10
+      },
+      "attack_seconds": 2.0,
+      "cost": {
+        "gold": 700,
+        "lumber": 350,
+        "oil": 350
+      },
+      "train_seconds": 90,
+      "food": 1,
+      "icon": 199,
+      "projectile": "bolt",
+      "aggressive": true,
+      "commands": [
+        "move",
+        "stop",
+        "attack"
+      ]
+    },
+    {
+      "id": "orc_juggernaut",
+      "name": "Ogre Juggernaut",
+      "faction": "orcs",
+      "level": 1,
+      "hp": 150,
+      "move_speed": 80,
+      "move_class": "water",
+      "sprite": "sprites/orcs_juggernaut.json",
+      "stats": {
+        "armor": 10,
+        "damage_min": 30,
+        "damage_max": 60,
+        "range": 7,
+        "sight": 9,
+        "speed": 10
+      },
+      "attack_seconds": 3.0,
+      "cost": {
+        "gold": 1000,
+        "lumber": 500,
+        "oil": 500
+      },
+      "train_seconds": 120,
+      "food": 2,
+      "icon": 200,
+      "projectile": "boulder",
+      "siege_multiplier": 2.0,
+      "aggressive": true,
+      "commands": [
+        "move",
+        "stop",
+        "attack"
+      ]
+    },
+    {
+      "id": "alliance_tanker",
+      "name": "Oil Tanker",
+      "faction": "alliance",
+      "level": 1,
+      "hp": 90,
+      "move_speed": 95,
+      "move_class": "water",
+      "sprite": "sprites/human_tanker.json",
+      "stats": {
+        "armor": 0,
+        "damage_min": 0,
+        "damage_max": 0,
+        "range": 1,
+        "sight": 4,
+        "speed": 10
+      },
+      "attack_seconds": 2.0,
+      "cost": {
+        "gold": 400,
+        "lumber": 200
+      },
+      "train_seconds": 60,
+      "food": 1,
+      "icon": 201,
+      "worker": {
+        "oil_per_trip": 100,
+        "oil_seconds": 4.0
+      },
+      "aggressive": false,
+      "commands": [
+        "move",
+        "stop",
+        "harvest"
+      ]
+    },
+    {
+      "id": "alliance_destroyer",
+      "name": "Elven Destroyer",
+      "faction": "alliance",
+      "level": 1,
+      "hp": 100,
+      "move_speed": 95,
+      "move_class": "water",
+      "sprite": "sprites/human_destroyer.json",
+      "stats": {
+        "armor": 5,
+        "damage_min": 10,
+        "damage_max": 25,
+        "range": 5,
+        "sight": 8,
+        "speed": 10
+      },
+      "attack_seconds": 2.0,
+      "cost": {
+        "gold": 700,
+        "lumber": 350,
+        "oil": 350
+      },
+      "train_seconds": 90,
+      "food": 1,
+      "icon": 202,
+      "projectile": "bolt",
+      "aggressive": true,
+      "commands": [
+        "move",
+        "stop",
+        "attack"
+      ]
+    },
+    {
+      "id": "alliance_battleship",
+      "name": "Battleship",
+      "faction": "alliance",
+      "level": 1,
+      "hp": 150,
+      "move_speed": 80,
+      "move_class": "water",
+      "sprite": "sprites/human_battleship.json",
+      "stats": {
+        "armor": 10,
+        "damage_min": 30,
+        "damage_max": 60,
+        "range": 7,
+        "sight": 9,
+        "speed": 10
+      },
+      "attack_seconds": 3.0,
+      "cost": {
+        "gold": 1000,
+        "lumber": 500,
+        "oil": 500
+      },
+      "train_seconds": 120,
+      "food": 2,
+      "icon": 203,
+      "projectile": "boulder",
+      "siege_multiplier": 2.0,
+      "aggressive": true,
+      "commands": [
+        "move",
+        "stop",
+        "attack"
+      ]
     }
   ]
 }

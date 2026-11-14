@@ -3,6 +3,7 @@
 #include <optional>
 #include <vector>
 
+#include "building.hpp"
 #include "grid.hpp"
 #include "pud.hpp"
 
@@ -18,7 +19,8 @@ struct StartSlot {
 
 struct MineSpec {
   Point origin{};  // top-left tile of the 3x3 mine
-  int gold = 0;
+  int gold = 0;  // what it holds (gold or oil: see `kind`)
+  ResourceKind kind = ResourceKind::Gold;
 };
 
 /// What a map says about who starts where and what it holds, read from its units.

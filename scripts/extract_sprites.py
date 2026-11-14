@@ -22,8 +22,11 @@ BUILDINGS = {
     "great_hall": (144, 543, 119, 116),
     "pig_farm_construction": (272, 603, 63, 64),
     "pig_farm": (337, 603, 64, 64),
-    "barracks_construction": (14, 448, 92, 89),
-    "barracks": (109, 441, 96, 96),
+    "barracks_construction": (16, 347, 92, 86),
+    "barracks": (108, 335, 94, 103),
+    # the hull on its stocks, with the red tusk poles
+    "shipyard_construction": (14, 448, 92, 89),
+    "shipyard": (109, 441, 96, 96),
     # production buildings of the Horde
     "ogre_mound_construction": (18, 260, 88, 77),
     "ogre_mound": (109, 242, 95, 96),
@@ -50,10 +53,13 @@ HUMAN_BUILDINGS = {
     "alliance_aviary_construction": (408, 360, 94, 95),
     "alliance_blacksmith": (4, 264, 96, 96),
     "alliance_blacksmith_construction": (4, 365, 96, 90),
+    "alliance_shipyard": (4, 458, 96, 94),
+    "alliance_shipyard_construction": (4, 553, 96, 97),
 }
 MISC = {
     "gold_mine": (13, 12, 96, 89),
     "gold_mine_active": (13, 108, 96, 89),
+    "oil_patch": (111, 206, 94, 79),
 }
 
 

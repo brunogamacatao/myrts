@@ -22,6 +22,7 @@ class BuildingArt {
   [[nodiscard]] ALLEGRO_BITMAP* construction(const myrts::BuildingDef& def) const {
     return find(construction_, def.id);
   }
+  [[nodiscard]] ALLEGRO_BITMAP* oil_patch() const { return oil_ ? oil_->get() : nullptr; }
   [[nodiscard]] ALLEGRO_BITMAP* gold_mine(bool active) const { return (active ? mine_active_ : mine_)->get(); }
 
  private:
@@ -35,6 +36,7 @@ class BuildingArt {
   Map construction_;
   std::shared_ptr<const Bitmap> mine_;
   std::shared_ptr<const Bitmap> mine_active_;
+  std::shared_ptr<const Bitmap> oil_;
 };
 
 /// Draws `bitmap` centred inside the square of `size_px` pixels whose top-left is (x, y).

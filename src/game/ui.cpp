@@ -96,6 +96,10 @@ void draw_minimap(const HudData& hud) {
   al_draw_scaled_bitmap(hud.minimap_bitmap, 0, 0, static_cast<float>(al_get_bitmap_width(hud.minimap_bitmap)),
                         static_cast<float>(al_get_bitmap_height(hud.minimap_bitmap)), area.x + mm.offset_x(),
                         area.y + mm.offset_y(), mm.width(), mm.height(), 0);
+  if (hud.minimap_fog)
+    al_draw_scaled_bitmap(hud.minimap_fog, 0, 0, static_cast<float>(al_get_bitmap_width(hud.minimap_fog)),
+                          static_cast<float>(al_get_bitmap_height(hud.minimap_fog)), area.x + mm.offset_x(),
+                          area.y + mm.offset_y(), mm.width(), mm.height(), 0);
 
   for (const MinimapDot& d : hud.dots) {
     const auto p = mm.world_to_mini(d.x, d.y);

@@ -108,6 +108,7 @@ struct HudData {
   std::span<const TrainOption> train_options;   // its training buttons, in slot order
   int food_used = 0;
   int food_cap = 0;
+  ALLEGRO_BITMAP* minimap_fog = nullptr;       // the black of the unexplored map, one pixel per tile (drawn over the minimap)
 };
 
 /// Rectangle of a command button slot (0..kButtonSlots-1), in screen coordinates.

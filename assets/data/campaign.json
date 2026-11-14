@@ -58,13 +58,13 @@
     "Ranged units fire visible missiles. Keep them back, behind your front line."
    ],
    "ai": {
-    "start_delay": 725,
+    "start_delay": 229,
     "first_wave": 5,
     "wave_growth": 3,
     "desired_workers": 3
    },
    "enemy_stock": {
-    "gold": 1200.0,
+    "gold": 1100.0,
     "lumber": 400.0
    },
    "enemy_workers": 2
@@ -93,16 +93,16 @@
     "Mix the army: Ogres in front, Axethrowers and Catapults behind."
    ],
    "ai": {
-    "start_delay": 709,
-    "first_wave": 6,
+    "start_delay": 217,
+    "first_wave": 5,
     "wave_growth": 3,
     "desired_workers": 3
    },
    "enemy_stock": {
-    "gold": 1400.0,
+    "gold": 1300.0,
     "lumber": 500.0
    },
-   "enemy_workers": 3
+   "enemy_workers": 2
   },
   {
    "chapter": "Land warfare",
@@ -129,14 +129,14 @@
     "Watch the minimap (top left): red dots are the Alliance. Click it to jump the camera there."
    ],
    "ai": {
-    "start_delay": 694,
-    "first_wave": 7,
-    "wave_growth": 4,
-    "desired_workers": 4
+    "start_delay": 206,
+    "first_wave": 6,
+    "wave_growth": 3,
+    "desired_workers": 3
    },
    "enemy_stock": {
-    "gold": 1500.0,
-    "lumber": 600.0
+    "gold": 1400.0,
+    "lumber": 500.0
    },
    "enemy_workers": 3
   },
@@ -165,14 +165,14 @@
     "Winning is about economy as much as fighting: more peons on gold means a bigger army sooner."
    ],
    "ai": {
-    "start_delay": 578,
-    "first_wave": 8,
+    "start_delay": 195,
+    "first_wave": 7,
     "wave_growth": 4,
     "desired_workers": 4
    },
    "enemy_stock": {
-    "gold": 1700.0,
-    "lumber": 700.0
+    "gold": 1500.0,
+    "lumber": 600.0
    },
    "enemy_workers": 3
   },
@@ -210,14 +210,14 @@
     "lumber": 1500
    },
    "ai": {
-    "start_delay": 563,
-    "first_wave": 9,
+    "start_delay": 183,
+    "first_wave": 7,
     "wave_growth": 4,
     "desired_workers": 4
    },
    "enemy_stock": {
-    "gold": 1900.0,
-    "lumber": 800.0
+    "gold": 1700.0,
+    "lumber": 700.0
    },
    "enemy_workers": 3
   },
@@ -249,16 +249,16 @@
     "Your ground army cannot cross, so spend on Dragons and farms to feed them."
    ],
    "ai": {
-    "start_delay": 547,
-    "first_wave": 9,
+    "start_delay": 172,
+    "first_wave": 8,
     "wave_growth": 4,
     "desired_workers": 4
    },
    "enemy_stock": {
-    "gold": 2100.0,
-    "lumber": 1000.0
+    "gold": 1800.0,
+    "lumber": 800.0
    },
-   "enemy_workers": 4
+   "enemy_workers": 3
   },
   {
    "chapter": "Air war",
@@ -288,16 +288,16 @@
     "Scout with a Zeppelin: its sight range is long and it is cheap."
    ],
    "ai": {
-    "start_delay": 432,
-    "first_wave": 10,
+    "start_delay": 161,
+    "first_wave": 9,
     "wave_growth": 4,
     "desired_workers": 4
    },
    "enemy_stock": {
-    "gold": 2300.0,
-    "lumber": 1100.0
+    "gold": 1900.0,
+    "lumber": 900.0
    },
-   "enemy_workers": 4
+   "enemy_workers": 3
   },
   {
    "chapter": "Air war",
@@ -327,14 +327,131 @@
     "Defend the Great Hall while your dragons strike; the Alliance Gryphons target whatever is exposed."
    ],
    "ai": {
-    "start_delay": 416,
+    "start_delay": 149,
+    "first_wave": 9,
+    "wave_growth": 4,
+    "desired_workers": 4
+   },
+   "enemy_stock": {
+    "gold": 2100.0,
+    "lumber": 900.0
+   },
+   "enemy_workers": 4
+  },
+  {
+   "chapter": "Sea power",
+   "kind": "naval",
+   "name": "Out to Sea",
+   "map": "maps/Forsaken Isles BNE.pud",
+   "briefing": "The first fleet. Learn the shipyard and the tankers.",
+   "hints": [
+    "A Shipyard (Build menu) must stand on the shore. It trains Oil Tankers, Destroyers and the big warships.",
+    "Ships cost oil. Train Oil Tankers, select them and right-click an oil patch (the black pools at sea): they pump it and deliver to the Shipyard.",
+    "Destroyers fight at range; the big ships (Juggernaut or Battleship) bombard coasts, but cannot go on land: use them with dragons to finish what stands inland."
+   ],
+   "allow": [],
+   "player_stock": {
+    "gold": 3000,
+    "lumber": 2000,
+    "oil": 500
+   },
+   "music": "music/orc4.ogg",
+   "ai": {
+    "start_delay": 138,
+    "first_wave": 10,
+    "wave_growth": 4,
+    "desired_workers": 4
+   },
+   "enemy_stock": {
+    "gold": 2200.0,
+    "lumber": 1000.0,
+    "oil": 400
+   },
+   "enemy_workers": 4
+  },
+  {
+   "chapter": "Sea power",
+   "kind": "naval",
+   "name": "Ice and Iron",
+   "map": "maps/Frosty Fjords BNE.pud",
+   "briefing": "Narrow waters: the enemy fleet will come through the fjords.",
+   "hints": [
+    "Keep your warships together: a lone destroyer loses to a pack.",
+    "Your tankers are defenceless. Keep them close to the Shipyard and away from enemy ships."
+   ],
+   "allow": [],
+   "player_stock": {
+    "gold": 3000,
+    "lumber": 2000,
+    "oil": 500
+   },
+   "music": "music/orc5.ogg",
+   "ai": {
+    "start_delay": 127,
+    "first_wave": 11,
+    "wave_growth": 4,
+    "desired_workers": 4
+   },
+   "enemy_stock": {
+    "gold": 2300.0,
+    "lumber": 1100.0,
+    "oil": 400
+   },
+   "enemy_workers": 4
+  },
+  {
+   "chapter": "Sea power",
+   "kind": "naval",
+   "name": "Island War",
+   "map": "maps/Beetle Island BNE.pud",
+   "briefing": "A map of islands and oil. Whoever controls the sea wins.",
+   "hints": [
+    "Send your fleet to the enemy coast with an attack-move (Attack, then click the sea near their base)."
+   ],
+   "allow": [],
+   "player_stock": {
+    "gold": 3000,
+    "lumber": 2000,
+    "oil": 500
+   },
+   "music": "music/orc6.ogg",
+   "ai": {
+    "start_delay": 115,
     "first_wave": 11,
     "wave_growth": 4,
     "desired_workers": 4
    },
    "enemy_stock": {
     "gold": 2500.0,
-    "lumber": 1200.0
+    "lumber": 1200.0,
+    "oil": 400
+   },
+   "enemy_workers": 4
+  },
+  {
+   "chapter": "Sea power",
+   "kind": "naval",
+   "name": "The Long Voyage",
+   "map": "maps/Dark Peninsula BNE.pud",
+   "briefing": "A very long way around by sea.",
+   "hints": [],
+   "allow": [],
+   "player_stock": {
+    "gold": 3000,
+    "lumber": 2000,
+    "oil": 500
+   },
+   "music": "music/orc1.ogg",
+   "ai": {
+    "start_delay": 104,
+    "first_wave": 12,
+    "wave_growth": 5,
+    "desired_workers": 5
+   },
+   "enemy_stock": {
+    "gold": 2600.0,
+    "lumber": 1300.0,
+    "oil": 400
    },
    "enemy_workers": 4
   },
@@ -343,41 +460,41 @@
    "kind": "land",
    "name": "Rich Ground",
    "map": "maps/Big Rock Candy Mountain BNE.pud",
-   "music": "music/orc4.ogg",
+   "music": "music/orc2.ogg",
    "briefing": "Everything is available; the Alliance is not idle.",
    "allow": [],
    "hints": [
     "All units and buildings are yours. Combine ground and air."
    ],
    "ai": {
-    "start_delay": 401,
-    "first_wave": 12,
+    "start_delay": 93,
+    "first_wave": 13,
     "wave_growth": 5,
     "desired_workers": 5
    },
    "enemy_stock": {
-    "gold": 2600.0,
+    "gold": 2700.0,
     "lumber": 1300.0
    },
-   "enemy_workers": 4
+   "enemy_workers": 5
   },
   {
    "chapter": "Total war",
    "kind": "land",
    "name": "Widow's End",
    "map": "maps/Widow's End BNE.pud",
-   "music": "music/orc5.ogg",
+   "music": "music/orc3.ogg",
    "briefing": "Large armies on both sides.",
    "allow": [],
    "hints": [],
    "ai": {
-    "start_delay": 385,
+    "start_delay": 81,
     "first_wave": 13,
     "wave_growth": 5,
     "desired_workers": 5
    },
    "enemy_stock": {
-    "gold": 2800.0,
+    "gold": 2900.0,
     "lumber": 1400.0
    },
    "enemy_workers": 5
@@ -387,12 +504,12 @@
    "kind": "land",
    "name": "Mountain Pass",
    "map": "maps/Mountain Pass BNE.pud",
-   "music": "music/orc6.ogg",
+   "music": "music/orc4.ogg",
    "briefing": "The final push through the mountains.",
    "allow": [],
    "hints": [],
    "ai": {
-    "start_delay": 370,
+    "start_delay": 70,
     "first_wave": 14,
     "wave_growth": 5,
     "desired_workers": 5

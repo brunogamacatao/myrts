@@ -51,6 +51,8 @@ class ResourceSite {
   [[nodiscard]] std::vector<Point> tiles() const { return footprint(origin_, size_); }
   /// Removes up to `amount` and returns what was taken.
   int take(int amount);
+  /// Sets what is left (restoring a saved game).
+  void set_remaining(int amount) { remaining_ = amount; }
 
  private:
   Point origin_;

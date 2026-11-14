@@ -254,6 +254,50 @@
         "alliance_ballista"
       ],
       "icon": 46
+    },
+    {
+      "id": "orc_shipyard",
+      "name": "Shipyard",
+      "faction": "orcs",
+      "size": 3,
+      "hp": 800,
+      "cost": {
+        "gold": 800,
+        "lumber": 450
+      },
+      "build_seconds": 120,
+      "placement": "coast",
+      "accepts_oil": true,
+      "sprite": "buildings/shipyard.png",
+      "sprite_construction": "buildings/shipyard_construction.png",
+      "trains": [
+        "orc_tanker",
+        "orc_destroyer",
+        "orc_juggernaut"
+      ],
+      "icon": 204
+    },
+    {
+      "id": "alliance_shipyard",
+      "name": "Shipyard",
+      "faction": "alliance",
+      "size": 3,
+      "hp": 800,
+      "cost": {
+        "gold": 800,
+        "lumber": 450
+      },
+      "build_seconds": 120,
+      "placement": "coast",
+      "accepts_oil": true,
+      "sprite": "buildings/alliance_shipyard.png",
+      "sprite_construction": "buildings/alliance_shipyard_construction.png",
+      "trains": [
+        "alliance_tanker",
+        "alliance_destroyer",
+        "alliance_battleship"
+      ],
+      "icon": 205
     }
   ]
 }

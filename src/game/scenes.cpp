@@ -143,7 +143,15 @@ class GameScene : public Scene {
       if (e.keyboard.keycode == ALLEGRO_KEY_F12) return Transition::replace(make_game_over(GameResult::Defeat, level_, faction_));
     }
     game_->handle_event(e);
-    if (game_->take_menu_request()) return Transition::push(make_pause_menu(level_, faction_));
+    if (game_->take_menu_request()) {
+      // The pause menu can save the match: it asks this scene (which stays below it on the stack) for a snapshot.
+      return Transition::push(make_pause_menu(level_, faction_, [this] {
+        myrts::SaveSlot slot = game_->snapshot();
+        slot.level = static_cast<int>(level_);
+        slot.faction = faction_;
+        return slot;
+      }));
+    }
     return Transition::none();
   }
 
@@ -174,9 +182,9 @@ SceneFactory make_intro(std::function<Transition()> when_done) {
   return factory_of<IntroScene>(std::move(when_done));
 }
 
-SceneFactory make_game(std::size_t level, std::string faction) {
-  return [level, faction = std::move(faction)](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
-    auto game = Game::create(ctx, level, faction);
+SceneFactory make_game(std::size_t level, std::string faction, std::shared_ptr<const std::string> saved) {
+  return [level, faction = std::move(faction), saved = std::move(saved)](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
+    auto game = Game::create(ctx, level, faction, saved.get());
     if (!game) return std::unexpected(game.error());
     return std::make_unique<GameScene>(std::move(*game), level, faction, ctx.audio,
                                        ctx.campaign ? ctx.campaign->level(level).music : std::string{});
@@ -191,6 +199,7 @@ SceneFactory make_main_menu() {
     cfg.music = kMenuMusic;
     cfg.items = {
         {"New Game", [] { return Transition::push(make_faction_select()); }},
+        {"Load Game", [] { return Transition::push(make_slots(SlotsMode::Load)); }},
         {"Options", [] { return Transition::push(make_options()); }},
         {"Credits", [] { return Transition::push(make_intro([] { return Transition::pop(); }), true); }},
         {"Exit", [] { return Transition::quit(); }},
@@ -215,14 +224,16 @@ SceneFactory make_faction_select() {
   };
 }
 
-SceneFactory make_pause_menu(std::size_t level, std::string faction) {
-  return [level, faction = std::move(faction)](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
+SceneFactory make_pause_menu(std::size_t level, std::string faction, SnapshotFn snapshot) {
+  return [level, faction = std::move(faction), snapshot = std::move(snapshot)](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
     MenuConfig cfg;
     cfg.title = "Game Menu";
     cfg.overlay = true;
     cfg.on_escape = [] { return Transition::pop(); };
     cfg.items = {
         {"Resume", [] { return Transition::pop(); }},
+        {"Save Game", [snapshot] { return Transition::push(make_slots(SlotsMode::Save, snapshot)); }},
+        {"Load Game", [] { return Transition::push(make_slots(SlotsMode::Load)); }},
         {"Options", [] { return Transition::push(make_options()); }},
         {"Restart Level", [level, faction] { return Transition::reset(make_game(level, faction)); }},
         {"Quit to Main Menu", [] { return Transition::reset(make_main_menu()); }},

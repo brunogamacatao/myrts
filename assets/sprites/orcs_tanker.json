@@ -1,0 +1,653 @@
+{
+  "spritesheet": "sprites/orcs_tanker.png",
+  "default_animation": "idle_up",
+  "animations": [
+    {
+      "name": "death_up",
+      "fps": 4,
+      "loop": false,
+      "frames": [
+        {
+          "x": 5,
+          "y": 71,
+          "w": 63,
+          "h": 56
+        },
+        {
+          "x": 76,
+          "y": 79,
+          "w": 62,
+          "h": 48
+        },
+        {
+          "x": 146,
+          "y": 79,
+          "w": 61,
+          "h": 50
+        },
+        {
+          "x": 214,
+          "y": 86,
+          "w": 52,
+          "h": 40
+        }
+      ]
+    },
+    {
+      "name": "idle_up",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 12,
+          "y": 4,
+          "w": 45,
+          "h": 64
+        }
+      ]
+    },
+    {
+      "name": "walk_up",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 12,
+          "y": 4,
+          "w": 45,
+          "h": 64
+        }
+      ]
+    },
+    {
+      "name": "walk_oil_up",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 12,
+          "y": 134,
+          "w": 45,
+          "h": 64
+        }
+      ]
+    },
+    {
+      "name": "idle_oil_up",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 12,
+          "y": 134,
+          "w": 45,
+          "h": 64
+        }
+      ]
+    },
+    {
+      "name": "death_up_right",
+      "fps": 4,
+      "loop": false,
+      "frames": [
+        {
+          "x": 5,
+          "y": 71,
+          "w": 63,
+          "h": 56
+        },
+        {
+          "x": 76,
+          "y": 79,
+          "w": 62,
+          "h": 48
+        },
+        {
+          "x": 146,
+          "y": 79,
+          "w": 61,
+          "h": 50
+        },
+        {
+          "x": 214,
+          "y": 86,
+          "w": 52,
+          "h": 40
+        }
+      ]
+    },
+    {
+      "name": "death_up_left",
+      "fps": 4,
+      "loop": false,
+      "frames": [
+        {
+          "x": 5,
+          "y": 71,
+          "w": 63,
+          "h": 56
+        },
+        {
+          "x": 76,
+          "y": 79,
+          "w": 62,
+          "h": 48
+        },
+        {
+          "x": 146,
+          "y": 79,
+          "w": 61,
+          "h": 50
+        },
+        {
+          "x": 214,
+          "y": 86,
+          "w": 52,
+          "h": 40
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
+      "name": "idle_up_right",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 83,
+          "y": 9,
+          "w": 58,
+          "h": 54
+        }
+      ]
+    },
+    {
+      "name": "idle_up_left",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 83,
+          "y": 9,
+          "w": 58,
+          "h": 54
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
+      "name": "walk_up_right",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 83,
+          "y": 9,
+          "w": 58,
+          "h": 54
+        }
+      ]
+    },
+    {
+      "name": "walk_up_left",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 83,
+          "y": 9,
+          "w": 58,
+          "h": 54
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
+      "name": "walk_oil_up_right",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 81,
+          "y": 139,
+          "w": 59,
+          "h": 54
+        }
+      ]
+    },
+    {
+      "name": "walk_oil_up_left",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 81,
+          "y": 139,
+          "w": 59,
+          "h": 54
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
+      "name": "idle_oil_up_right",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 81,
+          "y": 139,
+          "w": 59,
+          "h": 54
+        }
+      ]
+    },
+    {
+      "name": "idle_oil_up_left",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 81,
+          "y": 139,
+          "w": 59,
+          "h": 54
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
+      "name": "death_right",
+      "fps": 4,
+      "loop": false,
+      "frames": [
+        {
+          "x": 5,
+          "y": 71,
+          "w": 63,
+          "h": 56
+        },
+        {
+          "x": 76,
+          "y": 79,
+          "w": 62,
+          "h": 48
+        },
+        {
+          "x": 146,
+          "y": 79,
+          "w": 61,
+          "h": 50
+        },
+        {
+          "x": 214,
+          "y": 86,
+          "w": 52,
+          "h": 40
+        }
+      ]
+    },
+    {
+      "name": "death_left",
+      "fps": 4,
+      "loop": false,
+      "frames": [
+        {
+          "x": 5,
+          "y": 71,
+          "w": 63,
+          "h": 56
+        },
+        {
+          "x": 76,
+          "y": 79,
+          "w": 62,
+          "h": 48
+        },
+        {
+          "x": 146,
+          "y": 79,
+          "w": 61,
+          "h": 50
+        },
+        {
+          "x": 214,
+          "y": 86,
+          "w": 52,
+          "h": 40
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
+      "name": "idle_right",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 152,
+          "y": 16,
+          "w": 64,
+          "h": 38
+        }
+      ]
+    },
+    {
+      "name": "idle_left",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 152,
+          "y": 16,
+          "w": 64,
+          "h": 38
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
+      "name": "walk_right",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 152,
+          "y": 16,
+          "w": 64,
+          "h": 38
+        }
+      ]
+    },
+    {
+      "name": "walk_left",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 152,
+          "y": 16,
+          "w": 64,
+          "h": 38
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
+      "name": "walk_oil_right",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 150,
+          "y": 146,
+          "w": 64,
+          "h": 40
+        }
+      ]
+    },
+    {
+      "name": "walk_oil_left",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 150,
+          "y": 146,
+          "w": 64,
+          "h": 40
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
+      "name": "idle_oil_right",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 150,
+          "y": 146,
+          "w": 64,
+          "h": 40
+        }
+      ]
+    },
+    {
+      "name": "idle_oil_left",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 150,
+          "y": 146,
+          "w": 64,
+          "h": 40
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
+      "name": "death_down_right",
+      "fps": 4,
+      "loop": false,
+      "frames": [
+        {
+          "x": 5,
+          "y": 71,
+          "w": 63,
+          "h": 56
+        },
+        {
+          "x": 76,
+          "y": 79,
+          "w": 62,
+          "h": 48
+        },
+        {
+          "x": 146,
+          "y": 79,
+          "w": 61,
+          "h": 50
+        },
+        {
+          "x": 214,
+          "y": 86,
+          "w": 52,
+          "h": 40
+        }
+      ]
+    },
+    {
+      "name": "death_down_left",
+      "fps": 4,
+      "loop": false,
+      "frames": [
+        {
+          "x": 5,
+          "y": 71,
+          "w": 63,
+          "h": 56
+        },
+        {
+          "x": 76,
+          "y": 79,
+          "w": 62,
+          "h": 48
+        },
+        {
+          "x": 146,
+          "y": 79,
+          "w": 61,
+          "h": 50
+        },
+        {
+          "x": 214,
+          "y": 86,
+          "w": 52,
+          "h": 40
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
+      "name": "idle_down_right",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 229,
+          "y": 11,
+          "w": 58,
+          "h": 53
+        }
+      ]
+    },
+    {
+      "name": "idle_down_left",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 229,
+          "y": 11,
+          "w": 58,
+          "h": 53
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
+      "name": "walk_down_right",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 229,
+          "y": 11,
+          "w": 58,
+          "h": 53
+        }
+      ]
+    },
+    {
+      "name": "walk_down_left",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 229,
+          "y": 11,
+          "w": 58,
+          "h": 53
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
+      "name": "walk_oil_down_right",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 226,
+          "y": 141,
+          "w": 58,
+          "h": 53
+        }
+      ]
+    },
+    {
+      "name": "walk_oil_down_left",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 226,
+          "y": 141,
+          "w": 58,
+          "h": 53
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
+      "name": "idle_oil_down_right",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 226,
+          "y": 141,
+          "w": 58,
+          "h": 53
+        }
+      ]
+    },
+    {
+      "name": "idle_oil_down_left",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 226,
+          "y": 141,
+          "w": 58,
+          "h": 53
+        }
+      ],
+      "flip_horizontal": true
+    },
+    {
+      "name": "death_down",
+      "fps": 4,
+      "loop": false,
+      "frames": [
+        {
+          "x": 5,
+          "y": 71,
+          "w": 63,
+          "h": 56
+        },
+        {
+          "x": 76,
+          "y": 79,
+          "w": 62,
+          "h": 48
+        },
+        {
+          "x": 146,
+          "y": 79,
+          "w": 61,
+          "h": 50
+        },
+        {
+          "x": 214,
+          "y": 86,
+          "w": 52,
+          "h": 40
+        }
+      ]
+    },
+    {
+      "name": "idle_down",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 312,
+          "y": 4,
+          "w": 40,
+          "h": 62
+        }
+      ]
+    },
+    {
+      "name": "walk_down",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 312,
+          "y": 4,
+          "w": 40,
+          "h": 62
+        }
+      ]
+    },
+    {
+      "name": "walk_oil_down",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 305,
+          "y": 134,
+          "w": 44,
+          "h": 62
+        }
+      ]
+    },
+    {
+      "name": "idle_oil_down",
+      "fps": 5,
+      "frames": [
+        {
+          "x": 305,
+          "y": 134,
+          "w": 44,
+          "h": 62
+        }
+      ]
+    }
+  ]
+}

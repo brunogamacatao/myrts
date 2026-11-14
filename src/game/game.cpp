@@ -5,6 +5,9 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include <allegro5/allegro_primitives.h>
+#include <nlohmann/json.hpp>
+
 #include "core/match_setup.hpp"
 
 namespace {
@@ -19,7 +22,7 @@ constexpr const char* kDefaultMap = "maps/Gold Rush BNE.pud";
 // ---- setup ------------------------------------------------------------------------
 
 std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContext& ctx, std::size_t level_index,
-                                                                const std::string& faction) {
+                                                                const std::string& faction, const std::string* saved_state) {
   const myrts::Level fallback = myrts::Campaign::single(kDefaultMap).level(0);
   const myrts::Level level = myrts::play_as(ctx.campaign ? ctx.campaign->level(level_index) : fallback, *ctx.registry, faction);
   std::unique_ptr<Game> game(new Game());
@@ -36,6 +39,7 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   if (const char* delay = std::getenv("MYRTS_AI_DELAY")) setup_level.ai.start_delay = std::max(0.0, std::atof(delay));
   myrts::MatchOptions options;
   options.world.tile_size = game->tile_size_;
+  if (std::getenv("MYRTS_NOFOG")) options.world.fog = false;  // testing aid: see the whole map
   // Testing aids: speed up construction and training.
   if (const char* speed = std::getenv("MYRTS_BUILD_SPEED")) options.world.build_speed = std::max(0.01, std::atof(speed));
   if (const char* speed = std::getenv("MYRTS_TRAIN_SPEED")) options.world.train_speed = std::max(0.01, std::atof(speed));
@@ -46,6 +50,19 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   game->local_player_ = match->local;
   game->player_faction_ = match->local_faction->id;
   myrts::World& world = *game->world_;
+  std::optional<myrts::Point> saved_camera;
+  if (saved_state) {  // a saved game: the same level is built, then the saved board replaces the fresh one
+    try {
+      const nlohmann::json saved = nlohmann::json::parse(*saved_state);
+      if (auto loaded = world.load_state(saved.at("world"), registry); !loaded) return std::unexpected(loaded.error());
+      for (std::size_t i = 0; i < game->ais_.size() && saved.contains("ais") && i < saved.at("ais").size(); ++i)
+        game->ais_[i]->load_state(saved.at("ais")[i]);
+      if (saved.contains("camera")) saved_camera = myrts::Point{saved.at("camera").at(0).get<int>(), saved.at("camera").at(1).get<int>()};
+    } catch (const std::exception& e) {
+      return std::unexpected(std::string("invalid saved game: ") + e.what());
+    }
+    world.events().dispatch();  // nobody is listening yet: the restored buildings do not announce themselves
+  }
   const myrts::PlayerId enemy = match->enemy;
   const myrts::Point our_hall = match->local_hall;
   const myrts::BuildingDef* hall = match->local_hall_def;
@@ -78,16 +95,22 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
       break;
     }
   }
+  if (saved_camera) focus = *saved_camera;
   game->camera_.center_on(static_cast<float>(focus.x * game->tile_size_), static_cast<float>(focus.y * game->tile_size_));
   game->subscribe_to_world();
   game->allow_ = level.allow;
-  game->hints_.assign(level.hints.rbegin(), level.hints.rend());  // popped from the back, so shown in order
-  game->hint_timer_ = 6.0;
-  game->set_message(ctx.campaign && ctx.campaign->size() > 1
+  if (saved_state) {
+    game->set_message("Game loaded", 4.0);
+  } else {
+    game->hints_.assign(level.hints.rbegin(), level.hints.rend());  // popped from the back, so shown in order
+    game->hint_timer_ = 6.0;
+    game->set_message(ctx.campaign && ctx.campaign->size() > 1
                         ? (level.chapter.empty() ? "" : level.chapter + " - ") + "Level " + std::to_string(level_index + 1) + ": " + level.name + ". " + level.briefing
                         : level.briefing,
                     6.0);
+  }
   game->register_commands();
+  world.refresh_fog();
   world.events().dispatch();  // spawn / placement events of the initial setup
   return game;
 }
@@ -124,6 +147,7 @@ void Game::subscribe_to_world() {
 void Game::spawn_projectile(const myrts::ev::Attacked& a) {
   const myrts::Unit* attacker = world_->units().get(a.attacker);
   if (!attacker || attacker->def->projectile.empty() || attacker->def->stats.range <= 1) return;
+  if (!sees_point(a.from_x, a.from_y) && !sees_point(a.to_x, a.to_y)) return;  // fought out of sight
   using K = Projectile::Kind;
   static const std::unordered_map<std::string, std::pair<K, float>> kKinds = {  // kind and speed (pixels per second)
       {"arrow", {K::Arrow, 460}}, {"bolt", {K::Bolt, 520}},  {"axe", {K::Axe, 320}}, {"boulder", {K::Boulder, 280}},
@@ -148,6 +172,7 @@ void Game::register_commands() {
   instant_commands_["stop"] = [this] { ordered(world_->order_stop(selected_)); };
   targeted_commands_["move"] = [this](myrts::Point t) { ordered(world_->order_move(selected_, t)); };
   targeted_commands_["harvest"] = [this](myrts::Point t) { ordered(world_->order_harvest(selected_, t)); };
+  targeted_commands_["repair"] = [this](myrts::Point t) { ordered(world_->order_repair(selected_, t)); };
   targeted_commands_["attack"] = [this](myrts::Point t) { ordered(world_->order_attack(selected_, t)); };
 }
 
@@ -205,11 +230,12 @@ void Game::play_world_sound(const myrts::Event& e) {
                        (static_cast<float>(p.y) + static_cast<float>(size) / 2) * tile};
   };
   myrts::on_event<myrts::ev::UnitDied>(e, [&](const myrts::ev::UnitDied& d) {
+    if (d.owner != local_player_ && !sees_point(d.x, d.y)) return;  // out of sight, out of earshot
     director_->unit(*d.def, SoundEvent::Dead, myrts::Vec2{d.x, d.y});
   });
   myrts::on_event<myrts::ev::Attacked>(e, [&](const myrts::ev::Attacked& a) {
     const myrts::Unit* attacker = world_->units().get(a.attacker);
-    if (attacker) director_->unit(*attacker->def, SoundEvent::Attack, myrts::Vec2{attacker->x, attacker->y});
+    if (attacker && sees(*attacker)) director_->unit(*attacker->def, SoundEvent::Attack, myrts::Vec2{attacker->x, attacker->y});
     const myrts::Unit* target = a.target_is_building ? nullptr : world_->units().get(a.target);
     if (target && target->owner == local_player_)  // one of ours is being hit
       director_->unit(*target->def, SoundEvent::Help, myrts::Vec2{target->x, target->y});
@@ -264,8 +290,10 @@ void Game::update_cursor(float edge_dx, float edge_dy) {
   if (!tile) return;
   const myrts::EntityId unit = world_->unit_at(*tile);
   const myrts::Unit* foe_unit = unit.valid() ? world_->units().get(unit) : nullptr;
+  if (foe_unit && !sees(*foe_unit)) foe_unit = nullptr;
   const myrts::EntityId site = world_->building_at(*tile);
   const myrts::Building* foe_building = site.valid() ? world_->buildings().get(site) : nullptr;
+  if (foe_building && !sees(*foe_building)) foe_building = nullptr;
   if ((foe_unit && myrts::World::is_enemy(local_player_, foe_unit->owner)) ||
       (foe_building && myrts::World::is_enemy(local_player_, foe_building->owner)))
     return cursors_->set(K::TargetEnemy);
@@ -481,4 +509,66 @@ void Game::update(double dt) {
   std::erase_if(projectiles_, [](const Projectile& p) { return p.age >= p.duration; });
 
   if (message_time_left_ > 0 && (message_time_left_ -= dt) <= 0 && !awaiting_target_) message_.clear();
+}
+
+// ---- saved games ---------------------------------------------------------------------
+
+myrts::SaveSlot Game::snapshot() {
+  using json = nlohmann::json;
+  json ais = json::array();
+  for (const auto& ai : ais_) ais.push_back(ai->save_state());
+  const myrts::Rect view = camera_.visible();
+  json state = {{"world", world_->save_state()},
+                {"ais", std::move(ais)},
+                {"camera", json::array({static_cast<int>((view.x + view.w / 2) / static_cast<float>(tile_size_)),
+                                        static_cast<int>((view.y + view.h / 2) / static_cast<float>(tile_size_))})}};
+  myrts::SaveSlot slot;
+  slot.state = state.dump();
+
+  // The picture: the minimap with what is still unexplored in black, and a dot for every unit and building in sight.
+  constexpr int kSize = myrts::SaveFile::kThumbSize;
+  ALLEGRO_BITMAP* previous = al_get_target_bitmap();
+  const int flags = al_get_new_bitmap_flags();
+  al_set_new_bitmap_flags(flags & ~ALLEGRO_MEMORY_BITMAP);
+  BitmapPtr canvas(al_create_bitmap(kSize, kSize));
+  al_set_new_bitmap_flags(flags);
+  if (canvas && terrain_view_.minimap()) {
+    al_set_target_bitmap(canvas.get());
+    al_clear_to_color(al_map_rgb(0, 0, 0));
+    ALLEGRO_BITMAP* mini = terrain_view_.minimap();
+    al_draw_scaled_bitmap(mini, 0, 0, static_cast<float>(al_get_bitmap_width(mini)), static_cast<float>(al_get_bitmap_height(mini)),
+                          0, 0, kSize, kSize, 0);
+    if (ALLEGRO_BITMAP* fog = fog_view_.black())
+      al_draw_scaled_bitmap(fog, 0, 0, static_cast<float>(al_get_bitmap_width(fog)), static_cast<float>(al_get_bitmap_height(fog)),
+                            0, 0, kSize, kSize, 0);
+    const float sx = static_cast<float>(kSize) / (static_cast<float>(world_->width()) * static_cast<float>(tile_size_));
+    const float sy = static_cast<float>(kSize) / (static_cast<float>(world_->height()) * static_cast<float>(tile_size_));
+    const auto dot = [&](float x, float y, float size, bool enemy) {
+      al_draw_filled_rectangle(x * sx - size / 2, y * sy - size / 2, x * sx + size / 2, y * sy + size / 2,
+                               enemy ? al_map_rgb(230, 60, 50) : al_map_rgb(240, 220, 60));
+    };
+    world_->buildings().for_each([&](const myrts::Building& b) {
+      if (!sees(b)) return;
+      const float half = static_cast<float>(b.def->size * tile_size_) / 2;
+      dot(static_cast<float>(b.origin.x * tile_size_) + half, static_cast<float>(b.origin.y * tile_size_) + half, 3.0f,
+          b.owner != local_player_);
+    });
+    world_->units().for_each([&](const myrts::Unit& u) {
+      if (!u.hidden && sees(u)) dot(u.x, u.y, 2.0f, u.owner != local_player_);
+    });
+    std::vector<std::uint8_t> rgb;
+    rgb.reserve(static_cast<std::size_t>(kSize * kSize * 3));
+    if (al_lock_bitmap(canvas.get(), ALLEGRO_PIXEL_FORMAT_ANY, ALLEGRO_LOCK_READONLY)) {
+      for (int y = 0; y < kSize; ++y)
+        for (int x = 0; x < kSize; ++x) {
+          unsigned char r, g, b;
+          al_unmap_rgb(al_get_pixel(canvas.get(), x, y), &r, &g, &b);
+          rgb.insert(rgb.end(), {r, g, b});
+        }
+      al_unlock_bitmap(canvas.get());
+      slot.thumbnail = myrts::base64_encode(rgb);
+    }
+  }
+  al_set_target_bitmap(previous);
+  return slot;
 }

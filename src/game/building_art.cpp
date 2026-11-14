@@ -43,6 +43,7 @@ void BuildingArt::load(const myrts::Registry& registry, Assets& assets, const st
   }
   mine_ = load_or(assets, "buildings/gold_mine_" + era + ".png", false, true);
   mine_active_ = load_or(assets, "buildings/gold_mine_active_" + era + ".png", true, true);
+  oil_ = load_or(assets, "buildings/oil_patch.png", false, false);
 }
 
 void draw_centered_in_square(ALLEGRO_BITMAP* bitmap, float x, float y, float size_px, ALLEGRO_COLOR tint) {

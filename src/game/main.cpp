@@ -3,6 +3,7 @@
 #include <allegro5/allegro_image.h>
 #include <allegro5/allegro_primitives.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 
@@ -26,6 +27,7 @@ void must_init(bool ok, const char* what) {
 
 int main() {
   must_init(al_init(), "allegro");
+  al_set_app_name("myrts");  // names the per-user data folder where the saved games go
   must_init(al_install_keyboard(), "keyboard");
   must_init(al_install_mouse(), "mouse");
   must_init(al_init_image_addon(), "image addon");
@@ -77,10 +79,21 @@ int main() {
   Cursors cursors;
   cursors.load(display);
 
-  SceneManager scenes({display, font, &assets, &*registry, &cursors, shared_campaign, &audio, shared_sounds, shared_tilesets});
+  // Saved games live in the user's data folder (MYRTS_SAVES overrides the file, for testing).
+  std::string save_path = "saves.json";
+  if (const char* env = std::getenv("MYRTS_SAVES")) {
+    save_path = env;
+  } else if (ALLEGRO_PATH* dir = al_get_standard_path(ALLEGRO_USER_DATA_PATH)) {
+    al_set_path_filename(dir, "saves.json");
+    save_path = al_path_cstr(dir, ALLEGRO_NATIVE_PATH_SEP);
+    al_destroy_path(dir);
+  }
+
+  SceneManager scenes({display, font, &assets, &*registry, &cursors, shared_campaign, &audio, shared_sounds, shared_tilesets, save_path});
   // Testing aid: MYRTS_FACTION=alliance starts the first level straight away as that side (skipping the menus).
   if (const char* faction = std::getenv("MYRTS_FACTION")) {
-    if (!scenes.start(make_game(0, faction))) return EXIT_FAILURE;
+    const char* level = std::getenv("MYRTS_LEVEL");  // testing aid: which level (1-based) to start on
+    if (!scenes.start(make_game(level ? static_cast<std::size_t>(std::max(1, std::atoi(level)) - 1) : 0, faction))) return EXIT_FAILURE;
   } else if (!scenes.start(make_intro([] { return Transition::replace(make_main_menu()); }))) {
     return EXIT_FAILURE;
   }

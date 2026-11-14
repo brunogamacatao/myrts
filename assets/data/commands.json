@@ -38,8 +38,8 @@
       "label": "Repair",
       "icon": "repair",
       "hotkey": "R",
-      "targeting": "resource",
-      "implemented": false,
+      "targeting": "ground",
+      "implemented": true,
       "icons": {
         "default": 85
       }

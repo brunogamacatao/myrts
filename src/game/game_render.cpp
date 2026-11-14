@@ -36,17 +36,19 @@ void Game::draw_placement_ghost() {
 }
 
 void Game::draw_world() {
+  fog_view_.update(fog());
   terrain_view_.draw(*world_->terrain(), camera_.visible());
 
   const auto tile_px = static_cast<float>(tile_size_);
   for (const auto& mine : world_->mines()) {
-    if (mine.site.depleted() || mine.kind() != myrts::ResourceKind::Gold) continue;  // (no oil art yet)
+    if (mine.site.depleted()) continue;
     const auto o = mine.site.origin();
-    draw_centered_in_square(art_.gold_mine(mine.busy), static_cast<float>(o.x) * tile_px,
+    draw_centered_in_square(mine.kind() == myrts::ResourceKind::Oil ? art_.oil_patch() : art_.gold_mine(mine.busy), static_cast<float>(o.x) * tile_px,
                             static_cast<float>(o.y) * tile_px, static_cast<float>(mine.site.size()) * tile_px);
   }
 
   world_->buildings().for_each([&](const myrts::Building& b) {
+    if (!sees(b)) return;
     const float x = static_cast<float>(b.origin.x) * tile_px;
     const float y = static_cast<float>(b.origin.y) * tile_px;
     const float side = static_cast<float>(b.def->size) * tile_px;
@@ -61,6 +63,7 @@ void Game::draw_world() {
 
   // Bodies lie under everything that is alive.
   for (const Corpse& c : corpses_) {
+    if (!fog().explored({static_cast<int>(c.x) / tile_size_, static_cast<int>(c.y) / tile_size_})) continue;
     const auto sprite = sprites_.find(c.def);
     if (sprite == sprites_.end() || !sprite->second) continue;
     const float fade = std::clamp(static_cast<float>((kCorpseSeconds - c.age) / 5.0), 0.0f, 1.0f);
@@ -78,7 +81,7 @@ void Game::draw_world() {
   // Units sorted by y so lower ones overlap higher ones; flyers go on top of everything on the ground.
   std::vector<const myrts::Unit*> ground, air;
   world_->units().for_each([&](const myrts::Unit& u) {
-    if (u.hidden) return;
+    if (u.hidden || !sees(u)) return;
     (u.def->move_class == myrts::MoveClass::Air ? air : ground).push_back(&u);
   });
   const auto by_y = [](const myrts::Unit* a, const myrts::Unit* b) { return a->y < b->y; };
@@ -105,6 +108,7 @@ void Game::draw_world() {
   for (const myrts::Unit* u : air) draw_unit(u);
 
   draw_projectiles();
+  fog_view_.draw(static_cast<float>(tile_size_));
 
   if (placing_ && mouse_in_window_ && ui::kViewport.contains(mouse_x_, mouse_y_)) draw_placement_ghost();
 }
@@ -216,11 +220,12 @@ void Game::draw() {
   std::vector<ui::MinimapDot> dots;
   world_->buildings().for_each([&](const myrts::Building& b) {
     const float half = static_cast<float>(b.def->size * tile_size_) / 2;
+    if (!sees(b)) return;
     dots.push_back({static_cast<float>(b.origin.x * tile_size_) + half, static_cast<float>(b.origin.y * tile_size_) + half,
                     b.id == selected_building_, b.owner != local_player_, 4});
   });
   world_->units().for_each([&](const myrts::Unit& u) {
-    if (u.hidden) return;
+    if (u.hidden || !sees(u)) return;
     dots.push_back({u.x, u.y, std::ranges::find(selected_, u.id) != selected_.end(), u.owner != local_player_, 2});
   });
 
@@ -254,6 +259,6 @@ void Game::draw() {
   const ui::HudData hud{ui_art_,   stock,       cards,   dots,        terrain_view_.minimap(), minimap_,
                         camera_,   message_,    mouse_x_, mouse_y_,   commands,                build_menu_,
                         options,   more_pages,  building_card ? &*building_card : nullptr,     train_options,
-                        world_->food_used(local_player_), world_->food_cap(local_player_)};
+                        world_->food_used(local_player_), world_->food_cap(local_player_), fog_view_.black()};
   ui::draw_hud(font_, hud);
 }

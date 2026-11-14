@@ -287,3 +287,56 @@ TEST_CASE("Moving to a walled-off spot goes as near as possible instead of stayi
   f.run(10);
   CHECK(f.unit(u).tile.x == 15);
 }
+
+TEST_CASE("A worker repairs a damaged building for a share of its price, and stops when it is whole") {
+  Fixture f;
+  const EntityId hall = f.world.add_building(f.hall, f.me, {10, 5}, true);
+  const auto u = f.spawn(f.peon, {5, 5});
+  const std::array ids{u};
+  const int full = f.hall.hp;
+  f.world.buildings().get(hall)->hp = full / 4;
+  const Stock before = f.world.player(f.me).stock;
+
+  REQUIRE(f.world.order_repair(ids, {11, 6}).ok);
+  f.run(1.0);
+  CHECK(std::holds_alternative<order::Repair>(f.unit(u).order));
+  f.run(40);
+  CHECK(f.world.buildings().get(hall)->hp == full);
+  CHECK(std::holds_alternative<order::Idle>(f.unit(u).order));  // done: the worker is free again
+  const Stock after = f.world.player(f.me).stock;
+  const int spent_gold = before.gold - after.gold;
+  CHECK(spent_gold > 0);
+  CHECK(spent_gold <= f.hall.cost.gold / 4 + 1);  // a quarter of the price for a full repair, and this was three quarters of it
+  CHECK(spent_gold >= f.hall.cost.gold / 4 / 2);
+  CHECK(before.lumber - after.lumber > 0);
+
+  CHECK_FALSE(f.world.order_repair(ids, {11, 6}).ok);  // whole already
+  CHECK_FALSE(f.world.order_repair(ids, {1, 1}).ok);   // nothing there
+}
+
+TEST_CASE("Repair needs a worker, the money, and a finished building of the same side") {
+  Fixture f;
+  const EntityId hall = f.world.add_building(f.hall, f.me, {10, 5}, true);
+  f.world.buildings().get(hall)->hp = 10;
+  const auto fighter = f.spawn(f.grunt, {5, 5});
+  const std::array fighters{fighter};
+  CHECK_FALSE(f.world.order_repair(fighters, {11, 6}).ok);  // a grunt has no tools
+
+  const auto u = f.spawn(f.peon, {5, 7});
+  const std::array ids{u};
+  f.world.player(f.me).stock = Stock{};  // no gold, no lumber
+  REQUIRE(f.world.order_repair(ids, {11, 6}).ok);
+  f.run(20);
+  CHECK(f.world.buildings().get(hall)->hp < f.hall.hp);  // it ran out of money
+  CHECK(std::holds_alternative<order::Idle>(f.unit(u).order));
+
+  const PlayerId foe = f.world.add_player("foe", "alliance", Stock{});
+  const EntityId theirs = f.world.add_building(f.hall, foe, {16, 5}, true);
+  f.world.buildings().get(theirs)->hp = 10;
+  f.world.player(f.me).stock = Stock{5000, 5000, 0};
+  CHECK_FALSE(f.world.order_repair(ids, {17, 6}).ok);  // not ours
+
+  const EntityId site = f.world.add_building(f.farm, f.me, {2, 10}, false);
+  (void)site;
+  CHECK_FALSE(f.world.order_repair(ids, {2, 10}).ok);  // still under construction
+}

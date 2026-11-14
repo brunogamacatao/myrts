@@ -19,7 +19,7 @@ std::expected<Campaign, std::string> Campaign::parse(std::string_view json_text)
       level.music = l.value("music", std::string{});
       level.chapter = l.value("chapter", std::string{});
       level.kind = l.value("kind", level.kind);
-      if (level.kind != "land" && level.kind != "air") throw std::runtime_error("unknown kind '" + level.kind + "'");
+      if (level.kind != "land" && level.kind != "air" && level.kind != "naval") throw std::runtime_error("unknown kind '" + level.kind + "'");
       level.player_faction = l.value("player_faction", level.player_faction);
       level.enemy_faction = l.value("enemy_faction", level.enemy_faction);
       level.briefing = l.value("briefing", std::string{});

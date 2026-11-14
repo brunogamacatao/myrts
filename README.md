@@ -57,9 +57,9 @@ Tests: `cmake --preset tests-only && cmake --build --preset tests-only && ctest 
 - `tests/` – Catch2 tests
 
 ## Campaign
-The levels are listed in order, grouped in chapters (land warfare, air war, total war) that introduce the game step by step: early levels
+The levels are listed in order, grouped in chapters (land warfare, air war, sea power, total war) that introduce the game step by step: early levels
 only allow a few units and buildings and show tutorial hints, and in the air chapter the bases are not connected on foot, so the
-player must build a Dragon Roost. Naval levels are not there yet (there are no ships). Everything is in `assets/data/campaign.json`: each level has a name, a briefing line, a Warcraft II map and how hard
+player must build a Dragon Roost. The sea chapter has shipyards, oil tankers, destroyers and the big warships (no transports yet). Everything is in `assets/data/campaign.json`: each level has a name, a briefing line, a Warcraft II map and how hard
 the Alliance plays (delay before its first attack, size and growth of its waves, workers, starting stock). Winning a level offers
 the next one; losing offers to retry it. Add a level by adding an entry (the map must have two start locations connected by
 land (forests and gold mines count as walls); `tests/campaign_test.cpp` checks this for every level). `MYRTS_MAP=<pud>` plays a single map.
@@ -93,6 +93,24 @@ The credits, the main menu and every level have their own track (`assets/music/*
 level with `"music"` in `assets/data/campaign.json` (the six tracks repeat in turn over the levels), while the victory and defeat
 tunes play once. Music volume is independent of the effects volume; mute silences both. `scripts/import_music.py "<songs folder>"`
 converts the original mp3 files to Ogg Vorbis (needs ffmpeg).
+
+## Fog of war
+As in the original, ground nobody has seen is black, with a soft grey rim between it and the explored land; enemy units show only
+while one of your units or buildings can see them (sight is a disc of `stats.sight` tiles; buildings see `3 + size` tiles).
+Explored ground stays on the map, and the minimap shows only what you know. The computer player sees everything.
+`MYRTS_NOFOG=1` plays without it.
+
+## Saved games
+The game menu (F10) has **Save Game** and **Load Game**, and the main menu has **Load Game**: four slots, each with a picture of the
+map, the level, the side and the date. Everything that changes in a match is saved (resources, buildings with their training
+queues, units with what they were doing, the felled trees and mined-out gold, what is explored, the opponent's clock) and orders
+under way are resumed when it is loaded. The file is `saves.json` in the user data folder (`MYRTS_SAVES=<file>` picks another):
+`{"version":1,"slots":[{name, level, faction, date, thumbnail (base64 RGB), state}, ... or null]}`.
+
+## Repair
+Workers (peons and peasants) repair damaged buildings and machines (catapults, ballistas) of their own side: select them, press
+**Repair** (`R`) and click the target, or just right-click a damaged one. It restores hit points as fast as the building was built
+and costs a quarter of its price (gold and lumber) over a full repair, paid as it goes; it stops when the money runs out.
 
 ## Group movement
 A* stays single-agent. For a group order, `assign_destinations` picks the closest free, connected tiles around

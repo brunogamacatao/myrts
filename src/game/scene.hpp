@@ -28,7 +28,8 @@ struct SceneContext {
   std::shared_ptr<const myrts::Campaign> campaign;  // the levels, in order (assets/data/campaign.json)
   Audio* audio = nullptr;                       // the sound device (silent when there is none)
   std::shared_ptr<const myrts::SoundTable> sounds;  // which file plays for which event
-  std::shared_ptr<const myrts::TileSets> tilesets;  // which tile code is drawn where, per terrain era
+  std::shared_ptr<const myrts::TileSets> tilesets;
+  std::string save_path;                            // the file with the saved games (see core/saves.hpp)  // which tile code is drawn where, per terrain era
 };
 
 /// Builds a scene when the manager needs it (the old scene is still alive while this runs, so a

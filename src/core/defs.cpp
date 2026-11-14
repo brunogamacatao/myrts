@@ -69,6 +69,7 @@ UnitDef parse_unit(const json& j) {
   if (u.attack_seconds <= 0) throw std::runtime_error("unit '" + u.id + "': attack_seconds must be > 0");
   u.sprite = j.at("sprite").get<std::string>();
   u.projectile = j.value("projectile", std::string{});
+  u.mechanical = j.value("mechanical", false);
   u.commands = parse_strings(j, "commands");
   u.builds = parse_strings(j, "builds");
   if (j.contains("worker")) {

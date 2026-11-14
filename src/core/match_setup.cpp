@@ -78,7 +78,7 @@ std::expected<Match, std::string> build_match(const Registry& registry, std::sha
 
   m.world = std::make_unique<World>(options.world, std::move(*terrain));
   World& world = *m.world;
-  for (const MineSpec& mine : scenario.mines) world.add_mine(mine.origin, kMineSize, mine.gold);
+  for (const MineSpec& mine : scenario.mines) world.add_mine(mine.origin, kMineSize, mine.gold, mine.kind);
 
   // Two players: the first start location is the human's, the opponent takes the one farthest away.
   const StartSlot& ours = scenario.starts[0];

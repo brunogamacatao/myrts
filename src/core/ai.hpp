@@ -1,5 +1,7 @@
 #pragma once
 
+#include <nlohmann/json_fwd.hpp>
+
 #include "defs.hpp"
 #include "world.hpp"
 
@@ -30,6 +32,9 @@ class Ai {
   void update(double dt);
   /// How many attack waves have been launched so far.
   [[nodiscard]] int waves_sent() const { return waves_; }
+  /// The AI's clock and wave count, for saved games (the rest is decided afresh from the world each time it thinks).
+  [[nodiscard]] nlohmann::json save_state() const;
+  void load_state(const nlohmann::json& state);
 
  private:
   void think();                ///< runs the four managers below, in order

@@ -99,7 +99,7 @@ TEST_CASE("The shipped game data is consistent") {
   CHECK(barracks->cost == Cost{700, 450, 0});
   CHECK(barracks->build_seconds == 200.0);
   REQUIRE(r->unit("orc_peon"));
-  CHECK(r->unit("orc_peon")->builds.size() == 7);
+  CHECK(r->unit("orc_peon")->builds.size() == 8);
 }
 
 TEST_CASE("Every sprite named by the shipped data exists and can animate") {
@@ -166,7 +166,7 @@ TEST_CASE("Every unit, building and command in the shipped data has an icon in t
   const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
   const auto r = Registry::load_directory((assets / "data").string());
   REQUIRE(r);
-  constexpr int kIcons = 198;  // icons in assets/ui/icons.png
+  constexpr int kIcons = 206;  // icons in assets/ui/icons.png (the last eight are the ships and shipyards)
   for (const auto& u : r->units()) {
     INFO("unit " << u.id);
     CHECK(u.icon >= 0);

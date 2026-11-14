@@ -74,6 +74,19 @@ units = {
     "alliance_ballista": dict(voice="human", selected=f(M, "Catyessr"), acknowledge=f(M, "Catyessr"),
                               annoyed=f(M, "Catyessr"), attack=f(M, "Catapult")),
 }
+def ship(prefix, attack):
+    return dict(voice="{}", selected=f("Ships", prefix + "shpwht"), acknowledge=f("Ships", prefix + "shpyes"),
+                annoyed=f("Ships", prefix + "shppis"), ready=f("Ships", prefix + "shpredy"), dead=f("Ships", "Shipsink"), attack=attack)
+
+
+units.update({
+    "orc_tanker": {**ship("O", []), "voice": "orc"},
+    "orc_destroyer": {**ship("O", f(M, "Catapult")), "voice": "orc"},
+    "orc_juggernaut": {**ship("O", f(M, "Catapult")), "voice": "orc"},
+    "alliance_tanker": {**ship("H", []), "voice": "human"},
+    "alliance_destroyer": {**ship("H", f(M, "Catapult")), "voice": "human"},
+    "alliance_battleship": {**ship("H", f(M, "Catapult")), "voice": "human"},
+})
 B = "Bldg"
 buildings = {
     "great_hall": f(B, "Ochant"), "pig_farm": f(B, "Ofarm"), "barracks": f(B, "Ochant"),
@@ -82,6 +95,7 @@ buildings = {
     "alliance_town_hall": f(B, "Hchant"), "alliance_farm": f(B, "Hfarm"), "alliance_barracks": f(B, "Hchant"),
     "alliance_stables": f(B, "Stables"), "alliance_mage_tower": f(B, "Wzrdtowr"), "alliance_aviary": f(B, "Aviary"),
     "alliance_blacksmith": f(B, "Smith"),
+    "orc_shipyard": f(B, "Shipbell"), "alliance_shipyard": f(B, "Shipbell"),
 }
 effects = {
     "construct": f(M, "Constrct"), "error": f(M, "Error"), "tree": f(M, "Tree"),

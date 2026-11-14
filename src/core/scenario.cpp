@@ -44,6 +44,8 @@ Scenario scenario_from(const PudMap& pud) {
   for (const PudUnit& u : pud.units)
     if (u.type == pud_unit::kGoldMine)
       s.mines.push_back({{u.x, u.y}, u.value > 0 ? u.value * kGoldPerValueUnit : kDefaultMineGold});
+    else if (u.type == pud_unit::kOilPatch)
+      s.mines.push_back({{u.x, u.y}, u.value > 0 ? u.value * kGoldPerValueUnit : kDefaultMineGold, ResourceKind::Oil});
   return s;
 }
 

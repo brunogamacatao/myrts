@@ -30,6 +30,7 @@ bool Unit::working() const {
   if (const auto* h = std::get_if<order::Harvest>(&order))
     return h->state == order::Harvest::State::Working && !h->from_site();
   if (const auto* b = std::get_if<order::Build>(&order)) return b->state == order::Build::State::Building;
+  if (const auto* r = std::get_if<order::Repair>(&order)) return r->state == order::Repair::State::Repairing;
   return false;
 }
 
@@ -55,6 +56,8 @@ World::World(WorldConfig config, TileMap terrain) : World(config, terrain.land_b
 
 PlayerId World::add_player(std::string name, std::string faction, Stock stock) {
   players_.push_back({std::move(name), std::move(faction), stock});
+  fogs_.emplace_back(width(), height());
+  if (!config_.fog) fogs_.back().reveal_all();
   return static_cast<PlayerId>(players_.size()) - 1;
 }
 
@@ -291,7 +294,26 @@ void World::update(double dt) {
   for (const EntityId id : units_.ids())
     if (Unit* u = units_.get(id)) step_unit(*u, dt);
   update_training(dt);
+  if ((fog_timer_ -= dt) <= 0.0) {
+    fog_timer_ = 0.2;
+    refresh_fog();
+  }
   events_.dispatch();
+}
+
+void World::refresh_fog() {
+  if (!config_.fog) return;
+  for (FogOfWar& f : fogs_) f.begin();
+  units_.for_each([&](const Unit& u) {
+    if (u.owner < 0 || static_cast<std::size_t>(u.owner) >= fogs_.size()) return;
+    fogs_[static_cast<std::size_t>(u.owner)].reveal(u.tile, std::max(2, u.def->stats.sight));
+  });
+  buildings_.for_each([&](const Building& b) {
+    if (b.owner < 0 || static_cast<std::size_t>(b.owner) >= fogs_.size()) return;
+    fogs_[static_cast<std::size_t>(b.owner)].reveal({b.origin.x + b.def->size / 2, b.origin.y + b.def->size / 2},
+                                                    building_sight(*b.def));
+  });
+  for (FogOfWar& f : fogs_) f.end();
 }
 
 void World::kill_unit(EntityId id) {

@@ -71,7 +71,19 @@ UNITS.update({
     "human_gryphon": {"sheet": "wc2_human_gryphon_rider.png", "walk": range(0, 4), "attack": range(4, 7), "death_sequence": 7},
     "human_ballista": {"sheet": "wc2_human_ballista.png", "walk": range(0, 4)},
 })
-FPS = {"walk": 5, "attack": 8, "chop": 6, "walk_gold": 5, "walk_wood": 5, "death": 4}
+# Ships: one frame per direction (they slide over the water). "walk_oil" is the loaded tanker; "death_sequence" may name
+# several rows whose sprites follow each other (the ripper's credit stamp, a wide short label, is left out).
+UNITS.update({
+    "orcs_destroyer": {"sheet": "wc2_orc_troll_destroyer.png", "walk": range(0, 1), "death_sequence": [1]},
+    "orcs_juggernaut": {"sheet": "wc2_orc_ogre_juggernaut.png", "walk": range(0, 1), "death_sequence": [1]},
+    "orcs_tanker": {"sheet": "wc2_orc_oil_tanker.png", "walk": range(0, 1), "walk_oil": range(2, 3), "death_sequence": [1]},
+    "human_destroyer": {"sheet": "wc2_human_elven_destroyer.png", "walk": range(0, 1)},  # (its other rows are per-direction swirls: no death animation)
+    # The battleship sheet has only four directions in its first row; the fifth (down) is the first sprite of the second row.
+    "human_battleship": {"sheet": "wc2_human_battleship.png", "walk": range(0, 1), "fifth_from": (1, 0),
+                         "death_sequence": [1, 2, 3], "skip_in_sequence": (1, 0)},
+    "human_tanker": {"sheet": "wc2_human_oil_tanker.png", "walk": range(0, 1)},
+})
+FPS = {"walk": 5, "walk_oil": 5, "attack": 8, "chop": 6, "walk_gold": 5, "walk_wood": 5, "death": 4}
 
 
 def bands(flags, min_width=1):
@@ -112,17 +124,30 @@ def build(name, spec, directory):
     animated = {k: v for k, v in spec.items() if isinstance(v, range)}
     row_ids = {i for v in animated.values() for i in v} | ({spec["fall"]} if "fall" in spec else set())
     columns = {r: row_columns(alpha, width, rows[r]) for r in row_ids}
+    extra = None  # the fifth direction taken from another row (see "fifth_from")
+    if "fifth_from" in spec:
+        er, ec = spec["fifth_from"]
+        extra = frame_box(alpha, bands([any(alpha[x, y] > 0 for y in range(*rows[er])) for x in range(width)], min_width=4)[ec], rows[er])
     corpse = None
     if "corpse" in spec:  # the body sprite is the first thing in the "corpse" row (one pose for every direction)
         corpse_cols = bands([any(alpha[x, y] > 0 for y in range(*rows[spec["corpse"]])) for x in range(width)], min_width=4)
         corpse = frame_box(alpha, corpse_cols[0], rows[spec["corpse"]])
     sequence = None
-    if "death_sequence" in spec:  # every sprite of the row, in order
-        r = rows[spec["death_sequence"]]
-        seq_cols = bands([any(alpha[x, y] > 0 for y in range(*r)) for x in range(width)], min_width=4)
-        sequence = [frame_box(alpha, c, r) for c in seq_cols]
+    if "death_sequence" in spec:  # every sprite of the row(s), in order
+        sequence = []
+        for index in (spec["death_sequence"] if isinstance(spec["death_sequence"], list) else [spec["death_sequence"]]):
+            r = rows[index]
+            seq_cols = bands([any(alpha[x, y] > 0 for y in range(*r)) for x in range(width)], min_width=4)
+            for k, c in enumerate(seq_cols):
+                if spec.get("skip_in_sequence") == (index, k):
+                    continue
+                box = frame_box(alpha, c, r)
+                if not (box["h"] <= 32 and box["w"] >= 70):  # the ripper's credit stamp is a wide, short label
+                    sequence.append(box)
 
     def frames(kind, d):
+        if extra is not None and d == 4 and kind == "walk":
+            return [extra]
         return [frame_box(alpha, columns[r][d], rows[r]) for r in spec[kind]]
 
     animations = []
@@ -165,6 +190,9 @@ def build(name, spec, directory):
         if "walk_gold" in spec:
             add("walk_gold", "walk_gold", d)
             add("idle_gold", "walk_gold", d, only_first=True)
+        if "walk_oil" in spec:
+            add("walk_oil", "walk_oil", d)
+            add("idle_oil", "walk_oil", d, only_first=True)
         if "walk_wood" in spec:
             add("walk_wood", "walk_wood", d)
             add("idle_wood", "walk_wood", d, only_first=True)

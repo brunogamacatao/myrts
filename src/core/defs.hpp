@@ -64,6 +64,7 @@ struct UnitDef {
   int food = 1;                          // food this unit eats while alive (or waits in a training queue)
   double attack_seconds = 1.5;           // time between two strikes
   double siege_multiplier = 1.0;         // damage multiplier against buildings (catapults, ballistas)
+  bool mechanical = false;               // workers can repair it (catapults, ballistas)
   bool aggressive = true;                // attacks enemies it sees on its own (workers do not)
   int icon = -1;                         // index in the icon atlas (assets/ui/icons.png), -1 for none
   std::string sprite;                    // path of the sprite definition (json)

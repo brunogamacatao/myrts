@@ -86,7 +86,7 @@ war2edit and warcraft2-map-editor; see `NOTICE.md`).
 
 Everything is data (`assets/data/units.json`, `buildings.json`). Behaviour differences come from a few fields: `move_class`
 (air units cross walls and are drawn lifted with a shadow), `stats.range` (ranged attackers), `siege_multiplier`
-(catapults and ballistas hit buildings much harder), `food`, and `aggressive`. Naval groundwork exists in the core (see "Water and oil") but there are no ships, shipyards or sprites yet. Not implemented yet, Goblin Sappers, summoned Skeletons and spells.
+(catapults and ballistas hit buildings much harder), `food`, and `aggressive`. Ships (oil tankers, destroyers and the Juggernaut / Battleship) are trained at the Shipyard (see "Water and oil"); there are no transports. Not implemented yet, Goblin Sappers, summoned Skeletons and spells.
 
 `MYRTS_ROSTER=1` spawns one of every unit type, which is a quick way to eyeball new sprites.
 
@@ -104,8 +104,9 @@ The build menu pages itself when a worker can build more than five things.
 * The `Ai` is map-driven: when the map has oil it builds a `coast` building that `accepts_oil` (a shipyard) next to its
   hall, trains `AiConfig.desired_tankers` water workers (`ai.desired_tankers` in `campaign.json`) and keeps them pumping;
   land workers ignore oil and water workers ignore gold. Without oil nothing changes.
-* Still missing for a naval campaign: map loading of oil patches (the `.pud` oil units), ships and their sprites, the HUD's
-  oil counter, and a naval army (the attack waves still go out as one attack-move, which suits land and air units).
+* Oil patches come from the map (`pud_unit::kOilPatch`, see `Scenario`). Ships are plain data in `units.json` (`move_class: water`);
+  the attack waves go out as one attack-move, which suits ships too (they stop at the nearest water). There are no transports, so a
+  naval level is won with ships plus air units for whatever stands inland.
 
 ## Adding content
 
@@ -150,3 +151,17 @@ Handy environment variables when running the game: `MYRTS_BUILD_SPEED` and `MYRT
 and training (e.g. `MYRTS_TRAIN_SPEED=20`); `MYRTS_AI_DELAY` sets how many seconds the computer player waits before its
 first attack (default 150).
 The Allegro layer is checked by running the game.
+
+## Fog of war, saved games and repair
+
+* **Fog** (`core/fog.hpp`): one `FogOfWar` per player in the `World` (`World::fog(player)`), refreshed five times a second by
+  `World::refresh_fog()` (units reveal discs of `stats.sight`, buildings `3 + size`). `Seen` is Unknown / Explored / Visible. The
+  view (`game/fog_view.cpp`) turns it into two one-pixel-per-tile shades stretched with bilinear filtering, which gives the rounded
+  black area with a grey rim; `Game::sees()` hides what the player may not see (enemy units out of sight, unexplored buildings).
+  The AI ignores it.
+* **Saves** (`core/savegame.cpp`, `core/saves.hpp`): `World::save_state()` / `load_state()` write and restore the whole board as
+  JSON; a match is restored by building the same level with `build_match` and then loading the state over it. Orders are saved
+  by kind and re-planned on load (a worker that was chopping goes back to chop). `SaveFile` holds the four slots; the scene in
+  `game/slots_scene.cpp` lists them.
+* **Repair** is an order (`order::Repair`, `World::order_repair`): the worker walks next to a damaged building or `mechanical`
+  unit and mends it, paying a quarter of the price over a full repair.

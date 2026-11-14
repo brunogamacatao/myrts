@@ -17,8 +17,10 @@
 #include "core/ai.hpp"
 #include "core/geometry.hpp"
 #include "core/rules.hpp"
+#include "core/saves.hpp"
 #include "core/selection.hpp"
 #include "core/world.hpp"
+#include "fog_view.hpp"
 #include "raii.hpp"
 #include "scene.hpp"
 #include "sound_director.hpp"
@@ -55,7 +57,12 @@ class Game {
   /// Builds the match for level `level` of the campaign (see assets/data/campaign.json), played as `faction`
   /// ("" keeps the side the level was written for; see myrts::play_as).
   static std::expected<std::unique_ptr<Game>, std::string> create(const SceneContext& ctx, std::size_t level = 0,
-                                                                  const std::string& faction = {});
+                                                                  const std::string& faction = {},
+                                                                  const std::string* saved_state = nullptr);
+
+  /// The match as it is now, for a saved game: its state (JSON text) and a small picture of the map. The caller adds the
+  /// name, level, side and date.
+  [[nodiscard]] myrts::SaveSlot snapshot();
   Game(const Game&) = delete;
   Game& operator=(const Game&) = delete;
 
@@ -100,6 +107,16 @@ class Game {
   [[nodiscard]] myrts::Point placement_origin(const myrts::BuildingDef& def, myrts::Point cursor_tile) const;
   [[nodiscard]] std::string unit_animation(const myrts::Unit& u, const SpriteDef& sprite) const;
 
+  // ---- fog of war: what the local player may see of the other side
+  [[nodiscard]] const myrts::FogOfWar& fog() const { return world_->fog(local_player_); }
+  /// An enemy unit is only seen while its tile is in sight (our own units always are).
+  [[nodiscard]] bool sees(const myrts::Unit& u) const { return u.owner == local_player_ || fog().visible(u.tile) || fog().visible(u.next); }
+  /// An enemy building is shown once any of its tiles has been explored.
+  [[nodiscard]] bool sees(const myrts::Building& b) const { return b.owner == local_player_ || fog().any_explored(b.origin, b.def->size); }
+  [[nodiscard]] bool sees_point(float x, float y) const {
+    return fog().visible({static_cast<int>(x) / tile_size_, static_cast<int>(y) / tile_size_});
+  }
+
   // ---- input (game_input.cpp)
   void on_mouse_down(const ALLEGRO_EVENT& e);
   void on_mouse_up(const ALLEGRO_EVENT& e);
@@ -107,6 +124,7 @@ class Game {
   void on_key_down(int keycode);
   void click_in_viewport(float screen_x, float screen_y);
   void right_click_at(myrts::Point tile);
+  [[nodiscard]] bool selection_has_worker() const;
   void box_select(float x1, float y1, float x2, float y2);
   [[nodiscard]] bool shift_down() const;
   [[nodiscard]] std::optional<myrts::Point> tile_at_world(myrts::Vec2 w) const;
@@ -148,6 +166,7 @@ class Game {
 
   // map graphics
   TileRenderer terrain_view_;
+  FogView fog_view_;
   int tile_size_ = TileRenderer::kTile;
 
   // view state
