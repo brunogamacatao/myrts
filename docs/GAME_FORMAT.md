@@ -19,7 +19,7 @@ Every file has a `format_version`; every optional file falls back to the default
 | `data/factions.json` | sides: worker, town hall, the computer's base buildings, translations to play a campaign as another side |
 | `data/projectiles.json` | missiles: `shape` (arrow, bolt, axe, boulder, fire, magic, coil), `speed`, arc, flight time |
 | `data/rules.json` | tunables: tree wood, queue length, minimum damage, repair share, vision, starting workers, mine size, corpses, ... |
-| `data/campaign.json` | levels: map, music, briefing, hints, `allow`, stocks, `ai_profile` + `ai`, `objectives` (victory: destroy_all, destroy_building, survive, collect, build; defeat: lose_building, time_limit), `more_opponents` |
+| `data/campaign.json` | levels (each may set its own `fog`: `enabled`, `reveal_map`, `remember`, `sight_scale`, `sight_bonus`, `min_unit_sight`, `building_sight_base`, `update_interval`, `minimap`, `unknown_color`/`unknown_opacity`, `explored_color`/`explored_opacity`, `edge_softness`; the defaults are the `fog` section of `rules.json`): map, music, briefing, hints, `allow`, stocks, `ai_profile` + `ai`, `objectives` (victory: destroy_all, destroy_building, survive, collect, build; defeat: lose_building, time_limit), `more_opponents` |
 | `data/ai_profiles.json` | named computer-player settings levels can start from |
 | `data/sounds.json` | voices, unit/building sounds, effects |
 | `data/tilesets.json` | any number of tile sets: image + where each tile code is |

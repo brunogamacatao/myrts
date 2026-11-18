@@ -56,6 +56,7 @@ struct Level {
   std::map<std::string, int> enemy_stock{{"gold", 1000}, {"lumber", 300}};
   int enemy_workers = 2;
   std::string ai_profile;  ///< name of the profile in ai_profiles.json that `ai` started from (informative)
+  std::string fog_json;    ///< the level's own "fog" settings as JSON ("" for the game's defaults), see FogSettings
   Objectives objectives;   ///< what wins and loses the level
   std::vector<OpponentSpec> more_opponents;  ///< further computer players (every player fights every other)
 };

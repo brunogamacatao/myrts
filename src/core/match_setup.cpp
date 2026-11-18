@@ -78,6 +78,10 @@ std::expected<Match, std::string> build_match(const Registry& registry, std::sha
   if (scenario.starts.size() < 2) return std::unexpected("this map has fewer than two start locations");
 
   WorldConfig world_config = options.world;
+  const auto fog = FogSettings::with(options.world.rules.fog, level.fog_json);
+  if (!fog) return std::unexpected("level '" + level.name + "': " + fog.error());
+  world_config.fog_settings = *fog;
+  m.fog = *fog;
   world_config.resources = registry.resources();  // the world plays by the registry's resources
   m.world = std::make_unique<World>(world_config, std::move(*terrain));
   World& world = *m.world;

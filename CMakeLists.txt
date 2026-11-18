@@ -54,7 +54,8 @@ add_library(myrts_core STATIC
   src/core/game_rules.cpp
   src/core/resources.cpp
   src/core/mapfile.cpp
-  src/core/strings.cpp)
+  src/core/strings.cpp
+  src/core/fog_settings.cpp)
 target_include_directories(myrts_core PUBLIC src)
 target_compile_features(myrts_core PUBLIC cxx_std_23)
 target_link_libraries(myrts_core PRIVATE myrts_warnings nlohmann_json::nlohmann_json)
@@ -153,7 +154,8 @@ if(MYRTS_BUILD_TESTS)
     tests/game_rules_test.cpp
     tests/resources_test.cpp
     tests/objectives_test.cpp
-    tests/mapfile_test.cpp)
+    tests/mapfile_test.cpp
+    tests/fog_settings_test.cpp)
   target_compile_definitions(myrts_tests PRIVATE MYRTS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   target_link_libraries(myrts_tests PRIVATE myrts_core myrts_warnings nlohmann_json::nlohmann_json Catch2::Catch2WithMain)
   if(catch2_SOURCE_DIR)

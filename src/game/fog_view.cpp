@@ -37,6 +37,11 @@ void FogView::update(const myrts::FogOfWar& fog) {
           (4 * unknown(x, y) + 2 * (unknown(x - 1, y) + unknown(x + 1, y) + unknown(x, y - 1) + unknown(x, y + 1)) +
            unknown(x - 1, y - 1) + unknown(x + 1, y - 1) + unknown(x - 1, y + 1) + unknown(x + 1, y + 1)) / 16.0f;
 
+  const float soft = static_cast<float>(style_.edge_softness);
+  const float unknown_opacity = static_cast<float>(style_.unknown_opacity);
+  const float explored_opacity = static_cast<float>(style_.explored_opacity);
+  const float black_rgb[3] = {static_cast<float>(style_.unknown_color[0]) / 255.0f, static_cast<float>(style_.unknown_color[1]) / 255.0f, static_cast<float>(style_.unknown_color[2]) / 255.0f};
+  const float veil_rgb[3] = {static_cast<float>(style_.explored_color[0]) / 255.0f, static_cast<float>(style_.explored_color[1]) / 255.0f, static_cast<float>(style_.explored_color[2]) / 255.0f};
   ALLEGRO_BITMAP* previous = al_get_target_bitmap();
   for (const bool black : {true, false}) {
     ALLEGRO_BITMAP* target = black ? black_.get() : grey_.get();
@@ -45,8 +50,10 @@ void FogView::update(const myrts::FogOfWar& fog) {
     for (int y = 0; y < height_; ++y)
       for (int x = 0; x < width_; ++x) {
         const float b = shade[static_cast<std::size_t>(y) * static_cast<std::size_t>(width_) + static_cast<std::size_t>(x)];
-        al_put_pixel(x, y, black ? al_premul_rgba_f(0, 0, 0, clamp01((b - 0.42f) / 0.14f))
-                                 : al_premul_rgba_f(0.40f, 0.40f, 0.43f, clamp01(b * 2.4f) * 0.55f));
+        const float edge = clamp01((b - 0.42f) / (0.14f * soft));
+        const float veil = clamp01(b * 2.4f / soft) * explored_opacity;
+        al_put_pixel(x, y, black ? al_premul_rgba_f(black_rgb[0], black_rgb[1], black_rgb[2], edge * unknown_opacity)
+                                 : al_premul_rgba_f(veil_rgb[0], veil_rgb[1], veil_rgb[2], veil));
       }
     al_unlock_bitmap(target);
   }

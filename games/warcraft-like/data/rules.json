@@ -6,5 +6,13 @@
   "vision": { "min_unit_sight": 2, "building_sight_base": 3 },
   "match": { "initial_workers": 8, "mine_size": 3, "gold_per_value_unit": 2500, "default_mine_gold": 10000 },
   "ai": { "farm_margin": 2 },
-  "presentation": { "corpse_seconds": 25, "corpse_fade_seconds": 5, "max_corpses": 60, "air_lift": 14 }
+  "presentation": { "corpse_seconds": 25, "corpse_fade_seconds": 5, "max_corpses": 60, "air_lift": 14 },
+  "fog": {
+    "enabled": true, "reveal_map": false, "remember": true,
+    "sight_scale": 1.0, "sight_bonus": 0, "min_unit_sight": -1, "building_sight_base": -1, "update_interval": 0.2,
+    "minimap": true,
+    "unknown_color": [0, 0, 0], "unknown_opacity": 1.0,
+    "explored_color": [102, 102, 110], "explored_opacity": 0.55,
+    "edge_softness": 1.0
+  }
 }

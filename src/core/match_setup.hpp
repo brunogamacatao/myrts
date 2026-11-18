@@ -25,6 +25,7 @@ struct Match {
   Point local_hall{};                          ///< top-left tile of each side's town hall
   Point enemy_hall{};
   const BuildingDef* local_hall_def = nullptr;
+  FogSettings fog;                             ///< the fog of this level: the game's rules plus the level's own settings
   Objectives objectives;                       ///< what wins and loses this level (see rules.hpp)
   std::vector<PlayerId> more_opponents;        ///< the computer players beyond `enemy`
 };

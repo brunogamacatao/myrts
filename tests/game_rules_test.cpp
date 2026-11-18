@@ -34,6 +34,12 @@ TEST_CASE("the shipped rules.json spells out exactly the built-in defaults", "[r
   CHECK(r->corpse_fade_seconds == d.corpse_fade_seconds);
   CHECK(r->max_corpses == d.max_corpses);
   CHECK(r->air_lift == d.air_lift);
+  CHECK(r->fog.sight_scale == d.fog.sight_scale);
+  CHECK(r->fog.unknown_color == d.fog.unknown_color);
+  CHECK(r->fog.explored_color == d.fog.explored_color);
+  CHECK(r->fog.explored_opacity == d.fog.explored_opacity);
+  CHECK(r->fog.update_interval == d.fog.update_interval);
+  CHECK(r->fog.remember == d.fog.remember);
 }
 
 TEST_CASE("rules: partial files keep the defaults; typos and bad values are reported", "[rules]") {

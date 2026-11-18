@@ -5,9 +5,11 @@
 
 namespace myrts {
 
-void FogOfWar::begin() {
+void FogOfWar::begin(bool remember) {
+  const auto after = static_cast<std::uint8_t>(remember ? Seen::Explored : Seen::Unknown);
   for (auto& c : cells_)
-    if (c == static_cast<std::uint8_t>(Seen::Visible)) c = static_cast<std::uint8_t>(Seen::Explored);
+    if (c == static_cast<std::uint8_t>(Seen::Visible)) c = after;
+  if (!remember) changed_ = true;  // ground may have gone black again: a view must redraw
 }
 
 void FogOfWar::reveal(Point centre, int radius) {
@@ -27,6 +29,11 @@ void FogOfWar::reveal(Point centre, int radius) {
 
 void FogOfWar::reveal_all() {
   std::fill(cells_.begin(), cells_.end(), static_cast<std::uint8_t>(Seen::Visible));
+  ++version_;
+}
+
+void FogOfWar::explore_all() {
+  std::fill(cells_.begin(), cells_.end(), static_cast<std::uint8_t>(Seen::Explored));
   ++version_;
 }
 

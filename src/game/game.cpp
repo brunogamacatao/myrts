@@ -52,6 +52,8 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   game->local_player_ = match->local;
   game->player_faction_ = match->local_faction->id;
   game->objectives_ = match->objectives;
+  game->fog_view_.set_style(match->fog);
+  game->fog_on_minimap_ = match->fog.minimap;
   myrts::World& world = *game->world_;
   std::optional<myrts::Point> saved_camera;
   if (saved_state) {  // a saved game: the same level is built, then the saved board replaces the fresh one
@@ -563,7 +565,7 @@ myrts::SaveSlot Game::snapshot() {
     ALLEGRO_BITMAP* mini = terrain_view_.minimap();
     al_draw_scaled_bitmap(mini, 0, 0, static_cast<float>(al_get_bitmap_width(mini)), static_cast<float>(al_get_bitmap_height(mini)),
                           0, 0, kSize, kSize, 0);
-    if (ALLEGRO_BITMAP* fog = fog_view_.black())
+    if (ALLEGRO_BITMAP* fog = fog_on_minimap_ ? fog_view_.black() : nullptr)
       al_draw_scaled_bitmap(fog, 0, 0, static_cast<float>(al_get_bitmap_width(fog)), static_cast<float>(al_get_bitmap_height(fog)),
                             0, 0, kSize, kSize, 0);
     const float sx = static_cast<float>(kSize) / (static_cast<float>(world_->width()) * static_cast<float>(tile_size_));

@@ -57,7 +57,8 @@ World::World(WorldConfig config, TileMap terrain) : World(config, terrain.land_b
 PlayerId World::add_player(std::string name, std::string faction, Stock stock) {
   players_.push_back({std::move(name), std::move(faction), stock});
   fogs_.emplace_back(width(), height());
-  if (!config_.fog) fogs_.back().reveal_all();
+  if (const FogSettings fs = fog_settings(); !fs.enabled) fogs_.back().reveal_all();
+  else if (fs.reveal_map) fogs_.back().explore_all();
   return static_cast<PlayerId>(players_.size()) - 1;
 }
 
@@ -296,23 +297,34 @@ void World::update(double dt) {
     if (Unit* u = units_.get(id); u && !u->aboard.valid()) step_unit(*u, dt);
   update_training(dt);
   if ((fog_timer_ -= dt) <= 0.0) {
-    fog_timer_ = 0.2;
+    fog_timer_ = config_.fog_settings.update_interval;
     refresh_fog();
   }
   events_.dispatch();
 }
 
+int World::scaled_sight(int radius) const {
+  const FogSettings& fs = config_.fog_settings;
+  return std::max(0, static_cast<int>(std::lround(radius * fs.sight_scale)) + fs.sight_bonus);
+}
+
+int World::building_sight(const BuildingDef& def) const {
+  const FogSettings& fs = config_.fog_settings;
+  return (fs.building_sight_base >= 0 ? fs.building_sight_base : config_.rules.building_sight_base) + def.size;
+}
+
 void World::refresh_fog() {
-  if (!config_.fog) return;
-  for (FogOfWar& f : fogs_) f.begin();
+  const FogSettings fs = fog_settings();
+  if (!fs.enabled) return;
+  for (FogOfWar& f : fogs_) f.begin(fs.remember || fs.reveal_map);  // with the map revealed, what leaves sight stays known
   units_.for_each([&](const Unit& u) {
     if (u.aboard.valid() || u.owner < 0 || static_cast<std::size_t>(u.owner) >= fogs_.size()) return;
-    fogs_[static_cast<std::size_t>(u.owner)].reveal(u.tile, std::max(config_.rules.min_unit_sight, u.def->stats.sight));
+    fogs_[static_cast<std::size_t>(u.owner)].reveal(u.tile, scaled_sight(std::max(fs.min_unit_sight >= 0 ? fs.min_unit_sight : config_.rules.min_unit_sight, u.def->stats.sight)));
   });
   buildings_.for_each([&](const Building& b) {
     if (b.owner < 0 || static_cast<std::size_t>(b.owner) >= fogs_.size()) return;
     fogs_[static_cast<std::size_t>(b.owner)].reveal({b.origin.x + b.def->size / 2, b.origin.y + b.def->size / 2},
-                                                    building_sight(*b.def));
+                                                    scaled_sight(building_sight(*b.def)));
   });
   for (FogOfWar& f : fogs_) f.end();
 }

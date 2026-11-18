@@ -24,7 +24,8 @@ class FogOfWar {
   [[nodiscard]] bool empty() const { return cells_.empty(); }
 
   /// Starts a refresh: what was in sight becomes "explored" until it is revealed again.
-  void begin();
+  /// With `remember` false, ground that was in sight turns unknown (black) again instead of "explored".
+  void begin(bool remember = true);
   /// Ends a refresh (after the reveal() calls): bumps version() if something new was discovered.
   void end() {
     if (changed_) ++version_;
@@ -34,6 +35,8 @@ class FogOfWar {
   void reveal(Point centre, int radius);
   /// Everything visible at once (for a game played without fog).
   void reveal_all();
+  /// Everything known but nothing in sight (the map is uncovered, units out of sight stay hidden).
+  void explore_all();
 
   [[nodiscard]] Seen at(Point p) const { return in_bounds(p) ? static_cast<Seen>(cells_[index(p)]) : Seen::Unknown; }
   [[nodiscard]] bool visible(Point p) const { return at(p) == Seen::Visible; }

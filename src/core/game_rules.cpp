@@ -24,7 +24,7 @@ void read(const json& doc, const char* group, const char* key, T& out, T min_all
 }
 
 void reject_unknown(const json& doc) {
-  static const std::set<std::string> groups = {"simulation", "combat", "repair", "vision", "match", "ai", "presentation"};
+  static const std::set<std::string> groups = {"simulation", "combat", "repair", "vision", "match", "ai", "presentation", "fog"};
   static const std::set<std::string> keys[] = {
       {"lumber_per_tree", "max_queue", "scan_interval", "retry_delay"},
       {"min_damage", "attack_flash"},
@@ -37,6 +37,7 @@ void reject_unknown(const json& doc) {
   for (const auto& [k, v] : doc.items()) {
     if (k == "format_version") continue;
     if (!groups.contains(k)) throw std::runtime_error("unknown section \"" + k + "\"");
+    if (k == "fog") continue;  // checked key by key by FogSettings
     for (std::size_t i = 0; i < 7; ++i) {
       if (k != names[i]) continue;
       for (const auto& [sub, _] : v.items())
@@ -70,6 +71,11 @@ std::expected<GameRules, std::string> GameRules::parse(const std::string& text) 
     read(doc, "presentation", "corpse_fade_seconds", r.corpse_fade_seconds, 0.01);
     read(doc, "presentation", "max_corpses", r.max_corpses, 0);
     read(doc, "presentation", "air_lift", r.air_lift, 0.0f);
+    if (doc.contains("fog")) {
+      const auto fog = FogSettings::with(r.fog, doc.at("fog").dump());
+      if (!fog) throw std::runtime_error(fog.error());
+      r.fog = *fog;
+    }
     return r;
   } catch (const std::exception& e) {
     return std::unexpected(std::string("rules: ") + e.what());

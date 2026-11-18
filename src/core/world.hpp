@@ -17,6 +17,7 @@
 #include "game_rules.hpp"
 #include "strings.hpp"
 #include "fog.hpp"
+#include "fog_settings.hpp"
 #include "events.hpp"
 #include "facing.hpp"
 #include "grid.hpp"
@@ -190,6 +191,7 @@ struct Player {
 
 /// Tunables of a World. The `*_speed` fields exist for testing (they divide durations).
 struct WorldConfig {
+  FogSettings fog_settings;     ///< the fog of this match (see FogSettings); `fog` = false still switches it off
   std::shared_ptr<const Strings> strings = Strings::english();  ///< the language of the messages the world gives the player
   std::shared_ptr<const ResourceTable> resources = ResourceTable::legacy();  ///< the game's resources (see Registry::resources)
   GameRules rules;            // the game's tunable rules; use set_rules() so the mirrored fields below follow them
@@ -354,8 +356,12 @@ class World {
   [[nodiscard]] FogOfWar& fog(PlayerId player) { return fogs_.at(static_cast<std::size_t>(player)); }
   /// Recomputes who sees what now (units and buildings reveal the tiles around them).
   void refresh_fog();
+  /// The fog in force: `config().fog_settings`, and disabled when `config().fog` is false.
+  [[nodiscard]] FogSettings fog_settings() const { FogSettings s = config_.fog_settings; s.enabled = s.enabled && config_.fog; return s; }
   /// How far (in tiles) a building sees.
-  [[nodiscard]] int building_sight(const BuildingDef& def) const { return config_.rules.building_sight_base + def.size; }
+  [[nodiscard]] int building_sight(const BuildingDef& def) const;
+  /// How far a sight of `radius` tiles really reaches after the fog settings (scale and bonus).
+  [[nodiscard]] int scaled_sight(int radius) const;
 
  private:
   struct Layer {

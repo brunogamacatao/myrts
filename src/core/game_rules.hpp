@@ -3,6 +3,8 @@
 #include <expected>
 #include <string>
 
+#include "fog_settings.hpp"
+
 namespace myrts {
 
 /// The tunable rules of a game (`rules.json` in the game package). Every field has the default the original game
@@ -34,6 +36,9 @@ struct GameRules {
 
   // ---- ai ----
   int ai_farm_margin = 2;        ///< the computer builds a farm when this little food is left
+
+  // ---- fog of war (a level may override it, see FogSettings)
+  FogSettings fog;
 
   // ---- presentation (read by the front end) ----
   double corpse_seconds = 25.0;  ///< how long a body stays

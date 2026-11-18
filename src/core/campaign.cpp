@@ -101,6 +101,10 @@ std::expected<Campaign, std::string> Campaign::parse(std::string_view json_text,
         level.ai = it->second;
       }
       if (l.contains("ai")) read_ai(l.at("ai"), level.ai);
+      if (l.contains("fog")) {
+        level.fog_json = l.at("fog").dump();
+        if (const auto fog = FogSettings::with({}, level.fog_json); !fog) throw std::runtime_error("level '" + level.name + "': " + fog.error());
+      }
       if (l.contains("objectives")) level.objectives = parse_objectives(l.at("objectives"));
       if (l.contains("more_opponents"))
         for (const json& o : l.at("more_opponents")) {
