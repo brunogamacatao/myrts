@@ -17,6 +17,7 @@ std::uint16_t movement_for(std::uint16_t code) {
 }  // namespace
 
 std::expected<TileMap, std::string> TileMap::from_pud(const PudMap& pud, std::shared_ptr<const TileSets> sets) {
+  if (!sets->has(pud.era)) return std::unexpected("the map uses a terrain style the game has no tile set for");
   TileMap map;
   map.sets_ = std::move(sets);
   map.era_ = pud.era;

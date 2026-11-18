@@ -41,9 +41,20 @@ void BuildingArt::load(const myrts::Registry& registry, Assets& assets, const st
     if (auto b = load_or(assets, def.sprite, false, false)) finished_[def.id] = std::move(b);
     if (auto b = load_or(assets, def.sprite_construction, false, false)) construction_[def.id] = std::move(b);
   }
-  mine_ = load_or(assets, "buildings/gold_mine_" + era + ".png", false, true);
-  mine_active_ = load_or(assets, "buildings/gold_mine_active_" + era + ".png", true, true);
-  oil_ = load_or(assets, "buildings/oil_patch.png", false, false);
+  // The sites of each resource ("{era}" in a path is the terrain era). A missing image is replaced by a drawn placeholder.
+  const auto era_path = [&](std::string path) {
+    const auto at = path.find("{era}");
+    if (at != std::string::npos) path.replace(at, 5, era);
+    return path;
+  };
+  sites_.assign(static_cast<std::size_t>(registry.resources()->size()), {});
+  for (myrts::ResourceId r = 0; r < registry.resources()->size(); ++r) {
+    const myrts::ResourceDef& def = registry.resources()->at(r);
+    if (def.source != myrts::ResourceSource::Site || def.site_sprite.empty()) continue;
+    SiteArt& art = sites_[static_cast<std::size_t>(r)];
+    art.idle = load_or(assets, era_path(def.site_sprite), false, true);
+    if (!def.site_sprite_active.empty()) art.active = load_or(assets, era_path(def.site_sprite_active), true, true);
+  }
 }
 
 void draw_centered_in_square(ALLEGRO_BITMAP* bitmap, float x, float y, float size_px, ALLEGRO_COLOR tint) {

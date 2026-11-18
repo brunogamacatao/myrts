@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "building.hpp"
+#include "game_rules.hpp"
 #include "grid.hpp"
 #include "pud.hpp"
 
@@ -20,7 +21,8 @@ struct StartSlot {
 struct MineSpec {
   Point origin{};  // top-left tile of the 3x3 mine
   int gold = 0;  // what it holds (gold or oil: see `kind`)
-  ResourceKind kind = ResourceKind::Gold;
+  std::string source;  // what it holds: a resource id ("gold") in a Scenario of a MapFile; a Warcraft II map object name
+                       // ("gold_mine", "oil_patch") in one read straight from a .pud (see ResourceDef::pud_source)
 };
 
 /// What a map says about who starts where and what it holds, read from its units.
@@ -32,6 +34,7 @@ struct Scenario {
   [[nodiscard]] std::optional<std::size_t> farthest_from(std::size_t from) const;
 };
 
-Scenario scenario_from(const PudMap& pud);
+/// `rules` gives the gold value of a mine (the map holds a multiple of `gold_per_value_unit`).
+Scenario scenario_from(const PudMap& pud, const GameRules& rules = {});
 
 }  // namespace myrts

@@ -94,6 +94,7 @@ struct TrainOption {
 struct HudData {
   const UiArt& art;
   const myrts::Stock& resources;
+  const myrts::ResourceTable& resource_table;  // which resources the game has, in HUD order
   std::span<const UnitCard> selection;
   std::span<const MinimapDot> dots;
   ALLEGRO_BITMAP* minimap_bitmap;  // whole map, drawn scaled

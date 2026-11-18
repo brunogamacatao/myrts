@@ -1,5 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include "test_resources.hpp"
+
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -12,11 +14,11 @@ using namespace myrts;
 namespace {
 constexpr const char* kUnits = R"({"units":[
   {"id":"peon","name":"Peon","hp":30,"sprite":"s.json","commands":["move"],
-   "worker":{"gold_per_trip":50},"builds":["hall"],"cost":{"gold":400}},
+   "worker":{"gather":{"gold":{"per_trip":50,"seconds":2.5},"lumber":{"per_trip":10,"seconds":3.0}}},"builds":["hall"],"cost":{"gold":400}},
   {"id":"dragon","name":"Dragon","hp":120,"sprite":"d.json","move_class":"air","move_speed":120}]})";
 constexpr const char* kBuildings = R"({"buildings":[
   {"id":"hall","name":"Hall","size":4,"cost":{"gold":1200,"lumber":800},"build_seconds":255,
-   "is_depot":true,"sprite":"h.png","sprite_construction":"hc.png","trains":["peon"]}]})";
+   "accepts":["gold","lumber"],"sprite":"h.png","sprite_construction":"hc.png","trains":["peon"]}]})";
 constexpr const char* kCommands = R"({"commands":[
   {"id":"move","label":"Move","hotkey":"m","targeting":"ground"}]})";
 }  // namespace
@@ -31,15 +33,15 @@ TEST_CASE("Registry parses units, buildings and commands") {
   CHECK(peon->move_class == MoveClass::Land);  // default
   CHECK(peon->cost == Cost{400, 0, 0});
   REQUIRE(peon->worker);
-  CHECK(peon->worker->gold_per_trip == 50);
-  CHECK(peon->worker->lumber_per_trip == 10);  // default kept
+  CHECK(peon->worker->spec(kGold).per_trip == 50);
+  CHECK(peon->worker->spec(kLumber).per_trip == 10);
   CHECK(r->unit("dragon")->move_class == MoveClass::Air);
 
   const BuildingDef* hall = r->building("hall");
   REQUIRE(hall);
   CHECK(hall->cost == Cost{1200, 800, 0});
   CHECK(hall->build_seconds == 255.0);
-  CHECK(hall->is_depot);
+  CHECK(hall->is_depot());
   CHECK(hall->sprite_construction == "hc.png");
 
   const CommandDef* move = r->command("move");
@@ -52,7 +54,7 @@ TEST_CASE("Registry parses units, buildings and commands") {
 
 TEST_CASE("Registry rejects dangling references and bad data") {
   const auto bad_build = Registry::parse(
-      R"({"units":[{"id":"p","name":"P","hp":1,"sprite":"s","worker":{},"builds":["nope"]}]})",
+      R"({"units":[{"id":"p","name":"P","hp":1,"sprite":"s","worker":{"gather":{"gold":{"per_trip":100,"seconds":2.5},"lumber":{"per_trip":10,"seconds":3.0}}},"builds":["nope"]}]})",
       R"({"buildings":[]})", R"({"commands":[]})");
   REQUIRE_FALSE(bad_build);
   CHECK(bad_build.error().find("unknown building 'nope'") != std::string::npos);
@@ -86,7 +88,7 @@ TEST_CASE("Registry rejects dangling references and bad data") {
 
 TEST_CASE("The shipped game data is consistent") {
   // Tests run from the build directory; the data lives next to the sources.
-  const auto r = Registry::load_directory(MYRTS_SOURCE_DIR "/assets/data");
+  const auto r = Registry::load_directory(MYRTS_SOURCE_DIR "/games/warcraft-like/data");
   REQUIRE(r);
   const BuildingDef* hall = r->building("great_hall");
   const BuildingDef* farm = r->building("pig_farm");
@@ -104,7 +106,7 @@ TEST_CASE("The shipped game data is consistent") {
 
 TEST_CASE("Every sprite named by the shipped data exists and can animate") {
   namespace fs = std::filesystem;
-  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "games" / "warcraft-like";
   const auto r = Registry::load_directory((assets / "data").string());
   REQUIRE(r);
 
@@ -140,7 +142,7 @@ TEST_CASE("Every sprite named by the shipped data exists and can animate") {
 }
 
 TEST_CASE("Every unit in the shipped data can actually be obtained") {
-  const auto r = Registry::load_directory(MYRTS_SOURCE_DIR "/assets/data");
+  const auto r = Registry::load_directory(MYRTS_SOURCE_DIR "/games/warcraft-like/data");
   REQUIRE(r);
   std::set<std::string> trainable;
   for (const auto& b : r->buildings())
@@ -163,7 +165,7 @@ TEST_CASE("Every unit in the shipped data can actually be obtained") {
 
 TEST_CASE("Every unit, building and command in the shipped data has an icon in the atlas") {
   namespace fs = std::filesystem;
-  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "games" / "warcraft-like";
   const auto r = Registry::load_directory((assets / "data").string());
   REQUIRE(r);
   constexpr int kIcons = 210;  // icons in assets/ui/icons.png (the last twelve are the ships, shipyards and the unload command)
@@ -199,21 +201,21 @@ TEST_CASE("Every unit, building and command in the shipped data has an icon in t
 }
 
 TEST_CASE("Factions name real workers, halls and base buildings") {
-  const auto r = Registry::load_directory(MYRTS_SOURCE_DIR "/assets/data");
+  const auto r = Registry::load_directory(MYRTS_SOURCE_DIR "/games/warcraft-like/data");
   REQUIRE(r);
   for (const char* id : {"orcs", "alliance"}) {
     const FactionDef* f = r->faction(id);
     REQUIRE(f);
     CHECK(r->unit(f->worker)->faction == id);
-    CHECK(r->building(f->town_hall)->is_depot);
+    CHECK(r->building(f->town_hall)->is_depot());
     for (const auto& b : f->base_buildings) CHECK(r->building(b)->faction == id);
   }
   CHECK(r->faction("elves") == nullptr);
 }
 
 TEST_CASE("A faction with a broken reference is rejected") {
-  const char* units = R"({"units":[{"id":"w","name":"W","hp":1,"sprite":"s","worker":{}},{"id":"f","name":"F","hp":1,"sprite":"s"}]})";
-  const char* buildings = R"({"buildings":[{"id":"h","name":"H","size":3,"build_seconds":1,"sprite":"s","is_depot":true}]})";
+  const char* units = R"({"units":[{"id":"w","name":"W","hp":1,"sprite":"s","worker":{"gather":{"gold":{"per_trip":100,"seconds":2.5},"lumber":{"per_trip":10,"seconds":3.0}}}},{"id":"f","name":"F","hp":1,"sprite":"s"}]})";
+  const char* buildings = R"({"buildings":[{"id":"h","name":"H","size":3,"build_seconds":1,"sprite":"s","accepts":["gold","lumber"]}]})";
   const char* commands = R"({"commands":[]})";
   CHECK(Registry::parse(units, buildings, commands,
                         R"({"factions":[{"id":"a","worker":"w","town_hall":"h"}]})").has_value());

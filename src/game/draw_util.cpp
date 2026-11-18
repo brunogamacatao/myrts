@@ -2,14 +2,18 @@
 
 #include <algorithm>
 
-float fit_scale(ALLEGRO_FONT* font, const std::string& text, float max_scale, float max_width) {
+#include "i18n.hpp"
+
+float fit_scale(ALLEGRO_FONT* font, const std::string& source, float max_scale, float max_width) {
+  const std::string text = tr(source);
   const auto w = static_cast<float>(al_get_text_width(font, text.c_str()));
   if (w <= 0) return max_scale;
   return std::min(max_scale, max_width / w);
 }
 
-void draw_text_scaled(ALLEGRO_FONT* font, float x, float y, float scale, int align, const std::string& text,
+void draw_text_scaled(ALLEGRO_FONT* font, float x, float y, float scale, int align, const std::string& source,
                       ALLEGRO_COLOR color) {
+  const std::string text = tr(source);
   ALLEGRO_TRANSFORM previous;
   al_copy_transform(&previous, al_get_current_transform());
   ALLEGRO_TRANSFORM t;

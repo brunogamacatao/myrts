@@ -1,4 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
+
+#include "test_resources.hpp"
 #include <algorithm>
 #include <filesystem>
 #include <map>
@@ -16,7 +18,7 @@ namespace fs = std::filesystem;
 
 namespace {
 
-const fs::path kAssets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+const fs::path kAssets = fs::path(MYRTS_SOURCE_DIR) / "games" / "warcraft-like";
 
 std::shared_ptr<const TileSets> tilesets() {
   static const auto sets = [] {
@@ -394,9 +396,9 @@ namespace {
 
 constexpr const char* kUnits = R"({"units":[
   {"id":"peon","name":"Peon","hp":30,"move_speed":96,"sprite":"s","commands":["move"],
-   "worker":{"lumber_per_trip":10,"gold_per_trip":100,"chop_seconds":0.5,"mine_seconds":1.0},"builds":["hall"]}]})";
+   "worker":{"gather":{"gold":{"per_trip":100,"seconds":1.0},"lumber":{"per_trip":10,"seconds":0.5}}},"builds":["hall"]}]})";
 constexpr const char* kBuildings = R"({"buildings":[
-  {"id":"hall","name":"Hall","size":4,"hp":100,"food":50,"cost":{"gold":1},"build_seconds":10,"is_depot":true,"sprite":"h"}]})";
+  {"id":"hall","name":"Hall","size":4,"hp":100,"food":50,"cost":{"gold":1},"build_seconds":10,"accepts":["gold","lumber"],"sprite":"h"}]})";
 
 const Registry& registry() {
   static const Registry r = [] {
@@ -458,7 +460,7 @@ TEST_CASE("A peon cutting a real forest leaves a clearing with proper edges") {
   REQUIRE(felled >= 1);
   CHECK(changed_events >= 1);
   CHECK_FALSE(redrawn.empty());
-  CHECK(world.player(me).stock.lumber == 90);  // a tree holds 100; the last 10 are still in the peon's hands
+  CHECK(world.player(me).stock[kLumber] == 90);  // a tree holds 100; the last 10 are still in the peon's hands
   CHECK_FALSE(world.trees().has_tree(tree));
   CHECK_FALSE(world.terrain()->is_tree(tree));
   CHECK(world.terrain()->tile(tree) != code_before);

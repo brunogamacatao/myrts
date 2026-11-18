@@ -1,4 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
+
+#include "test_resources.hpp"
 #include <array>
 
 #include "core/ai.hpp"
@@ -11,12 +13,12 @@ namespace {
 
 constexpr const char* kUnits = R"({"units":[
   {"id":"tanker","name":"Tanker","hp":90,"move_speed":96,"move_class":"water","sprite":"s",
-   "cost":{"gold":50},"train_seconds":5,"worker":{"oil_per_trip":100,"oil_seconds":1.0}},
+   "cost":{"gold":50},"train_seconds":5,"worker":{"gather":{"oil":{"per_trip":100,"seconds":1.0}}}},
   {"id":"peon","name":"Peon","hp":30,"move_speed":96,"sprite":"s",
-   "worker":{"gold_per_trip":100,"mine_seconds":1.0},"builds":["shipyard"]}]})";
+   "worker":{"gather":{"gold":{"per_trip":100,"seconds":1.0},"lumber":{"per_trip":10,"seconds":3.0}}},"builds":["shipyard"]}]})";
 constexpr const char* kBuildings = R"({"buildings":[
-  {"id":"hall","name":"Hall","size":3,"build_seconds":10,"is_depot":true,"food":10,"sprite":"h"},
-  {"id":"shipyard","name":"Shipyard","size":3,"build_seconds":10,"placement":"coast","accepts_oil":true,"cost":{"gold":100},"trains":["tanker"],"sprite":"y"},
+  {"id":"hall","name":"Hall","size":3,"build_seconds":10,"accepts":["gold","lumber"],"food":10,"sprite":"h"},
+  {"id":"shipyard","name":"Shipyard","size":3,"build_seconds":10,"placement":"coast","accepts":["oil"],"cost":{"gold":100},"trains":["tanker"],"sprite":"y"},
   {"id":"platform","name":"Platform","size":3,"build_seconds":10,"placement":"water","sprite":"p"}]})";
 
 const Registry& registry() {
@@ -39,10 +41,10 @@ World make_world(WorldConfig config = {}) {
 
 TEST_CASE("placement and oil flags are read from the data, and a bad placement is refused") {
   CHECK(registry().building("shipyard")->placement == Placement::Coast);
-  CHECK(registry().building("shipyard")->accepts_oil);
+  CHECK(registry().building("shipyard")->accepts_resource(2));
   CHECK(registry().building("platform")->placement == Placement::Water);
   CHECK(registry().building("hall")->placement == Placement::Land);
-  CHECK(registry().unit("tanker")->worker->oil_per_trip == 100);
+  CHECK(registry().unit("tanker")->worker->spec(kOil).per_trip == 100);
   CHECK_FALSE(Registry::parse(kUnits, R"({"buildings":[{"id":"x","name":"X","size":1,"build_seconds":1,"placement":"sky","sprite":"s"}]})",
                               R"({"commands":[]})").has_value());
 }
@@ -79,7 +81,7 @@ TEST_CASE("tankers pump oil from a patch at sea and deliver it to a shipyard") {
   World w = make_world();
   const PlayerId me = w.add_player("me", "orcs", Stock{});
   w.add_building(*registry().building("shipyard"), me, {7, 3}, true);
-  const int patch = w.add_mine({15, 3}, 3, 250, ResourceKind::Oil);
+  const int patch = w.add_mine({15, 3}, 3, 250, kOil);
   CHECK(w.grid(MoveClass::Water).is_blocked({16, 4}));
   CHECK_FALSE(w.grid(MoveClass::Land).is_walkable({16, 4}));  // it was never land
 
@@ -87,14 +89,14 @@ TEST_CASE("tankers pump oil from a patch at sea and deliver it to a shipyard") {
   REQUIRE(tanker.valid());
   const std::array ids{tanker};
   REQUIRE(w.order_harvest(ids, {15, 3}).ok);
-  for (double t = 0; t < 40 && w.player(me).stock.oil < 100; t += 0.05) w.update(0.05);
-  CHECK(w.player(me).stock.oil == 100);
-  CHECK(w.player(me).stock.gold == 0);  // oil is not gold
+  for (double t = 0; t < 40 && w.player(me).stock[kOil] < 100; t += 0.05) w.update(0.05);
+  CHECK(w.player(me).stock[kOil] == 100);
+  CHECK(w.player(me).stock[kGold] == 0);  // oil is not gold
   CHECK_FALSE(w.units().get(tanker)->hidden);  // tankers stay in sight
 
   for (double t = 0; t < 80 && !w.mines()[static_cast<std::size_t>(patch)].site.depleted(); t += 0.05) w.update(0.05);
   CHECK(w.mines()[static_cast<std::size_t>(patch)].site.depleted());
-  CHECK(w.player(me).stock.oil >= 200);
+  CHECK(w.player(me).stock[kOil] >= 200);
   CHECK(w.grid(MoveClass::Water).is_walkable({16, 4}));  // the sea opens up again
 }
 
@@ -102,7 +104,7 @@ TEST_CASE("oil needs a shipyard, and land workers cannot reach an oil patch") {
   World w = make_world();
   const PlayerId me = w.add_player("me", "orcs", Stock{});
   w.add_building(*registry().building("hall"), me, {1, 1}, true);  // a hall takes gold and lumber, not oil
-  w.add_mine({15, 3}, 3, 250, ResourceKind::Oil);
+  w.add_mine({15, 3}, 3, 250, kOil);
   const EntityId tanker = w.spawn_unit(*registry().unit("tanker"), me, {12, 4});
   const std::array t{tanker};
   const Result no_yard = w.order_harvest(t, {15, 3});
@@ -123,7 +125,7 @@ TEST_CASE("the AI builds a shipyard when the map has oil, trains tankers and kee
   const PlayerId me = w.add_player("ai", "orcs", Stock{2000, 500, 0});
   w.add_building(*registry().building("hall"), me, {1, 1}, true);
   w.spawn_unit(*registry().unit("peon"), me, {5, 6});
-  w.add_mine({15, 3}, 3, 5000, ResourceKind::Oil);
+  w.add_mine({15, 3}, 3, 5000, kOil);
 
   AiConfig cfg;
   cfg.desired_workers = 1;
@@ -139,7 +141,7 @@ TEST_CASE("the AI builds a shipyard when the map has oil, trains tankers and kee
   w.units().for_each([&](const Unit& u) { tankers += (u.owner == me && u.def->id == "tanker") ? 1 : 0; });
   CHECK(shipyards == 1);  // one, not one per think
   CHECK(tankers == 2);
-  CHECK(w.player(me).stock.oil > 0);  // the tankers are working
+  CHECK(w.player(me).stock[kOil] > 0);  // the tankers are working
 }
 
 TEST_CASE("on a map without oil the AI builds no shipyard") {

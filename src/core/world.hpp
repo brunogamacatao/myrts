@@ -14,6 +14,8 @@
 #include "building.hpp"
 #include "defs.hpp"
 #include "entity_store.hpp"
+#include "game_rules.hpp"
+#include "strings.hpp"
 #include "fog.hpp"
 #include "events.hpp"
 #include "facing.hpp"
@@ -23,9 +25,6 @@
 #include "tilemap.hpp"
 
 namespace myrts {
-
-/// What a worker is carrying back to a depot.
-enum class Cargo { None, Lumber, Gold, Oil };
 
 
 // ---- orders -----------------------------------------------------------------
@@ -42,12 +41,11 @@ struct Idle {};
 struct Harvest {
   enum class State { ToResource, Working, ToDepot };
   State state = State::ToResource;  ///< current leg of the work cycle
-  ResourceKind kind = ResourceKind::Lumber;  ///< what is being gathered
-  /// Gold and oil come from a site on the map (see World::mines()), lumber from a tree.
-  [[nodiscard]] bool from_site() const { return kind != ResourceKind::Lumber; }
+  ResourceId kind = 0;              ///< what is being gathered
   Point target{};                   ///< a tree tile, or any tile of the mine
   int mine = -1;                    ///< index into World::mines() when gathering from a site
   double timer = 0.0;               ///< work progress, or delay before re-planning a blocked route
+  bool at_site = true;              ///< gathered from a mine or patch (World::mines()), not from a tree
 };
 
 /// Walk to a construction site and work on it until it is finished.
@@ -78,15 +76,14 @@ struct AttackMove {
   double scan = 0.0;  ///< time since the surroundings were last scanned for enemies
 };
 
-/// Walk to a damaged building (or machine) of one's own side and mend it, which costs gold and lumber.
+/// Walk to a damaged building (or machine) of one's own side and mend it, which costs a share of its price.
 struct Repair {
   enum class State { ToTarget, Repairing };
   State state = State::ToTarget;
   Target target;
   double timer = 0.0;       ///< delay before re-planning a blocked route
   double healed = 0.0;      ///< hit points mended but not yet added (fractions)
-  double owe_gold = 0.0;    ///< the cost of what was mended, paid in whole pieces
-  double owe_lumber = 0.0;
+  std::array<double, kMaxResources> owe{};  ///< the cost of what was mended per resource, paid in whole pieces
 };
 
 /// A land unit walks to a transport and climbs aboard.
@@ -110,6 +107,12 @@ using Order = std::variant<order::Idle, order::Harvest, order::Build, order::Att
 
 // ---- entities ---------------------------------------------------------------
 
+/// A patrol: the unit walks back and forth between two tiles, fighting what it meets (see World::order_patrol).
+struct Patrol {
+  Point from{};  ///< where the current leg started
+  Point to{};    ///< where it is heading
+};
+
 /// A living unit: its static data (`def`), position, path and what it is doing.
 struct Unit {
   EntityId id;
@@ -132,11 +135,13 @@ struct Unit {
   double cooldown = 0.0;      // time until the next strike
   double scan_timer = 0.0;    // time until an idle unit looks around again
   double attack_flash = 0.0;  // > 0 while the strike animation should play
-  Cargo cargo = Cargo::None;
+  ResourceId cargo = kNoResource;  ///< what it carries (valid while `carrying` > 0)
   int carrying = 0;
   EntityId aboard;                  // the transport this unit is inside (it is then off the map: hidden, no tile held)
   std::vector<EntityId> passengers;  // for a transport: who is aboard
   bool hidden = false;  // inside a gold mine (or aboard a ship)
+  bool hold = false;    // standing ground: fights what comes within reach but never chases (see World::order_hold)
+  std::optional<Patrol> patrol;  // set while patrolling; the order itself is an attack-move to `patrol->to`
 
   /// Tile the unit will occupy once its current step ends (where new paths must start).
   [[nodiscard]] Point anchor() const { return moving ? next : tile; }
@@ -173,7 +178,7 @@ struct Building {
 struct Mine {
   ResourceSite site;
   bool busy = false;  ///< a worker is inside (gold only: one at a time; oil can be pumped by several)
-  [[nodiscard]] ResourceKind kind() const { return site.kind(); }
+  [[nodiscard]] ResourceId kind() const { return site.kind(); }
 };
 
 /// A participant of the match (human or computer) and their resources.
@@ -185,6 +190,9 @@ struct Player {
 
 /// Tunables of a World. The `*_speed` fields exist for testing (they divide durations).
 struct WorldConfig {
+  std::shared_ptr<const Strings> strings = Strings::english();  ///< the language of the messages the world gives the player
+  std::shared_ptr<const ResourceTable> resources = ResourceTable::legacy();  ///< the game's resources (see Registry::resources)
+  GameRules rules;            // the game's tunable rules; use set_rules() so the mirrored fields below follow them
   int tile_size = 32;
   double build_speed = 1.0;   // construction time divisor (testing)
   double retry_delay = 0.5;   // seconds before re-planning a blocked route
@@ -194,6 +202,15 @@ struct WorldConfig {
   double scan_interval = 0.3; // how often idle fighters look for enemies
   bool fog = true;            // false: every player sees the whole map
   unsigned seed = 1;          // damage rolls are reproducible for a given seed
+
+  /// Takes `r` as the rules and copies the ones that live in this struct (tests may still set those directly).
+  void set_rules(const GameRules& r) {
+    rules = r;
+    lumber_per_tree = r.lumber_per_tree;
+    max_queue = r.max_queue;
+    scan_interval = r.scan_interval;
+    retry_delay = r.retry_delay;
+  }
 };
 
 /// Outcome of an order. `message` is meant for the player.
@@ -229,7 +246,7 @@ class World {
   void add_tree(Point tile, int lumber);
   /// Adds a gold mine or oil patch (a `size` x `size` obstacle: on land for gold, on water for oil) and returns its
   /// index in mines().
-  int add_mine(Point origin, int size, int amount, ResourceKind kind = ResourceKind::Gold);
+  int add_mine(Point origin, int size, int amount, ResourceId kind = 0);
 
   // ---- orders (what the player asks for)
   /// Cancels the orders and movement of the given units (builders stay locked).
@@ -253,7 +270,16 @@ class World {
   Result order_attack(std::span<const EntityId> units, Point tile);
   /// Walk to `tile` and engage any enemy met on the way.
   Result order_attack_move(std::span<const EntityId> units, Point tile);
+  /// Fighters walk to `tile` and back again, over and over, attacking enemies on the way.
+  Result order_patrol(std::span<const EntityId> units, Point tile);
+  /// Fighters stand where they are: they attack enemies within reach but do not chase them.
+  Result order_hold(std::span<const EntityId> units);
+  /// Carries out the builtin order named `order` (one of kBuiltinOrders) for `units`; `target` is the clicked tile for
+  /// the orders that need one. This is what a command of commands.json does.
+  Result issue_order(std::string_view order, std::span<const EntityId> units, Point target);
   Result order_train(PlayerId owner, EntityId building, const UnitDef& unit);
+  /// The name of the first building in `requirements` that `owner` has no finished one of, or empty when all are there.
+  [[nodiscard]] std::string missing_requirement(PlayerId owner, const std::vector<const BuildingDef*>& required) const;
   /// Where units trained in `building` head for (gold mines and trees put workers to work).
   Result order_rally(PlayerId owner, EntityId building, Point tile);
   /// Takes the `index`-th queued unit out of the queue and refunds its price.
@@ -267,6 +293,8 @@ class World {
 
   // ---- queries
   [[nodiscard]] const WorldConfig& config() const { return config_; }
+  /// Seconds of play so far (counts world updates; restored by a saved game).
+  [[nodiscard]] double elapsed() const { return elapsed_; }
   [[nodiscard]] int width() const { return land().blocked.width(); }
   [[nodiscard]] int height() const { return land().blocked.height(); }
   [[nodiscard]] const Grid& grid(MoveClass c) const { return layer(c).blocked; }
@@ -276,8 +304,15 @@ class World {
   [[nodiscard]] EntityId unit_at(Point tile) const;  // visible unit standing on (or stepping onto) the tile
   [[nodiscard]] static bool is_enemy(PlayerId a, PlayerId b) { return a != b && a != kNoPlayer && b != kNoPlayer; }
   [[nodiscard]] int mine_at(Point tile) const;  // -1 if none (depleted mines do not count)
-  /// Tiles of the owner's finished depots that accept `kind` (halls for gold and lumber, shipyards for oil).
-  [[nodiscard]] std::vector<Point> depot_tiles(PlayerId owner, ResourceKind kind = ResourceKind::Gold) const;
+  /// Tiles of the owner's finished buildings that accept `kind` (halls, shipyards...: see BuildingDef::accepts).
+  [[nodiscard]] std::vector<Point> depot_tiles(PlayerId owner, ResourceId kind = 0) const;
+  /// The game's resources.
+  /// A message for the player in the game's language (see Strings).
+  [[nodiscard]] std::string tr(std::string_view text, std::initializer_list<std::string_view> args = {}) const { return config_.strings->tr(text, args); }
+  [[nodiscard]] const ResourceTable& resources() const { return *config_.resources; }
+  [[nodiscard]] const std::shared_ptr<const ResourceTable>& resources_ptr() const { return config_.resources; }
+  /// True for resources gathered from sites on the map (mines, patches), false for the one gathered from trees.
+  [[nodiscard]] bool is_site_resource(ResourceId r) const { return resources().at(r).source == ResourceSource::Site; }
   /// True while the player still has any unit or building (used by the victory rules).
   [[nodiscard]] bool has_assets(PlayerId owner) const;
   /// Food provided by finished buildings.
@@ -320,7 +355,7 @@ class World {
   /// Recomputes who sees what now (units and buildings reveal the tiles around them).
   void refresh_fog();
   /// How far (in tiles) a building sees.
-  [[nodiscard]] static int building_sight(const BuildingDef& def) { return 3 + def.size; }
+  [[nodiscard]] int building_sight(const BuildingDef& def) const { return config_.rules.building_sight_base + def.size; }
 
  private:
   struct Layer {
@@ -357,8 +392,9 @@ class World {
   bool start_repair(Unit& u, const order::Target& target);
   void cancel_order(Unit& u);
   [[nodiscard]] std::optional<ApproachPath> approach(const Unit& u, std::span<const Point> targets) const;
-  bool start_gathering(Unit& u, ResourceKind kind, Point target);
-  bool start_gathering_nearest(Unit& u, ResourceKind kind);
+  [[nodiscard]] ResourceId resource_from_json(const nlohmann::json& j, const std::vector<std::string>& legacy_ids) const;
+  bool start_gathering(Unit& u, ResourceId kind, Point target);
+  bool start_gathering_nearest(Unit& u, ResourceId kind);
   bool send_to_depot(Unit& u);
   bool start_building(Unit& u, EntityId building);
   void notice(PlayerId to, std::string text);
@@ -371,6 +407,7 @@ class World {
   void update_attack(Unit& u, order::Attack& a, double dt);
   void update_attack_move(Unit& u, order::AttackMove& m, double dt);
   void auto_acquire(Unit& u, double dt);
+  [[nodiscard]] bool may_engage(const Unit& u, const order::Target& target) const;
   [[nodiscard]] std::optional<order::Target> find_target(const Unit& u) const;
   [[nodiscard]] bool target_tiles(const order::Target& t, std::vector<Point>& out) const;
   void begin_attack(Unit& u, const order::Target& target, std::optional<Point> resume);
@@ -385,6 +422,7 @@ class World {
   EntityStore<Unit> units_;
   EntityStore<Building> buildings_;
   std::vector<Mine> mines_;
+  double elapsed_ = 0.0;
   TreeField trees_;
   std::optional<TileMap> terrain_;
   std::vector<Player> players_;

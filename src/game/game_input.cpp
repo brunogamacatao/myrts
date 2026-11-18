@@ -118,33 +118,36 @@ void Game::on_mouse_move(const ALLEGRO_EVENT& e) {
   }
 }
 
-/// Right click: what the clicked thing suggests. A tree or mine means harvest, an unfinished
-/// building means help build it, anything else means walk there.
+/// Right click: the first of the game's context rules (commands.json "context_orders") whose conditions hold for what
+/// was clicked gives its command: attack an enemy, harvest a tree or mine, board a transport, mend a damaged building...
 void Game::right_click_at(myrts::Point tile) {
   const myrts::EntityId site = world_->building_at(tile);
   const myrts::Building* b = site.valid() ? world_->buildings().get(site) : nullptr;
   if (b && !sees(*b)) b = nullptr;  // unexplored: it is just ground
   const myrts::EntityId other = world_->unit_at(tile);
-  const myrts::Unit* foe_unit = other.valid() ? world_->units().get(other) : nullptr;
-  if (foe_unit && !sees(*foe_unit)) foe_unit = nullptr;
-  const bool enemy_unit = foe_unit && myrts::World::is_enemy(local_player_, foe_unit->owner);
-  const bool enemy_building = b && myrts::World::is_enemy(local_player_, b->owner);
-  if (enemy_unit || enemy_building) {
-    ordered(world_->order_attack(selected_, tile));
-  } else if (world_->trees().has_tree(tile) || world_->mine_at(tile) >= 0) {
-    ordered(world_->order_harvest(selected_, tile));
-  } else if (const myrts::Unit* ship = other.valid() ? world_->units().get(other) : nullptr;
-             ship && ship->owner == local_player_ && ship->def->capacity > 0 && selection_has_land_unit()) {
-    ordered(world_->order_board(selected_, other));  // right-click on one's own transport: climb aboard
-  } else if (selection_has_worker() && ((b && b->owner == local_player_ && b->complete && b->hp < b->def->hp) ||
-                                        (foe_unit == nullptr && other.valid() && world_->units().get(other)->owner == local_player_ &&
-                                         world_->units().get(other)->def->mechanical &&
-                                         world_->units().get(other)->hp < world_->units().get(other)->def->max_hp))) {
-    ordered(world_->order_repair(selected_, tile));  // right-click on one's own damaged building or machine: mend it
-  } else if (b && !b->complete) {
-    ordered(world_->order_resume_build(selected_, site));
-  } else {
-    ordered(world_->order_move(selected_, tile));
+  const myrts::Unit* unit_there = other.valid() ? world_->units().get(other) : nullptr;
+  if (unit_there && !sees(*unit_there)) unit_there = nullptr;
+  const bool own_unit = unit_there && unit_there->owner == local_player_;
+
+  const auto holds = [&](const std::string& condition) {
+    if (condition == "enemy")
+      return (unit_there && myrts::World::is_enemy(local_player_, unit_there->owner)) ||
+             (b && myrts::World::is_enemy(local_player_, b->owner));
+    if (condition == "resource") return world_->trees().has_tree(tile) || world_->mine_at(tile) >= 0;
+    if (condition == "own_transport") return own_unit && unit_there->def->capacity > 0 && selection_has_land_unit();
+    if (condition == "own_damaged")
+      return selection_has_worker() && ((b && b->owner == local_player_ && b->complete && b->hp < b->def->hp) ||
+                                        (own_unit && unit_there->def->mechanical && unit_there->hp < unit_there->def->max_hp));
+    if (condition == "unfinished_building") return b && !b->complete;
+    return false;
+  };
+  for (const myrts::ContextRule& rule : registry_->context_rules()) {
+    if (!std::ranges::all_of(rule.when, holds)) continue;
+    const myrts::CommandDef* command = registry_->command(rule.command);
+    if (!command) continue;
+    // Orders about a building go through its tile, about a unit through the unit's.
+    ordered(world_->issue_order(command->order, selected_, tile));
+    return;
   }
 }
 
@@ -264,9 +267,7 @@ void Game::click_in_viewport(float sx, float sy) {
     const myrts::CommandDef* command = awaiting_target_;
     awaiting_target_ = nullptr;
     message_.clear();
-    if (const auto tile = tile_at_world(world)) {
-      if (const auto it = targeted_commands_.find(command->id); it != targeted_commands_.end()) it->second(*tile);
-    }
+    if (const auto tile = tile_at_world(world)) ordered(world_->issue_order(command->order, selected_, *tile));
     return;
   }
 

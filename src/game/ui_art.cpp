@@ -2,15 +2,21 @@
 
 #include <algorithm>
 
-std::expected<void, std::string> UiArt::load(Assets& assets) {
+std::expected<void, std::string> UiArt::load(Assets& assets, const myrts::ResourceTable& resources) {
   const std::pair<const char*, std::shared_ptr<const Bitmap>*> files[] = {
-      {"ui/icons.png", &icons_},   {"ui/gold.png", &gold_},         {"ui/lumber.png", &lumber_},
-      {"ui/oil.png", &oil_},       {"ui/food.png", &food_},         {"ui/panel.png", &panel_},
+      {"ui/icons.png", &icons_}, {"ui/food.png", &food_},           {"ui/panel.png", &panel_},
       {"ui/topbar.png", &top_bar_}, {"ui/minimap_frame.png", &minimap_frame_}};
   for (const auto& [path, target] : files) {
     auto bmp = assets.bitmap(path);
     if (!bmp) return std::unexpected(bmp.error());
     *target = *bmp;
+  }
+  resource_icons_.assign(static_cast<std::size_t>(resources.size()), nullptr);
+  for (myrts::ResourceId r = 0; r < resources.size(); ++r) {
+    if (resources.at(r).icon.empty()) continue;
+    auto bmp = assets.bitmap(resources.at(r).icon);
+    if (!bmp) return std::unexpected(bmp.error());
+    resource_icons_[static_cast<std::size_t>(r)] = *bmp;
   }
   return {};
 }

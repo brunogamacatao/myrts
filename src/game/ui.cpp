@@ -3,6 +3,8 @@
 #include <sstream>
 #include "ui.hpp"
 
+#include "i18n.hpp"
+
 #include <allegro5/allegro_primitives.h>
 
 #include <algorithm>
@@ -31,8 +33,9 @@ constexpr float kButtonsTop = 440;
 
 float fx(int v) { return static_cast<float>(v); }
 
-void draw_text(ALLEGRO_FONT* font, float x, float y, int align, const std::string& text,
+void draw_text(ALLEGRO_FONT* font, float x, float y, int align, const std::string& source,
                ALLEGRO_COLOR color = kText) {
+  const std::string text = tr(source);
   al_draw_text(font, kStoneDark, x + 1, y + 1, align, text.c_str());  // drop shadow
   al_draw_text(font, color, x, y, align, text.c_str());
 }
@@ -83,7 +86,7 @@ void draw_control_button(const Rect& r, bool hovered, bool next) {
 
 void draw_resource(const HudData& hud, ALLEGRO_FONT* font, float x, ALLEGRO_BITMAP* icon, const std::string& text,
                    ALLEGRO_COLOR color = kText) {
-  al_draw_bitmap(icon, x, 5, 0);
+  if (icon) al_draw_bitmap(icon, x, 5, 0);
   draw_text(font, x + 20, 8, ALLEGRO_ALIGN_LEFT, text, color);
   (void)hud;
 }
@@ -171,6 +174,14 @@ void draw_building_info(ALLEGRO_FONT* font, const HudData& hud) {
   if (!b.queue.empty()) draw_text(font, p.x + 8, p.y + 190, ALLEGRO_ALIGN_LEFT, "click to cancel");
 }
 
+/// "100g 20w ": the non-zero amounts of a price, each with the short label of its resource, then a space.
+std::string cost_label(const myrts::Cost& cost, const myrts::ResourceTable& table) {
+  std::string out;
+  for (myrts::ResourceId r = 0; r < table.size(); ++r)
+    if (cost[r] > 0) out += std::to_string(cost[r]) + table.at(r).short_label + " ";
+  return out;
+}
+
 /// Command panel while a building is selected: one button per trainable unit.
 void draw_train_menu(ALLEGRO_FONT* font, const HudData& hud) {
   for (int slot = 0; slot < kButtonSlots; ++slot) {
@@ -183,10 +194,10 @@ void draw_train_menu(ALLEGRO_FONT* font, const HudData& hud) {
     const bool hovered = r.contains(hud.mouse_x, hud.mouse_y);
     draw_icon_button(hud, r, o.def->icon, hovered, !o.affordable, false);
     if (hovered) {
-      draw_text_fit(font, kPanelW / 2.0f, 552, kPanelW - 8, ALLEGRO_ALIGN_CENTER, "Train " + o.def->name,
+      draw_text_fit(font, kPanelW / 2.0f, 552, kPanelW - 8, ALLEGRO_ALIGN_CENTER, tr("Train {0}", {tr(o.def->name)}),
                     o.affordable ? kText : al_map_rgb(230, 80, 60));
       draw_text(font, kPanelW / 2.0f, 566, ALLEGRO_ALIGN_CENTER,
-                std::to_string(o.def->cost.gold) + "g " + std::to_string(static_cast<int>(o.def->train_seconds)) + "s");
+                cost_label(o.def->cost, hud.resource_table) + std::to_string(static_cast<int>(o.def->train_seconds)) + "s");
     }
   }
 }
@@ -216,8 +227,7 @@ void draw_build_menu(ALLEGRO_FONT* font, const HudData& hud) {
       draw_text_fit(font, kPanelW / 2.0f, 552, kPanelW - 8, ALLEGRO_ALIGN_CENTER, def.name,
                     opt->affordable ? kText : al_map_rgb(230, 80, 60));
       draw_text(font, kPanelW / 2.0f, 566, ALLEGRO_ALIGN_CENTER,
-                std::to_string(def.cost.gold) + "g " + std::to_string(def.cost.lumber) + "w " +
-                    std::to_string(static_cast<int>(def.build_seconds)) + "s");
+                cost_label(def.cost, hud.resource_table) + std::to_string(static_cast<int>(def.build_seconds)) + "s");
     }
   }
 }
@@ -233,21 +243,21 @@ void draw_unit_info(ALLEGRO_FONT* font, const HudData& hud) {
     hud.art.draw_icon(u.icon, p.x + 6, p.y + 6);
     draw_frame({p.x + 6, p.y + 6, kButtonW, kButtonH}, false);
     draw_text_fit(font, p.x + 58, p.y + 12, p.w - 64, ALLEGRO_ALIGN_LEFT, u.name);
-    draw_text(font, p.x + 58, p.y + 30, ALLEGRO_ALIGN_LEFT, "Level " + std::to_string(u.level));
+    draw_text(font, p.x + 58, p.y + 30, ALLEGRO_ALIGN_LEFT, tr("Level {0}", {std::to_string(u.level)}));
     draw_hp(font, p.x + 6, p.y + 50, kButtonW, u.hp, u.max_hp, true);
 
     const auto& s = u.stats;
-    std::vector<std::string> lines = {"Armor: " + std::to_string(s.armor)};
+    std::vector<std::string> lines = {tr("Armor: {0}", {std::to_string(s.armor)})};
     if (u.capacity == 0)
-      lines.insert(lines.end(), {"Damage: " + std::to_string(s.damage_min) + "-" + std::to_string(s.damage_max), "Range: " + std::to_string(s.range)});
-    lines.insert(lines.end(), {"Sight: " + std::to_string(s.sight), "Speed: " + std::to_string(s.speed)});
+      lines.insert(lines.end(), {tr("Damage: {0}-{1}", {std::to_string(s.damage_min), std::to_string(s.damage_max)}), tr("Range: {0}", {std::to_string(s.range)})});
+    lines.insert(lines.end(), {tr("Sight: {0}", {std::to_string(s.sight)}), tr("Speed: {0}", {std::to_string(s.speed)})});
     float y = p.y + 96;
     for (const auto& line : lines) {
       draw_text(font, p.x + 26, y, ALLEGRO_ALIGN_LEFT, line);
       y += 16;
     }
     if (u.capacity > 0) {  // a transport: who is aboard
-      draw_text(font, p.x + 26, y + 4, ALLEGRO_ALIGN_LEFT, "Cargo: " + std::to_string(u.cargo_icons.size()) + "/" + std::to_string(u.capacity));
+      draw_text(font, p.x + 26, y + 4, ALLEGRO_ALIGN_LEFT, tr("Cargo: {0}/{1}", {std::to_string(u.cargo_icons.size()), std::to_string(u.capacity)}));
       constexpr int kCols = 3;
       for (std::size_t i = 0; i < u.cargo_icons.size(); ++i) {
         const float x = p.x + 8 + static_cast<float>(i % kCols) * 50;
@@ -340,12 +350,13 @@ void draw_hud(ALLEGRO_FONT* font, const HudData& hud) {
   // Top bar with resources
   UiArt::draw_tiled(hud.art.top_bar(), {fx(kPanelW), 0, fx(kWidth - kPanelW), fx(kTopBar)});
   al_draw_line(kPanelW, kTopBar - 0.5f, fx(kWidth), kTopBar - 0.5f, kStoneDark, 1);
-  const float slot_w = fx(kWidth - kPanelW) / 4;
-  draw_resource(hud, font, kPanelW + slot_w * 0.5f - 24, hud.art.gold(), std::to_string(hud.resources.gold));
-  draw_resource(hud, font, kPanelW + slot_w * 1.5f - 24, hud.art.lumber(), std::to_string(hud.resources.lumber));
-  draw_resource(hud, font, kPanelW + slot_w * 2.5f - 24, hud.art.oil(), std::to_string(hud.resources.oil));
+  const int count = hud.resource_table.size();  // every resource, then the food
+  const float slot_w = fx(kWidth - kPanelW) / static_cast<float>(count + 1);
+  for (myrts::ResourceId r = 0; r < count; ++r)
+    draw_resource(hud, font, kPanelW + slot_w * (static_cast<float>(r) + 0.5f) - 24, hud.art.resource_icon(r),
+                  std::to_string(hud.resources[r]));
   const bool full = hud.food_used >= hud.food_cap;  // red when no more units can be trained
-  draw_resource(hud, font, kPanelW + slot_w * 3.5f - 24, hud.art.food(),
+  draw_resource(hud, font, kPanelW + slot_w * (static_cast<float>(count) + 0.5f) - 24, hud.art.food(),
                 std::to_string(hud.food_used) + "/" + std::to_string(hud.food_cap), full ? al_map_rgb(240, 90, 70) : kText);
 
   // Status message

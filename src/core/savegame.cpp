@@ -24,15 +24,28 @@ void Ai::load_state(const json& state) {
   waves_ = state.value("waves", 0);
 }
 
+/// A resource saved as its id, or (saved games from before resources were configurable) as the index into
+/// `legacy_ids`. Empty/unknown gives kNoResource.
+ResourceId World::resource_from_json(const json& j, const std::vector<std::string>& legacy_ids) const {
+  if (j.is_string()) return j.get<std::string>().empty() ? kNoResource : resources().index(j.get<std::string>());
+  if (j.is_number_integer()) {
+    const int i = j.get<int>();
+    if (i >= 0 && static_cast<std::size_t>(i) < legacy_ids.size() && !legacy_ids[static_cast<std::size_t>(i)].empty())
+      return resources().index(legacy_ids[static_cast<std::size_t>(i)]);
+  }
+  return kNoResource;
+}
+
 json World::save_state() const {
   json out;
   out["width"] = width();
   out["height"] = height();
+  out["elapsed"] = elapsed_;
 
   json players = json::array();
   for (std::size_t i = 0; i < players_.size(); ++i) {
     const Player& p = players_[i];
-    players.push_back({{"stock", {{"gold", p.stock.gold}, {"lumber", p.stock.lumber}, {"oil", p.stock.oil}}},
+    players.push_back({{"stock", resources().to_map(p.stock)},
                        {"fog", i < fogs_.size() ? fogs_[i].encode() : std::string{}}});
   }
   out["players"] = std::move(players);
@@ -64,7 +77,7 @@ json World::save_state() const {
   units_.for_each([&](const Unit& u) {
     json o;
     if (const auto* h = std::get_if<order::Harvest>(&u.order)) {
-      o = {{"t", "harvest"}, {"kind", static_cast<int>(h->kind)}, {"target", point(h->target)}, {"state", static_cast<int>(h->state)}};
+      o = {{"t", "harvest"}, {"kind", resources().at(h->kind).id}, {"target", point(h->target)}, {"state", static_cast<int>(h->state)}};
     } else if (const auto* b = std::get_if<order::Build>(&u.order)) {
       const auto it = building_index.find(b->building);
       o = it == building_index.end() ? json{{"t", "idle"}} : json{{"t", "build"}, {"building", it->second}};
@@ -87,7 +100,8 @@ json World::save_state() const {
       if (u.is_moving()) o["goal"] = point(u.path.empty() ? u.anchor() : u.goal);
     }
     units.push_back({{"def", u.def->id}, {"owner", u.owner}, {"tile", point(u.anchor())}, {"hp", u.hp},
-                     {"facing", static_cast<int>(u.facing)}, {"cargo", static_cast<int>(u.cargo)},
+                     {"facing", static_cast<int>(u.facing)}, {"cargo", resources().valid(u.cargo) ? resources().at(u.cargo).id : std::string{}},
+                     {"hold", u.hold}, {"patrol", u.patrol ? json::array({point(u.patrol->from), point(u.patrol->to)}) : json()},
                      {"carrying", u.carrying}, {"cooldown", u.cooldown}, {"order", std::move(o)},
                      {"aboard", u.aboard.valid() && unit_index.contains(u.aboard) ? unit_index.at(u.aboard) : -1}});
   });
@@ -119,10 +133,14 @@ std::expected<void, std::string> World::load_state(const json& state, const Regi
       units_.erase(id);
     }
 
+    elapsed_ = state.value("elapsed", 0.0);
+
     // ---- players
     for (std::size_t i = 0; i < players_.size(); ++i) {
       const json& s = players[i].at("stock");
-      players_[i].stock = Stock{s.value("gold", 0), s.value("lumber", 0), s.value("oil", 0)};
+      players_[i].stock = Stock{};
+      for (const auto& [id, amount] : s.items())
+        if (const ResourceId r = resources().index(id); r != kNoResource) players_[i].stock[r] = amount.get<int>();
       if (players[i].contains("fog") && i < fogs_.size()) fogs_[i].decode(players[i].at("fog").get<std::string>());
     }
 
@@ -176,7 +194,7 @@ std::expected<void, std::string> World::load_state(const json& state, const Regi
       if (Unit* u = units_.get(id)) {
         u->hp = j.at("hp").get<int>();
         u->facing = static_cast<Facing>(j.at("facing").get<int>());
-        u->cargo = static_cast<Cargo>(j.at("cargo").get<int>());
+        u->cargo = resource_from_json(j.at("cargo"), {"", "lumber", "gold", "oil"});
         u->carrying = j.at("carrying").get<int>();
         u->cooldown = j.at("cooldown").get<double>();
       }
@@ -189,10 +207,11 @@ std::expected<void, std::string> World::load_state(const json& state, const Regi
       const json& o = state.at("units")[i].at("order");
       const std::string t = o.at("t").get<std::string>();
       if (t == "harvest") {
-        const auto kind = static_cast<ResourceKind>(o.at("kind").get<int>());
+        const ResourceId kind = resource_from_json(o.at("kind"), {"gold", "lumber", "oil"});
+        if (kind == kNoResource) continue;
         const auto leg = static_cast<order::Harvest::State>(o.at("state").get<int>());
         const Point target = to_point(o.at("target"));
-        u->order = order::Harvest{order::Harvest::State::ToResource, kind, target, -1, 0.0};  // send_to_depot() changes it
+        u->order = order::Harvest{order::Harvest::State::ToResource, kind, target, -1, 0.0, is_site_resource(kind)};  // send_to_depot() changes it
         if (leg == order::Harvest::State::ToDepot && u->carrying > 0 && send_to_depot(*u)) continue;  // back to the depot
         if (!start_gathering(*u, kind, target)) start_gathering_nearest(*u, kind);
       } else if (t == "build") {
@@ -220,6 +239,16 @@ std::expected<void, std::string> World::load_state(const json& state, const Regi
         const std::array one{u->id};
         order_move(one, to_point(o.at("goal")));
       }
+    }
+
+    // ---- stances and patrols, set last because giving an order clears them
+    for (std::size_t i = 0; i < unit_ids.size(); ++i) {
+      Unit* u = units_.get(unit_ids[i]);
+      if (!u) continue;
+      const json& saved_unit = state.at("units")[i];
+      u->hold = saved_unit.value("hold", false);
+      if (saved_unit.contains("patrol") && saved_unit.at("patrol").is_array() && std::holds_alternative<order::AttackMove>(u->order))
+        u->patrol = Patrol{to_point(saved_unit.at("patrol")[0]), to_point(saved_unit.at("patrol")[1])};
     }
   } catch (const std::exception& e) {
     return std::unexpected(std::string("invalid saved game: ") + e.what());

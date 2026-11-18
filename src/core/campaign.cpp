@@ -4,13 +4,78 @@
 #include <fstream>
 #include <iterator>
 #include <nlohmann/json.hpp>
+#include <set>
 
 namespace myrts {
 
-std::expected<Campaign, std::string> Campaign::parse(std::string_view json_text) {
+namespace {
+/// `{"gold": 2000, ...}`: whole numbers >= 0 (which ids exist is checked when the match is built).
+std::map<std::string, int> parse_amounts(const nlohmann::json& j) {
+  std::map<std::string, int> out;
+  for (const auto& [id, n] : j.items()) {
+    if (!n.is_number() || n.get<double>() < 0) throw std::runtime_error("stock '" + id + "' must be a whole number >= 0");
+    out[id] = static_cast<int>(n.get<double>());
+  }
+  return out;
+}
+
+void read_ai(const nlohmann::json& a, AiConfig& ai) {
+  ai.start_delay = a.value("start_delay", ai.start_delay);
+  ai.first_wave = a.value("first_wave", ai.first_wave);
+  ai.wave_growth = a.value("wave_growth", ai.wave_growth);
+  ai.desired_workers = a.value("desired_workers", ai.desired_workers);
+  ai.desired_tankers = a.value("desired_tankers", ai.desired_tankers);
+  ai.think_interval = a.value("think_interval", ai.think_interval);
+  ai.farm_margin = a.value("farm_margin", ai.farm_margin);
+}
+
+Objective parse_objective(const nlohmann::json& j, bool victory) {
+  static const std::set<std::string> victory_types = {"destroy_all", "destroy_building", "survive", "collect", "build"};
+  static const std::set<std::string> defeat_types = {"lose_building", "time_limit"};
+  Objective o;
+  o.type = j.at("type").get<std::string>();
+  if (!(victory ? victory_types : defeat_types).contains(o.type))
+    throw std::runtime_error(std::string("unknown ") + (victory ? "victory" : "defeat") + " objective '" + o.type + "'");
+  o.text = j.value("text", std::string{});
+  o.building = j.value("building", std::string{});
+  o.resource = j.value("resource", std::string{});
+  o.amount = j.value("amount", j.value("count", 1));
+  o.seconds = j.value("seconds", 0.0);
+  const bool needs_building = o.type == "destroy_building" || o.type == "build" || o.type == "lose_building";
+  if (needs_building && o.building.empty()) throw std::runtime_error("objective '" + o.type + "' needs a building");
+  if (o.type == "collect" && (o.resource.empty() || o.amount < 1)) throw std::runtime_error("objective 'collect' needs a resource and an amount");
+  if ((o.type == "survive" || o.type == "time_limit") && o.seconds <= 0) throw std::runtime_error("objective '" + o.type + "' needs seconds");
+  return o;
+}
+
+Objectives parse_objectives(const nlohmann::json& j) {
+  Objectives out;
+  if (j.contains("victory"))
+    for (const auto& o : j.at("victory")) out.victory.push_back(parse_objective(o, true));
+  if (j.contains("defeat"))
+    for (const auto& o : j.at("defeat")) out.defeat.push_back(parse_objective(o, false));
+  return out;
+}
+
+std::map<std::string, AiConfig> parse_profiles(std::string_view text) {
+  std::map<std::string, AiConfig> out;
+  if (text.empty()) return out;
+  const nlohmann::json doc = nlohmann::json::parse(text);
+  for (const auto& [name, body] : doc.at("profiles").items()) {
+    AiConfig ai;
+    read_ai(body, ai);
+    out[name] = ai;
+  }
+  return out;
+}
+}  // namespace
+
+
+std::expected<Campaign, std::string> Campaign::parse(std::string_view json_text, std::string_view profiles_json) {
   using json = nlohmann::json;
   Campaign campaign;
   try {
+    const auto profiles = parse_profiles(profiles_json);
     const json doc = json::parse(json_text);
     for (const json& l : doc.at("levels")) {
       Level level;
@@ -27,20 +92,33 @@ std::expected<Campaign, std::string> Campaign::parse(std::string_view json_text)
       if (l.contains("allow")) level.allow = l.at("allow").get<std::vector<std::string>>();
       if (l.contains("player_stock")) {
         const json& s = l.at("player_stock");
-        level.player_stock = Stock{s.value("gold", 0), s.value("lumber", 0), s.value("oil", 0)};
+        level.player_stock = parse_amounts(s);
       }
-      if (l.contains("ai")) {
-        const json& a = l.at("ai");
-        level.ai.start_delay = a.value("start_delay", level.ai.start_delay);
-        level.ai.first_wave = a.value("first_wave", level.ai.first_wave);
-        level.ai.wave_growth = a.value("wave_growth", level.ai.wave_growth);
-        level.ai.desired_workers = a.value("desired_workers", level.ai.desired_workers);
-        level.ai.desired_tankers = a.value("desired_tankers", level.ai.desired_tankers);
-        level.ai.think_interval = a.value("think_interval", level.ai.think_interval);
+      if (l.contains("ai_profile")) {
+        level.ai_profile = l.at("ai_profile").get<std::string>();
+        const auto it = profiles.find(level.ai_profile);
+        if (it == profiles.end()) throw std::runtime_error("level '" + level.name + "': unknown ai_profile '" + level.ai_profile + "'");
+        level.ai = it->second;
       }
+      if (l.contains("ai")) read_ai(l.at("ai"), level.ai);
+      if (l.contains("objectives")) level.objectives = parse_objectives(l.at("objectives"));
+      if (l.contains("more_opponents"))
+        for (const json& o : l.at("more_opponents")) {
+          OpponentSpec spec;
+          spec.faction = o.value("faction", std::string{});
+          if (o.contains("ai_profile")) {
+            const auto it = profiles.find(o.at("ai_profile").get<std::string>());
+            if (it == profiles.end()) throw std::runtime_error("unknown ai_profile '" + o.at("ai_profile").get<std::string>() + "'");
+            spec.ai = it->second;
+          }
+          if (o.contains("ai")) read_ai(o.at("ai"), spec.ai);
+          if (o.contains("stock")) spec.stock = parse_amounts(o.at("stock"));
+          spec.workers = o.value("workers", spec.workers);
+          level.more_opponents.push_back(std::move(spec));
+        }
       if (l.contains("enemy_stock")) {
         const json& s = l.at("enemy_stock");
-        level.enemy_stock = Stock{s.value("gold", 0), s.value("lumber", 0), s.value("oil", 0)};
+        level.enemy_stock = parse_amounts(s);
       }
       level.enemy_workers = l.value("enemy_workers", level.enemy_workers);
       campaign.levels_.push_back(std::move(level));
@@ -52,7 +130,15 @@ std::expected<Campaign, std::string> Campaign::parse(std::string_view json_text)
   return campaign;
 }
 
-Level play_as(const Level& level, const Registry& registry, std::string_view faction) {
+Level with_default_sides(Level level, const Registry& registry) {
+  const auto factions = registry.factions();
+  if (level.player_faction.empty() && !factions.empty()) level.player_faction = factions[0].id;
+  if (level.enemy_faction.empty() && !factions.empty()) level.enemy_faction = factions[factions.size() > 1 ? 1 : 0].id;
+  return level;
+}
+
+Level play_as(const Level& original, const Registry& registry, std::string_view faction) {
+  const Level level = with_default_sides(original, registry);
   if (faction.empty() || faction == level.player_faction) return level;
   const FactionDef* chosen = registry.faction(faction);
   if (!chosen) return level;
@@ -74,11 +160,15 @@ Level play_as(const Level& level, const Registry& registry, std::string_view fac
   return out;
 }
 
-std::expected<Campaign, std::string> Campaign::load_file(const std::string& path) {
+std::expected<Campaign, std::string> Campaign::load_file(const std::string& path, const std::string& profiles_path) {
   std::ifstream f(path);
   if (!f) return std::unexpected("cannot open " + path);
   const std::string text((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-  return parse(text);
+  std::string profiles;
+  if (!profiles_path.empty()) {
+    if (std::ifstream p(profiles_path); p) profiles.assign(std::istreambuf_iterator<char>(p), std::istreambuf_iterator<char>());
+  }
+  return parse(text, profiles);
 }
 
 Campaign Campaign::single(std::string map) {

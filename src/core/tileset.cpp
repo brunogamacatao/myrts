@@ -47,7 +47,8 @@ std::expected<TileSets, std::string> TileSets::parse(std::string_view json_text)
     const json doc = json::parse(json_text);
     out.tile_size_ = doc.value("tile_size", 32);
     const auto& eras = doc.at("eras");
-    if (eras.size() != out.sets_.size()) return std::unexpected("tilesets: expected 4 eras");
+    if (eras.empty() || eras.size() > 250) return std::unexpected("tilesets: expected between 1 and 250 tile sets");
+    out.sets_.resize(eras.size());
     for (std::size_t i = 0; i < out.sets_.size(); ++i) {
       std::unordered_map<std::uint16_t, TileSpot> spots;
       for (const auto& t : eras[i].at("tiles"))
@@ -58,6 +59,12 @@ std::expected<TileSets, std::string> TileSets::parse(std::string_view json_text)
     return std::unexpected(std::string("invalid tilesets: ") + e.what());
   }
   return out;
+}
+
+std::optional<Era> TileSets::find(std::string_view name) const {
+  for (std::size_t i = 0; i < sets_.size(); ++i)
+    if (sets_[i].name() == name) return static_cast<Era>(i);
+  return std::nullopt;
 }
 
 std::expected<TileSets, std::string> TileSets::load_file(const std::string& path) {

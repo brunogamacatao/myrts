@@ -1,3 +1,4 @@
+#include "i18n.hpp"
 #include <allegro5/allegro_primitives.h>
 
 #include <algorithm>
@@ -120,7 +121,7 @@ class SlotsScene : public Scene {
     if (thumbs_[static_cast<std::size_t>(i)]) al_draw_bitmap(thumbs_[static_cast<std::size_t>(i)].get(), tx, ty, 0);
     const ALLEGRO_COLOR text = sel ? al_map_rgb(255, 240, 180) : al_map_rgb(236, 224, 190);
     const ALLEGRO_COLOR dim = al_map_rgb(170, 160, 140);
-    draw_text_scaled(ctx_.font, kRowX + 84, y + 10, 1.0f, ALLEGRO_ALIGN_LEFT, "Slot " + std::to_string(i + 1), dim);
+    draw_text_scaled(ctx_.font, kRowX + 84, y + 10, 1.0f, ALLEGRO_ALIGN_LEFT, tr("Slot {0}", {std::to_string(i + 1)}), dim);
     if (!slot) {
       draw_text_scaled(ctx_.font, kRowX + 84, y + 34, 2.0f, ALLEGRO_ALIGN_LEFT, "Empty", dim);
       return;
@@ -136,8 +137,8 @@ class SlotsScene : public Scene {
   }
 
   [[nodiscard]] std::string level_name(int level) const {
-    if (!ctx_.campaign) return "Level " + std::to_string(level + 1);
-    return "Level " + std::to_string(level + 1) + ": " + ctx_.campaign->level(static_cast<std::size_t>(level)).name;
+    if (!ctx_.campaign) return tr("Level {0}", {std::to_string(level + 1)});
+    return tr("Level {0}: {1}", {std::to_string(level + 1), ctx_.campaign->level(static_cast<std::size_t>(level)).name});
   }
 
   /// Reads the file again and rebuilds the pictures.
@@ -192,7 +193,7 @@ class SlotsScene : public Scene {
     s.date = now_text();
     file_.set(row, std::move(s));
     if (const auto written = file_.save(ctx_.save_path); written) {
-      message_ = "Game saved in slot " + std::to_string(row + 1);
+      message_ = tr("Game saved in slot {0}", {std::to_string(row + 1)});
       thumbs_[static_cast<std::size_t>(row)] = make_thumbnail(file_.slot(row));
     } else {
       message_ = written.error();
@@ -205,7 +206,7 @@ class SlotsScene : public Scene {
     file_.clear(row);
     thumbs_[static_cast<std::size_t>(row)].reset();
     const auto written = file_.save(ctx_.save_path);
-    message_ = written ? "Slot " + std::to_string(row + 1) + " erased" : written.error();
+    message_ = written ? tr("Slot {0} erased", {std::to_string(row + 1)}) : written.error();
   }
 
   SceneContext ctx_;

@@ -22,8 +22,13 @@ class BuildingArt {
   [[nodiscard]] ALLEGRO_BITMAP* construction(const myrts::BuildingDef& def) const {
     return find(construction_, def.id);
   }
-  [[nodiscard]] ALLEGRO_BITMAP* oil_patch() const { return oil_ ? oil_->get() : nullptr; }
-  [[nodiscard]] ALLEGRO_BITMAP* gold_mine(bool active) const { return (active ? mine_active_ : mine_)->get(); }
+  /// The image of a mine or patch of resource `r` (the "active" one while a worker is inside, when it has one).
+  [[nodiscard]] ALLEGRO_BITMAP* site(myrts::ResourceId r, bool active) const {
+    if (r < 0 || static_cast<std::size_t>(r) >= sites_.size()) return nullptr;
+    const SiteArt& s = sites_[static_cast<std::size_t>(r)];
+    const auto& bmp = (active && s.active) ? s.active : s.idle;
+    return bmp ? bmp->get() : nullptr;
+  }
 
  private:
   using Map = std::unordered_map<std::string, std::shared_ptr<const Bitmap>>;
@@ -34,9 +39,10 @@ class BuildingArt {
 
   Map finished_;
   Map construction_;
-  std::shared_ptr<const Bitmap> mine_;
-  std::shared_ptr<const Bitmap> mine_active_;
-  std::shared_ptr<const Bitmap> oil_;
+  struct SiteArt {
+    std::shared_ptr<const Bitmap> idle, active;
+  };
+  std::vector<SiteArt> sites_;  // by ResourceId
 };
 
 /// Draws `bitmap` centred inside the square of `size_px` pixels whose top-left is (x, y).

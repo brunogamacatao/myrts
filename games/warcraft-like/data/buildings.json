@@ -12,7 +12,7 @@
         "lumber": 800
       },
       "build_seconds": 255,
-      "is_depot": true,
+      "accepts": ["gold", "lumber"],
       "sprite": "buildings/great_hall.png",
       "sprite_construction": "buildings/great_hall_construction.png",
       "trains": [
@@ -67,7 +67,7 @@
         "lumber": 800
       },
       "build_seconds": 255,
-      "is_depot": true,
+      "accepts": ["gold", "lumber"],
       "sprite": "buildings/alliance_town_hall.png",
       "sprite_construction": "buildings/alliance_town_hall_construction.png",
       "trains": [
@@ -267,7 +267,7 @@
       },
       "build_seconds": 120,
       "placement": "coast",
-      "accepts_oil": true,
+      "accepts": ["oil"],
       "sprite": "buildings/shipyard.png",
       "sprite_construction": "buildings/shipyard_construction.png",
       "trains": [
@@ -290,7 +290,7 @@
       },
       "build_seconds": 120,
       "placement": "coast",
-      "accepts_oil": true,
+      "accepts": ["oil"],
       "sprite": "buildings/alliance_shipyard.png",
       "sprite_construction": "buildings/alliance_shipyard_construction.png",
       "trains": [

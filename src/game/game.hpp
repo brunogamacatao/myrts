@@ -44,6 +44,7 @@ struct Projectile {
   float x0 = 0, y0 = 0, x1 = 0, y1 = 0;  // world pixels
   double age = 0.0;
   double duration = 0.3;
+  float arc_max = 0, arc_ratio = 0.08f;  // how it rises on its way (see myrts::ProjectileDef)
 };
 
 /// The player's view of a match: input, selection, camera, HUD and drawing on top of a `World`.
@@ -82,7 +83,6 @@ class Game {
 
   // ---- setup / events (game.cpp)
   void subscribe_to_world();
-  void register_commands();
   void set_message(std::string text, double seconds = 3.0);
   void apply(const myrts::Result& result);
   /// Like apply(), and the selected units answer an order that was accepted ("yes, sir").
@@ -131,7 +131,7 @@ class Game {
   [[nodiscard]] std::optional<myrts::Point> tile_at_world(myrts::Vec2 w) const;
   [[nodiscard]] myrts::Rect unit_box(const myrts::Unit& u) const;
   /// How far a flying unit is drawn above the ground (its shadow stays on the ground).
-  static float lift_of(const myrts::UnitDef& def) { return def.move_class == myrts::MoveClass::Air ? 14.0f : 0.0f; }
+  float lift_of(const myrts::UnitDef& def) const { return def.move_class == myrts::MoveClass::Air ? world_->config().rules.air_lift : 0.0f; }
   /// Selectable units (own, not hidden in a mine); box ids are positions in `ids`.
   void selectable_units(std::vector<myrts::EntityId>& ids, std::vector<myrts::SelectBox>& boxes) const;
 
@@ -162,6 +162,7 @@ class Game {
   // simulation
   std::unique_ptr<myrts::World> world_;
   myrts::PlayerId local_player_ = myrts::kNoPlayer;
+  myrts::Objectives objectives_;  // what wins and loses this level
   std::string player_faction_;  // the local player's side (picks the icons and voices of the panel)
   std::vector<std::unique_ptr<myrts::Ai>> ais_;  // the computer players
 
@@ -181,9 +182,7 @@ class Game {
   myrts::Camera camera_;
   myrts::Minimap minimap_;
 
-  // commands: behaviour is registered by command id (see register_commands)
-  std::unordered_map<std::string, std::function<void()>> instant_commands_;
-  std::unordered_map<std::string, std::function<void(myrts::Point)>> targeted_commands_;
+  // commands: what a button does is data (commands.json "order"), carried out by World::issue_order
   const myrts::CommandDef* awaiting_target_ = nullptr;  // command waiting for its target click
   bool build_menu_ = false;                              // panel shows the buildings to construct
   int build_page_ = 0;                                   // which page of the build menu

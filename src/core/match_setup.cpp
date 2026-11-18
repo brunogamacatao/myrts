@@ -1,5 +1,7 @@
 #include "match_setup.hpp"
 
+#include "mapfile.hpp"
+
 #include <cmath>
 
 #include "formation.hpp"
@@ -9,9 +11,6 @@
 namespace myrts {
 
 namespace {
-
-constexpr int kMineSize = 3;
-constexpr int kInitialWorkers = 8;
 
 /// The free spot closest to `near` where `def` fits, leaving a one-tile gap around it so units can walk past.
 std::optional<Point> find_spot(const World& world, const BuildingDef& def, Point near) {
@@ -53,7 +52,8 @@ void spawn_workers(World& world, const UnitDef& def, PlayerId owner, Point hall_
 }  // namespace
 
 std::expected<Match, std::string> build_match(const Registry& registry, std::shared_ptr<const TileSets> tilesets,
-                                              const Level& level, const MatchOptions& options) {
+                                              const Level& unresolved_level, const MatchOptions& options) {
+  const Level level = with_default_sides(unresolved_level, registry);
   Match m;
   m.local_faction = registry.faction(level.player_faction);
   m.enemy_faction = registry.faction(level.enemy_faction);
@@ -67,24 +67,34 @@ std::expected<Match, std::string> build_match(const Registry& registry, std::sha
     return std::unexpected("game data is missing the starting units or buildings (assets/data)");
   m.local_hall_def = our_hall;
 
-  // The map: a Warcraft II .pud. Its terrain, start locations and gold mines define the match.
+  // The map: a native .mrmap or a Warcraft II .pud (converted on load). Its terrain, start locations and mines define the match.
   const std::string map_path = options.assets_dir.empty() ? level.map : options.assets_dir + "/" + level.map;
-  auto pud = load_pud(map_path);
-  if (!pud) return std::unexpected(pud.error());
-  auto terrain = TileMap::from_pud(*pud, std::move(tilesets));
+  const ResourceTable& resources = *registry.resources();
+  const auto map = load_map(map_path, *tilesets, resources, options.world.rules);
+  if (!map) return std::unexpected(map.error());
+  auto terrain = tilemap_from(*map, std::move(tilesets));
   if (!terrain) return std::unexpected(terrain.error());
-  const Scenario scenario = scenario_from(*pud);
+  const Scenario scenario = scenario_from(*map);
   if (scenario.starts.size() < 2) return std::unexpected("this map has fewer than two start locations");
 
-  m.world = std::make_unique<World>(options.world, std::move(*terrain));
+  WorldConfig world_config = options.world;
+  world_config.resources = registry.resources();  // the world plays by the registry's resources
+  m.world = std::make_unique<World>(world_config, std::move(*terrain));
   World& world = *m.world;
-  for (const MineSpec& mine : scenario.mines) world.add_mine(mine.origin, kMineSize, mine.gold, mine.kind);
+  for (const MineSpec& mine : scenario.mines) {
+    const ResourceId kind = resources.index(mine.source);  // a mine of a resource the game does not have is left out
+    if (kind != kNoResource) world.add_mine(mine.origin, options.world.rules.mine_size, mine.gold, kind);
+  }
+  const auto player_stock = resources.stock_from(level.player_stock);
+  const auto enemy_stock = resources.stock_from(level.enemy_stock);
+  if (!player_stock) return std::unexpected("level '" + level.name + "': player_stock: " + player_stock.error());
+  if (!enemy_stock) return std::unexpected("level '" + level.name + "': enemy_stock: " + enemy_stock.error());
 
   // Two players: the first start location is the human's, the opponent takes the one farthest away.
   const StartSlot& ours = scenario.starts[0];
   const StartSlot& theirs = scenario.starts[*scenario.farthest_from(0)];
-  m.local = world.add_player("Player", m.local_faction->id, level.player_stock);
-  m.enemy = world.add_player(m.enemy_faction->name, m.enemy_faction->id, level.enemy_stock);
+  m.local = world.add_player("Player", m.local_faction->id, *player_stock);
+  m.enemy = world.add_player(m.enemy_faction->name, m.enemy_faction->id, *enemy_stock);
 
   const auto local_at = place_hall(world, *our_hall, ours, m.local);
   if (!local_at) return std::unexpected(local_at.error());
@@ -99,10 +109,60 @@ std::expected<Match, std::string> build_match(const Registry& registry, std::sha
     if (!def) continue;
     if (const auto at = find_spot(world, *def, m.enemy_hall)) world.add_building(*def, m.enemy, *at, true);
   }
-  spawn_workers(world, *our_worker, m.local, m.local_hall, *our_hall, kInitialWorkers);
+  spawn_workers(world, *our_worker, m.local, m.local_hall, *our_hall, options.world.rules.initial_workers);
   spawn_workers(world, *their_worker, m.enemy, m.enemy_hall, *their_hall, level.enemy_workers);
 
-  m.ais.push_back(std::make_unique<Ai>(world, registry, m.enemy, level.ai));
+  const auto configured = [&](AiConfig ai) {  // the level's own farm margin wins over the game's default
+    if (ai.farm_margin == AiConfig{}.farm_margin) ai.farm_margin = options.world.rules.ai_farm_margin;
+    return ai;
+  };
+  m.ais.push_back(std::make_unique<Ai>(world, registry, m.enemy, configured(level.ai)));
+
+  // More computer players: each takes the free start location farthest from every base already placed.
+  std::vector<std::size_t> used{0, *scenario.farthest_from(0)};
+  for (const OpponentSpec& spec : level.more_opponents) {
+    const FactionDef* faction = registry.faction(spec.faction.empty() ? m.enemy_faction->id : spec.faction);
+    if (!faction) return std::unexpected("level '" + level.name + "': unknown faction '" + spec.faction + "' of an opponent");
+    const UnitDef* worker = registry.unit(faction->worker);
+    const BuildingDef* hall = registry.building(faction->town_hall);
+    if (!worker || !hall) return std::unexpected("game data is missing the starting units or buildings of '" + faction->id + "'");
+    const auto stock = resources.stock_from(spec.stock);
+    if (!stock) return std::unexpected("level '" + level.name + "': opponent stock: " + stock.error());
+
+    std::optional<std::size_t> best;
+    double best_d = -1;
+    for (std::size_t i = 0; i < scenario.starts.size(); ++i) {
+      if (std::ranges::find(used, i) != used.end()) continue;
+      double nearest = 1e18;
+      for (const std::size_t u : used) {
+        const double dx = scenario.starts[i].start.x - scenario.starts[u].start.x, dy = scenario.starts[i].start.y - scenario.starts[u].start.y;
+        nearest = std::min(nearest, dx * dx + dy * dy);
+      }
+      if (nearest > best_d) {
+        best_d = nearest;
+        best = i;
+      }
+    }
+    if (!best) return std::unexpected("level '" + level.name + "': the map has no free start location for another opponent");
+    used.push_back(*best);
+
+    const PlayerId id = world.add_player(faction->name, faction->id, *stock);
+    const auto at = place_hall(world, *hall, scenario.starts[*best], id);
+    if (!at) return std::unexpected(at.error());
+    for (const std::string& b : faction->base_buildings)
+      if (const BuildingDef* def = registry.building(b))
+        if (const auto spot = find_spot(world, *def, *at)) world.add_building(*def, id, *spot, true);
+    spawn_workers(world, *worker, id, *at, *hall, spec.workers);
+    m.ais.push_back(std::make_unique<Ai>(world, registry, id, configured(spec.ai)));
+    m.more_opponents.push_back(id);
+  }
+  m.objectives = level.objectives;
+  for (const Objective& o : level.objectives.victory) {  // objectives may only name what the game has
+    if (!o.building.empty() && !registry.building(o.building)) return std::unexpected("level '" + level.name + "': objective names unknown building '" + o.building + "'");
+    if (!o.resource.empty() && resources.index(o.resource) == kNoResource) return std::unexpected("level '" + level.name + "': objective names unknown resource '" + o.resource + "'");
+  }
+  for (const Objective& o : level.objectives.defeat)
+    if (!o.building.empty() && !registry.building(o.building)) return std::unexpected("level '" + level.name + "': objective names unknown building '" + o.building + "'");
   return m;
 }
 

@@ -1,4 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
+
+#include "test_resources.hpp"
 #include <array>
 
 #include "core/rules.hpp"
@@ -10,13 +12,13 @@ namespace {
 
 constexpr const char* kUnits = R"({"units":[
   {"id":"peon","name":"Peon","hp":30,"move_speed":96,"sprite":"s","commands":["move"],
-   "worker":{"lumber_per_trip":10,"gold_per_trip":100,"chop_seconds":1.0,"mine_seconds":1.0},
+   "worker":{"gather":{"gold":{"per_trip":100,"seconds":1.0},"lumber":{"per_trip":10,"seconds":1.0}}},
    "builds":["hall","farm"]},
   {"id":"grunt","name":"Grunt","hp":60,"move_speed":96,"sprite":"s"},
   {"id":"dragon","name":"Dragon","hp":120,"move_speed":96,"move_class":"air","sprite":"s"}]})";
 constexpr const char* kBuildings = R"({"buildings":[
   {"id":"hall","name":"Hall","size":4,"cost":{"gold":1200,"lumber":800},"build_seconds":10,
-   "is_depot":true,"sprite":"h"},
+   "accepts":["gold","lumber"],"sprite":"h"},
   {"id":"farm","name":"Farm","size":2,"cost":{"gold":500,"lumber":250},"build_seconds":4,"sprite":"f"}]})";
 
 const Registry& registry() {
@@ -80,7 +82,7 @@ TEST_CASE("Lumber is chopped, delivered to the owner and the tree disappears whe
   REQUIRE(f.world.order_harvest(ids, {12, 6}).ok);
   f.run(60);
 
-  CHECK(f.world.player(f.me).stock.lumber == 1000 + 20);
+  CHECK(f.world.player(f.me).stock[kLumber] == 1000 + 20);
   CHECK_FALSE(f.world.trees().has_tree({12, 6}));
   CHECK(f.world.grid(MoveClass::Land).is_walkable({12, 6}));  // felled: passable again
   CHECK(f.count<ev::TreeFelled>() == 1);
@@ -97,7 +99,7 @@ TEST_CASE("Gold is mined from a mine that runs dry and unblocks its tiles") {
   REQUIRE(f.world.order_harvest(ids, {16, 7}).ok);  // any tile of the mine
   f.run(80);
 
-  CHECK(f.world.player(f.me).stock.gold == 2000 + 150);
+  CHECK(f.world.player(f.me).stock[kGold] == 2000 + 150);
   CHECK(f.world.mines()[static_cast<std::size_t>(mine)].site.depleted());
   CHECK(f.world.mine_at({16, 7}) == -1);
   CHECK(f.world.grid(MoveClass::Land).is_walkable({16, 7}));
@@ -269,7 +271,7 @@ TEST_CASE("Clicking in the middle of a forest, or between trees, still starts ch
 
   REQUIRE(f.world.order_harvest(ids, {15, 7}).ok);  // deep inside: no free side of its own
   f.run(60);
-  CHECK(f.world.player(f.me).stock.lumber > 1000);
+  CHECK(f.world.player(f.me).stock[kLumber] > 1000);
 
   const auto v = f.spawn(f.peon, {7, 8});
   const std::array vids{v};
@@ -304,11 +306,11 @@ TEST_CASE("A worker repairs a damaged building for a share of its price, and sto
   CHECK(f.world.buildings().get(hall)->hp == full);
   CHECK(std::holds_alternative<order::Idle>(f.unit(u).order));  // done: the worker is free again
   const Stock after = f.world.player(f.me).stock;
-  const int spent_gold = before.gold - after.gold;
+  const int spent_gold = before[kGold] - after[kGold];
   CHECK(spent_gold > 0);
-  CHECK(spent_gold <= f.hall.cost.gold / 4 + 1);  // a quarter of the price for a full repair, and this was three quarters of it
-  CHECK(spent_gold >= f.hall.cost.gold / 4 / 2);
-  CHECK(before.lumber - after.lumber > 0);
+  CHECK(spent_gold <= f.hall.cost[kGold] / 4 + 1);  // a quarter of the price for a full repair, and this was three quarters of it
+  CHECK(spent_gold >= f.hall.cost[kGold] / 4 / 2);
+  CHECK(before[kLumber] - after[kLumber] > 0);
 
   CHECK_FALSE(f.world.order_repair(ids, {11, 6}).ok);  // whole already
   CHECK_FALSE(f.world.order_repair(ids, {1, 1}).ok);   // nothing there

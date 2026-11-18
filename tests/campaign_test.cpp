@@ -1,4 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
+
+#include "test_resources.hpp"
 #include <algorithm>
 #include <filesystem>
 
@@ -21,7 +23,7 @@ TEST_CASE("a campaign is read in order and ends after the last level") {
   REQUIRE(c.has_value());
   CHECK(c->size() == 2);
   CHECK(c->level(0).ai.first_wave == 7);
-  CHECK(c->level(0).enemy_stock.gold == 5);
+  CHECK(c->level(0).enemy_stock.at("gold") == 5);
   CHECK(c->level(0).enemy_workers == 4);
   CHECK(c->level(1).ai.first_wave == AiConfig{}.first_wave);  // defaults where the level says nothing
   CHECK(c->next(0) == 1);
@@ -36,7 +38,7 @@ TEST_CASE("an invalid campaign is rejected") {
 }
 
 TEST_CASE("every level of the shipped campaign loads, and its bases connect on foot (forests and mines count as walls) exactly when it is a land level") {
-  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "games" / "warcraft-like";
   const auto campaign = Campaign::load_file((assets / "data" / "campaign.json").string());
   REQUIRE(campaign.has_value());
   const auto tilesets = TileSets::load_file((assets / "data" / "tilesets.json").string());
@@ -69,7 +71,7 @@ TEST_CASE("every level of the shipped campaign loads, and its bases connect on f
 }
 
 TEST_CASE("a level only allows units and buildings that exist, and air levels allow flyers") {
-  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "games" / "warcraft-like";
   const auto campaign = Campaign::load_file((assets / "data" / "campaign.json").string());
   const auto registry = Registry::load_directory((assets / "data").string());
   REQUIRE(campaign.has_value());
@@ -84,7 +86,7 @@ TEST_CASE("a level only allows units and buildings that exist, and air levels al
 }
 
 TEST_CASE("every level has a music track that exists, and the tracks repeat in turn") {
-  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "games" / "warcraft-like";
   const auto campaign = Campaign::load_file((assets / "data" / "campaign.json").string());
   REQUIRE(campaign.has_value());
   for (const Level& level : campaign->levels()) {
@@ -96,25 +98,28 @@ TEST_CASE("every level has a music track that exists, and the tracks repeat in t
 }
 
 TEST_CASE("levels name factions that exist; the default sides are orcs against the alliance") {
-  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "games" / "warcraft-like";
   const auto campaign = Campaign::load_file((assets / "data" / "campaign.json").string());
   const auto registry = Registry::load_directory((assets / "data").string());
   REQUIRE(campaign.has_value());
   REQUIRE(registry.has_value());
   for (const Level& level : campaign->levels()) {
     INFO(level.name);
-    CHECK(registry->faction(level.player_faction) != nullptr);
-    CHECK(registry->faction(level.enemy_faction) != nullptr);
+    const Level resolved = with_default_sides(level, *registry);
+    CHECK(registry->faction(resolved.player_faction) != nullptr);
+    CHECK(registry->faction(resolved.enemy_faction) != nullptr);
   }
   const auto c = Campaign::parse(R"({"levels":[{"name":"x","map":"m"},{"name":"y","map":"m","player_faction":"alliance","enemy_faction":"orcs"}]})");
   REQUIRE(c.has_value());
-  CHECK(c->level(0).player_faction == "orcs");
+  CHECK(c->level(0).player_faction.empty());  // not written: the game's first faction applies
+  CHECK(with_default_sides(c->level(0), *registry).player_faction == "orcs");
+  CHECK(with_default_sides(c->level(0), *registry).enemy_faction == "alliance");
   CHECK(c->level(1).player_faction == "alliance");
   CHECK(c->level(1).enemy_faction == "orcs");
 }
 
 TEST_CASE("a level can be played as the other faction: sides swap, ids and words are translated") {
-  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "games" / "warcraft-like";
   const auto campaign = Campaign::load_file((assets / "data" / "campaign.json").string());
   const auto registry = Registry::load_directory((assets / "data").string());
   REQUIRE(campaign.has_value());
@@ -123,7 +128,7 @@ TEST_CASE("a level can be played as the other faction: sides swap, ids and words
   const Level& first = campaign->level(0);
   CHECK(play_as(first, *registry, "orcs").hints == first.hints);  // its own faction: untouched
   CHECK(play_as(first, *registry, "").allow == first.allow);
-  CHECK(play_as(first, *registry, "elves").player_faction == first.player_faction);  // unknown: untouched
+  CHECK(play_as(first, *registry, "elves").player_faction == with_default_sides(first, *registry).player_faction);  // unknown: untouched
 
   const Level human = play_as(first, *registry, "alliance");
   CHECK(human.player_faction == "alliance");
@@ -160,7 +165,7 @@ TEST_CASE("translate_text replaces in one pass and prefers the longest term") {
 }
 
 TEST_CASE("a naval level has a shore for a shipyard at both bases, oil to pump, and a sea route between them") {
-  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "games" / "warcraft-like";
   const auto campaign = Campaign::load_file((assets / "data" / "campaign.json").string());
   const auto registry = Registry::load_directory((assets / "data").string());
   const auto tilesets = TileSets::load_file((assets / "data" / "tilesets.json").string());
@@ -205,7 +210,7 @@ TEST_CASE("a naval level has a shore for a shipyard at both bases, oil to pump, 
     const Point from = water_next_to(*a), to = water_next_to(*b);
     CHECK_FALSE(a_star(sea, from, to).empty());
     int oil = 0;
-    for (const Mine& m : w.mines()) oil += m.kind() == ResourceKind::Oil ? 1 : 0;
+    for (const Mine& m : w.mines()) oil += m.kind() == kOil ? 1 : 0;
     CHECK(oil >= 2);
   }
   CHECK(naval_levels >= 3);

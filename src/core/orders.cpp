@@ -8,13 +8,6 @@
 namespace myrts {
 
 namespace {
-Cargo cargo_of(ResourceKind kind) {
-  return kind == ResourceKind::Gold ? Cargo::Gold : kind == ResourceKind::Oil ? Cargo::Oil : Cargo::Lumber;
-}
-}  // namespace
-
-
-namespace {
 
 template <class... Ts>
 struct Overloaded : Ts... {
@@ -54,16 +47,39 @@ std::optional<ApproachPath> World::approach(const Unit& u, std::span<const Point
 
 void World::cancel_order(Unit& u) {
   if (const auto* h = std::get_if<order::Harvest>(&u.order)) {
-    if (h->kind == ResourceKind::Gold && h->mine >= 0 && h->state == order::Harvest::State::Working)
+    if (resources().at(h->kind).enter_site && h->mine >= 0 && h->state == order::Harvest::State::Working)
       mines_[static_cast<std::size_t>(h->mine)].busy = false;
   } else if (const auto* b = std::get_if<order::Build>(&u.order)) {
     if (Building* bld = buildings_.get(b->building); bld && bld->builder == u.id) bld->builder = kNoEntity;
   }
   u.order = order::Idle{};
   u.hidden = false;
+  u.hold = false;  // a new order ends a stance and a patrol (an attack that interrupts one does not come through here)
+  u.patrol.reset();
 }
 
 // ---- player orders --------------------------------------------------------------------
+
+Result World::issue_order(std::string_view order, std::span<const EntityId> ids, Point target) {
+  if (order == "move") return order_move(ids, target);
+  if (order == "stop") return order_stop(ids);
+  if (order == "attack") return order_attack(ids, target);
+  if (order == "repair") return order_repair(ids, target);
+  if (order == "harvest") return order_harvest(ids, target);
+  if (order == "unload") return order_unload(ids, target);
+  if (order == "patrol") return order_patrol(ids, target);
+  if (order == "hold") return order_hold(ids);
+  if (order == "board") {
+    const EntityId transport = unit_at(target);
+    return transport.valid() ? order_board(ids, transport) : Result::fail(tr("There is no transport there"));
+  }
+  if (order == "resume_build") {
+    const EntityId site = building_at(target);
+    return site.valid() ? order_resume_build(ids, site) : Result::fail(tr("There is no building there"));
+  }
+  if (order == "build") return Result::fail(tr("Choose a building from the build menu"));  // the menu places it, see order_build
+  return Result::fail(tr("Unknown order '{0}'", {order}));
+}
 
 Result World::order_stop(std::span<const EntityId> ids) {
   std::vector<EntityId> free;
@@ -117,7 +133,7 @@ Result World::order_move(std::span<const EntityId> ids, Point target) {
   if (ids.empty()) return Result::success();
   std::vector<EntityId> movers;
   free_units(ids, movers);
-  if (movers.empty()) return Result::fail("Builders cannot be interrupted");
+  if (movers.empty()) return Result::fail(tr("Builders cannot be interrupted"));
   for (const EntityId id : movers) cancel_order(*units_.get(id));
   move_group(movers, target);
   return Result::success();
@@ -126,22 +142,22 @@ Result World::order_move(std::span<const EntityId> ids, Point target) {
 Result World::order_harvest(std::span<const EntityId> ids, Point tile) {
   if (ids.empty()) return Result::success();
   const int site = mine_at(tile);
-  const ResourceKind kind = site >= 0 ? mines_[static_cast<std::size_t>(site)].kind() : ResourceKind::Lumber;
+  const ResourceId kind = site >= 0 ? mines_[static_cast<std::size_t>(site)].kind() : resources().tree_resource();
   if (site < 0 && !trees_.has_tree(tile)) {
     // Clicking beside or between trees picks the nearest one within a couple of tiles.
     const auto near = nearest_tree(tile, 2);
-    if (!near) return Result::fail("Select a tree or a gold mine");
+    if (!near) return Result::fail(tr("Select a tree or a gold mine"));
     return order_harvest(ids, *near);
   }
 
   std::vector<EntityId> free;
   free_units(ids, free);
-  if (free.empty()) return Result::fail("Builders cannot be interrupted");
+  if (free.empty()) return Result::fail(tr("Builders cannot be interrupted"));
 
   bool any_worker = false, no_depot = false, unreachable = false;
   for (const EntityId id : free) {
     Unit& u = *units_.get(id);
-    if (!u.def->worker) continue;
+    if (!u.def->worker || !u.def->worker->can_gather(kind)) continue;
     any_worker = true;
     if (depot_tiles(u.owner, kind).empty()) {
       no_depot = true;
@@ -149,19 +165,16 @@ Result World::order_harvest(std::span<const EntityId> ids, Point tile) {
     }
     cancel_order(u);
     stop_unit(u);
-    const Cargo wanted = cargo_of(kind);
-    if (u.carrying > 0 && u.cargo != wanted) {  // drops what it was carrying
+    if (u.carrying > 0 && u.cargo != kind) {  // drops what it was carrying
       u.carrying = 0;
-      u.cargo = Cargo::None;
+      u.cargo = kNoResource;
     }
     if (!start_gathering(u, kind, tile)) unreachable = true;
   }
-  if (!any_worker) return Result::fail("These units cannot gather resources");
+  if (!any_worker) return Result::fail(tr("These units cannot gather resources"));
   if (no_depot)
-    return Result::fail(kind == ResourceKind::Oil ? "You need a Shipyard to deliver oil" : "You need a Great Hall or Town Hall to deliver resources");
-  if (unreachable)
-    return Result::fail(kind == ResourceKind::Gold ? "Cannot reach that gold mine"
-                        : kind == ResourceKind::Oil ? "Cannot reach that oil patch" : "Cannot reach that tree");
+    return Result::fail(tr(resources().no_depot_message(kind)));
+  if (unreachable) return Result::fail(tr(resources().unreachable_message(kind)));
   return Result::success();
 }
 
@@ -170,14 +183,16 @@ Result World::order_build(PlayerId owner, std::span<const EntityId> candidates, 
   std::vector<EntityId> free;
   free_units(candidates, free);
   std::erase_if(free, [&](EntityId id) { return !can_build(*units_.get(id), def); });
-  if (free.empty()) return Result::fail("The selected workers are busy or cannot build that");
+  if (free.empty()) return Result::fail(tr("The selected workers are busy or cannot build that"));
 
   switch (placement_status(def, origin)) {
-    case PlaceStatus::Blocked: return Result::fail("Cannot build there");
-    case PlaceStatus::UnitInWay: return Result::fail("A unit is in the way");
+    case PlaceStatus::Blocked: return Result::fail(tr("Cannot build there"));
+    case PlaceStatus::UnitInWay: return Result::fail(tr("A unit is in the way"));
     case PlaceStatus::Ok: break;
   }
-  if (!pay(player(owner).stock, def.cost)) return Result::fail("Not enough resources for a " + def.name);
+  if (const std::string missing = missing_requirement(owner, def.required_defs); !missing.empty())
+    return Result::fail(tr("Requires {0}", {tr(missing)}));
+  if (!pay(player(owner).stock, def.cost)) return Result::fail(tr("Not enough resources for a {0}", {tr(def.name)}));
 
   const EntityId site = add_building(def, owner, origin, false);
 
@@ -198,24 +213,24 @@ Result World::order_build(PlayerId owner, std::span<const EntityId> candidates, 
   Unit& builder = *units_.get(best);
   cancel_order(builder);
   stop_unit(builder);
-  if (!start_building(builder, site)) return Result::fail("The builder cannot reach the construction site");
+  if (!start_building(builder, site)) return Result::fail(tr("The builder cannot reach the construction site"));
   return Result::success();
 }
 
 Result World::order_resume_build(std::span<const EntityId> ids, EntityId building) {
   Building* b = buildings_.get(building);
   if (!b || b->complete) return Result::success();
-  if (b->builder.valid() && units_.alive(b->builder)) return Result::fail("Someone is already building it");
+  if (b->builder.valid() && units_.alive(b->builder)) return Result::fail(tr("Someone is already building it"));
 
   std::vector<EntityId> free;
   free_units(ids, free);
   std::erase_if(free, [&](EntityId id) { return !can_build(*units_.get(id), *b->def); });
-  if (free.empty()) return Result::fail("Builders cannot be interrupted");
+  if (free.empty()) return Result::fail(tr("Builders cannot be interrupted"));
 
   Unit& u = *units_.get(free.front());
   cancel_order(u);
   stop_unit(u);
-  if (!start_building(u, building)) return Result::fail("Cannot reach the construction site");
+  if (!start_building(u, building)) return Result::fail(tr("Cannot reach the construction site"));
   return Result::success();
 }
 
@@ -251,10 +266,11 @@ std::vector<Point> World::forest_around(Point start, std::size_t limit) const {
   return found;
 }
 
-bool World::start_gathering(Unit& u, ResourceKind kind, Point target) {
+bool World::start_gathering(Unit& u, ResourceId kind, Point target) {
   std::vector<Point> targets;
   int mine = -1;
-  if (kind != ResourceKind::Lumber) {
+  const bool site = is_site_resource(kind);
+  if (site) {
     mine = mine_at(target);
     if (mine < 0 || mines_[static_cast<std::size_t>(mine)].kind() != kind) return false;
     targets = mines_[static_cast<std::size_t>(mine)].site.tiles();
@@ -265,13 +281,14 @@ bool World::start_gathering(Unit& u, ResourceKind kind, Point target) {
   auto route = approach(u, targets);
   if (!route) return false;
   send_along(u, std::move(route->path));
-  u.order = order::Harvest{order::Harvest::State::ToResource, kind, kind != ResourceKind::Lumber ? target : route->target, mine, 0.0};
+  u.order = order::Harvest{order::Harvest::State::ToResource, kind, site ? target : route->target, mine, 0.0, site};
   return true;
 }
 
-bool World::start_gathering_nearest(Unit& u, ResourceKind kind) {
+bool World::start_gathering_nearest(Unit& u, ResourceId kind) {
   std::vector<Point> targets;
-  if (kind != ResourceKind::Lumber) {
+  const bool site = is_site_resource(kind);
+  if (site) {
     for (const auto& m : mines_) {
       if (m.site.depleted() || m.kind() != kind) continue;
       const auto tiles = m.site.tiles();
@@ -284,13 +301,13 @@ bool World::start_gathering_nearest(Unit& u, ResourceKind kind) {
   if (!route) return false;
   send_along(u, std::move(route->path));
   u.order = order::Harvest{order::Harvest::State::ToResource, kind, route->target,
-                           kind != ResourceKind::Lumber ? mine_at(route->target) : -1, 0.0};
+                           site ? mine_at(route->target) : -1, 0.0, site};
   return true;
 }
 
 bool World::send_to_depot(Unit& u) {
   const auto* harvest = std::get_if<order::Harvest>(&u.order);
-  const auto depots = depot_tiles(u.owner, harvest ? harvest->kind : ResourceKind::Gold);
+  const auto depots = depot_tiles(u.owner, harvest ? harvest->kind : 0);
   auto route = approach(u, depots);
   if (!route) return false;
   send_along(u, std::move(route->path));
@@ -324,7 +341,7 @@ void World::fell_tree(Point tile) {
 
 void World::exhaust_mine(int index) {
   const Mine& mine = mines_[static_cast<std::size_t>(index)];
-  Layer& L = layer(mine.kind() == ResourceKind::Oil ? MoveClass::Water : MoveClass::Land);
+  Layer& L = layer(resources().at(mine.kind()).site_terrain == SiteTerrain::Water ? MoveClass::Water : MoveClass::Land);
   for (const Point p : mine.site.tiles()) L.blocked.set_blocked(p, false);
   events_.publish(ev::MineDepleted{index});
 }
@@ -347,8 +364,8 @@ void World::update_order(Unit& u, double dt) {
 void World::update_harvest(Unit& u, order::Harvest& h, double dt) {
   using State = order::Harvest::State;
   const WorkerDef worker = u.def->worker.value_or(WorkerDef{});
-  const ResourceKind kind = h.kind;
-  const bool from_site = h.from_site();
+  const ResourceId kind = h.kind;
+  const bool from_site = h.at_site;
   const Point target = h.target;
 
   const auto fail = [&](const std::string& msg) {
@@ -358,9 +375,7 @@ void World::update_harvest(Unit& u, order::Harvest& h, double dt) {
   const auto retry = [&] {
     const bool alive = from_site ? mine_at(target) >= 0 : trees_.has_tree(target);
     const bool ok = alive ? start_gathering(u, kind, target) : start_gathering_nearest(u, kind);
-    if (!ok)
-      fail(kind == ResourceKind::Gold ? "There is no gold left to mine"
-           : kind == ResourceKind::Oil ? "There is no oil left to pump" : "There are no more trees");
+    if (!ok) fail(tr(resources().depleted_message(kind)));
   };
 
   switch (h.state) {
@@ -372,7 +387,7 @@ void World::update_harvest(Unit& u, order::Harvest& h, double dt) {
         Mine& m = mines_[static_cast<std::size_t>(mine)];
         const auto tiles = m.site.tiles();
         if (adjacent_to_any(u.tile, tiles)) {
-          const bool goes_inside = kind == ResourceKind::Gold;  // workers disappear into a mine; tankers stay in sight
+          const bool goes_inside = resources().at(kind).enter_site;  // workers disappear into a mine; tankers stay in sight
           if (goes_inside && m.busy) return;  // wait for the peon inside to come out
           m.busy = goes_inside;
           h.mine = mine;
@@ -397,27 +412,26 @@ void World::update_harvest(Unit& u, order::Harvest& h, double dt) {
     case State::Working: {
       h.timer += dt;
       if (from_site) {
-        const bool oil = kind == ResourceKind::Oil;
-        if (h.timer < (oil ? worker.oil_seconds : worker.mine_seconds)) return;
+        if (h.timer < worker.spec(kind).seconds) return;
         Mine& m = mines_[static_cast<std::size_t>(h.mine)];
-        const int got = m.site.take(oil ? worker.oil_per_trip : worker.gold_per_trip);
+        const int got = m.site.take(worker.spec(kind).per_trip);
         m.busy = false;
         u.hidden = false;
-        u.cargo = cargo_of(kind);
+        u.cargo = kind;
         u.carrying = got;
         if (m.site.depleted()) {
           exhaust_mine(h.mine);
-          notice(u.owner, oil ? "The oil patch is exhausted" : "The gold mine is exhausted");
+          notice(u.owner, tr(resources().exhausted_message(kind)));
         }
       } else {
-        if (h.timer < worker.chop_seconds) return;
-        const int got = trees_.take(target, worker.lumber_per_trip);
+        if (h.timer < worker.spec(kind).seconds) return;
+        const int got = trees_.take(target, worker.spec(kind).per_trip);
         if (got > 0 && !trees_.has_tree(target)) fell_tree(target);
-        u.cargo = Cargo::Lumber;
+        u.cargo = kind;
         u.carrying = got;
       }
       if (u.carrying > 0) {
-        if (!send_to_depot(u)) fail("Cannot reach a hall to deliver to");
+        if (!send_to_depot(u)) fail(tr("Cannot reach a hall to deliver to"));
       } else {
         retry();
       }
@@ -428,17 +442,14 @@ void World::update_harvest(Unit& u, order::Harvest& h, double dt) {
       const auto depots = depot_tiles(u.owner, kind);
       if (adjacent_to_any(u.tile, depots)) {
         Stock amount;
-        (u.cargo == Cargo::Gold ? amount.gold : u.cargo == Cargo::Oil ? amount.oil : amount.lumber) = u.carrying;
-        Stock& stock = player(u.owner).stock;
-        stock.gold += amount.gold;
-        stock.lumber += amount.lumber;
-        stock.oil += amount.oil;
+        if (resources().valid(u.cargo)) amount[u.cargo] = u.carrying;
+        receive(player(u.owner).stock, amount);
         events_.publish(ev::Delivered{u.owner, amount});
         u.carrying = 0;
-        u.cargo = Cargo::None;
+        u.cargo = kNoResource;
         return retry();
       }
-      if ((h.timer += dt) >= config_.retry_delay && !send_to_depot(u)) fail("Cannot reach a hall to deliver to");
+      if ((h.timer += dt) >= config_.retry_delay && !send_to_depot(u)) fail(tr("Cannot reach a hall to deliver to"));
       return;
     }
   }
@@ -477,7 +488,7 @@ void World::update_build(Unit& u, order::Build& o, double dt) {
     if ((o.timer += dt) >= config_.retry_delay) {
       const EntityId site = o.building;
       cancel_order(u);
-      if (!start_building(u, site)) notice(u.owner, "Cannot reach the construction site");
+      if (!start_building(u, site)) notice(u.owner, tr("Cannot reach the construction site"));
     }
     return;
   }
@@ -491,13 +502,12 @@ void World::update_build(Unit& u, order::Build& o, double dt) {
   const std::string name = b->def->name;
   cancel_order(u);  // frees the builder slot and the unit
   events_.publish(ev::BuildingCompleted{id, owner});
-  notice(owner, name + " completed");
+  notice(owner, tr("{0} completed", {tr(name)}));
 }
 
 // ---- repair ------------------------------------------------------------------------------------
 
 namespace {
-constexpr double kRepairCostShare = 0.25;  // a repair from nothing to whole costs this share of the price
 }
 
 bool World::start_repair(Unit& u, const order::Target& target) {
@@ -517,26 +527,26 @@ Result World::order_repair(std::span<const EntityId> ids, Point tile) {
   bool whole = false;
   if (const EntityId site = building_at(tile); site.valid()) {
     const Building* b = buildings_.get(site);
-    if (!b->complete) return Result::fail("That building is still being built");
+    if (!b->complete) return Result::fail(tr("That building is still being built"));
     target = {order::Target::Kind::Building, site};
     owner = b->owner;
     whole = b->hp >= b->def->hp;
   } else if (const EntityId id = unit_at(tile); id.valid()) {
     const Unit* t = units_.get(id);
-    if (!t->def->mechanical) return Result::fail("Only buildings and machines can be repaired");
+    if (!t->def->mechanical) return Result::fail(tr("Only buildings and machines can be repaired"));
     target = {order::Target::Kind::Unit, id};
     owner = t->owner;
     whole = t->hp >= t->def->max_hp;
   } else {
-    return Result::fail("Select a building or a machine to repair");
+    return Result::fail(tr("Select a building or a machine to repair"));
   }
 
   std::vector<EntityId> free;
   free_units(ids, free);
-  if (free.empty()) return Result::fail("Builders cannot be interrupted");
+  if (free.empty()) return Result::fail(tr("Builders cannot be interrupted"));
   std::erase_if(free, [&](EntityId id) { return !units_.get(id)->def->worker || units_.get(id)->owner != owner; });
-  if (free.empty()) return Result::fail("Only workers can repair, and only their own side's things");
-  if (whole) return Result::fail("Nothing to repair");
+  if (free.empty()) return Result::fail(tr("Only workers can repair, and only their own side's things"));
+  if (whole) return Result::fail(tr("Nothing to repair"));
 
   bool unreachable = false;
   for (const EntityId id : free) {
@@ -545,7 +555,7 @@ Result World::order_repair(std::span<const EntityId> ids, Point tile) {
     stop_unit(u);
     if (!start_repair(u, target)) unreachable = true;
   }
-  return unreachable ? Result::fail("Cannot reach it") : Result::success();
+  return unreachable ? Result::fail(tr("Cannot reach it")) : Result::success();
 }
 
 void World::update_repair(Unit& u, order::Repair& r, double dt) {
@@ -579,19 +589,21 @@ void World::update_repair(Unit& u, order::Repair& r, double dt) {
   // Mending: as fast as it was built, paying a share of the price in proportion.
   const Cost price = is_building ? b->def->cost : t->def->cost;
   const double seconds = is_building ? b->def->build_seconds / std::max(0.01, config_.build_speed)
-                                     : std::max(20.0, t->def->train_seconds);
+                                     : std::max(config_.rules.repair_min_seconds, t->def->train_seconds);
   const double mended = static_cast<double>(max_hp) / seconds * dt;
   r.healed += mended;
-  r.owe_gold += mended / max_hp * kRepairCostShare * price.gold;
-  r.owe_lumber += mended / max_hp * kRepairCostShare * price.lumber;
   Stock& stock = player(u.owner).stock;
-  while (r.owe_gold >= 1.0 || r.owe_lumber >= 1.0) {
-    if ((r.owe_gold >= 1.0 && stock.gold < 1) || (r.owe_lumber >= 1.0 && stock.lumber < 1)) {
-      notice(u.owner, "Not enough resources to repair");
-      return cancel_order(u);
+  for (ResourceId id = 0; id < resources().size(); ++id) {
+    double& owe = r.owe[static_cast<std::size_t>(id)];
+    owe += mended / max_hp * config_.rules.repair_cost_share * price[id];
+    while (owe >= 1.0) {
+      if (stock[id] < 1) {
+        notice(u.owner, tr("Not enough resources to repair"));
+        return cancel_order(u);
+      }
+      --stock[id];
+      owe -= 1.0;
     }
-    if (r.owe_gold >= 1.0) --stock.gold, r.owe_gold -= 1.0;
-    if (r.owe_lumber >= 1.0) --stock.lumber, r.owe_lumber -= 1.0;
   }
   const int whole_points = static_cast<int>(r.healed);
   if (whole_points > 0) {

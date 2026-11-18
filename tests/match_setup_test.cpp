@@ -1,4 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
+
+#include "test_resources.hpp"
 #include <filesystem>
 
 #include "core/match_setup.hpp"
@@ -9,7 +11,7 @@ namespace fs = std::filesystem;
 namespace {
 
 struct Data {
-  fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "games" / "warcraft-like";
   Registry registry = *Registry::load_directory((assets / "data").string());
   Campaign campaign = *Campaign::load_file((assets / "data" / "campaign.json").string());
   std::shared_ptr<const TileSets> tilesets =
@@ -43,8 +45,9 @@ TEST_CASE("every shipped level builds a match: halls, workers, one AI for the op
     REQUIRE(m.has_value());
     const World& w = *m->world;
     CHECK(w.player_count() == 2);
-    CHECK(w.player(m->local).faction == level.player_faction);
-    CHECK(w.player(m->enemy).faction == level.enemy_faction);
+    const Level resolved = with_default_sides(level, d.registry);
+    CHECK(w.player(m->local).faction == resolved.player_faction);
+    CHECK(w.player(m->enemy).faction == resolved.enemy_faction);
     CHECK(w.building_at(m->local_hall).valid());
     CHECK(w.building_at(m->enemy_hall).valid());
     CHECK(count_units(w, m->local, true) > 0);
@@ -52,7 +55,7 @@ TEST_CASE("every shipped level builds a match: halls, workers, one AI for the op
     CHECK(count_buildings(w, m->enemy) >= 1);  // its hall (and base buildings when there is room)
     CHECK(m->ais.size() == 1);
     CHECK_FALSE(w.mines().empty());
-    CHECK(w.player(m->local).stock.gold == level.player_stock.gold);
+    CHECK(w.player(m->local).stock[kGold] == level.player_stock.at("gold"));
   }
 }
 

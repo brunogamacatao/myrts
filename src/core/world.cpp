@@ -28,7 +28,7 @@ const char* facing_name(Facing f) {
 
 bool Unit::working() const {
   if (const auto* h = std::get_if<order::Harvest>(&order))
-    return h->state == order::Harvest::State::Working && !h->from_site();
+    return h->state == order::Harvest::State::Working && !h->at_site;
   if (const auto* b = std::get_if<order::Build>(&order)) return b->state == order::Build::State::Building;
   if (const auto* r = std::get_if<order::Repair>(&order)) return r->state == order::Repair::State::Repairing;
   return false;
@@ -107,9 +107,9 @@ void World::add_tree(Point tile, int lumber) {
   layer(MoveClass::Land).blocked.set_blocked(tile);
 }
 
-int World::add_mine(Point origin, int size, int amount, ResourceKind kind) {
+int World::add_mine(Point origin, int size, int amount, ResourceId kind) {
   mines_.push_back({ResourceSite(origin, size, amount, kind), false});
-  Layer& L = layer(kind == ResourceKind::Oil ? MoveClass::Water : MoveClass::Land);
+  Layer& L = layer(resources().at(kind).site_terrain == SiteTerrain::Water ? MoveClass::Water : MoveClass::Land);
   for (const Point p : mines_.back().site.tiles()) L.blocked.set_blocked(p);
   return static_cast<int>(mines_.size()) - 1;
 }
@@ -163,11 +163,11 @@ int World::mine_at(Point tile) const {
   return -1;
 }
 
-std::vector<Point> World::depot_tiles(PlayerId owner, ResourceKind kind) const {
+std::vector<Point> World::depot_tiles(PlayerId owner, ResourceId kind) const {
   std::vector<Point> out;
   buildings_.for_each([&](const Building& b) {
     if (b.owner != owner || !b.complete) return;
-    if (kind == ResourceKind::Oil ? !b.def->accepts_oil : !b.def->is_depot) return;
+    if (!b.def->accepts_resource(kind)) return;
     const auto tiles = footprint(b.origin, b.def->size);
     out.insert(out.end(), tiles.begin(), tiles.end());
   });
@@ -289,6 +289,7 @@ void World::step_unit(Unit& u, double dt) {
 // ---- simulation ----------------------------------------------------------------------
 
 void World::update(double dt) {
+  elapsed_ += dt;
   for (const EntityId id : units_.ids())
     if (Unit* u = units_.get(id); u && !u->aboard.valid()) update_order(*u, dt);
   for (const EntityId id : units_.ids())
@@ -306,7 +307,7 @@ void World::refresh_fog() {
   for (FogOfWar& f : fogs_) f.begin();
   units_.for_each([&](const Unit& u) {
     if (u.aboard.valid() || u.owner < 0 || static_cast<std::size_t>(u.owner) >= fogs_.size()) return;
-    fogs_[static_cast<std::size_t>(u.owner)].reveal(u.tile, std::max(2, u.def->stats.sight));
+    fogs_[static_cast<std::size_t>(u.owner)].reveal(u.tile, std::max(config_.rules.min_unit_sight, u.def->stats.sight));
   });
   buildings_.for_each([&](const Building& b) {
     if (b.owner < 0 || static_cast<std::size_t>(b.owner) >= fogs_.size()) return;

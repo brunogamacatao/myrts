@@ -55,15 +55,15 @@ EntityId World::spawn_aboard(const UnitDef& def, PlayerId owner, EntityId transp
 
 Result World::order_board(std::span<const EntityId> ids, EntityId transport) {
   const Unit* ship = units_.get(transport);
-  if (!ship || ship->def->capacity <= 0) return Result::fail("That is not a transport");
+  if (!ship || ship->def->capacity <= 0) return Result::fail(tr("That is not a transport"));
   std::vector<EntityId> free;
   free_units(ids, free);
   std::erase_if(free, [&](EntityId id) {
     const Unit& u = *units_.get(id);
     return u.owner != ship->owner || u.def->move_class != MoveClass::Land || id == transport;
   });
-  if (free.empty()) return Result::fail("Only your own land units can board a transport");
-  if (static_cast<int>(ship->passengers.size()) >= ship->def->capacity) return Result::fail("The transport is full");
+  if (free.empty()) return Result::fail(tr("Only your own land units can board a transport"));
+  if (static_cast<int>(ship->passengers.size()) >= ship->def->capacity) return Result::fail(tr("The transport is full"));
 
   bool unreachable = false;
   for (const EntityId id : free) {
@@ -79,7 +79,7 @@ Result World::order_board(std::span<const EntityId> ids, EntityId transport) {
     send_along(u, std::move(route->path));
     u.order = order::Board{transport, 0.0};
   }
-  return unreachable ? Result::fail("Cannot reach the transport (it must be at a shore)") : Result::success();
+  return unreachable ? Result::fail(tr("Cannot reach the transport (it must be at a shore)")) : Result::success();
 }
 
 void World::update_board(Unit& u, order::Board& b, double dt) {
@@ -87,7 +87,7 @@ void World::update_board(Unit& u, order::Board& b, double dt) {
   if (!ship) return cancel_order(u);
   if (cheb(u.tile, ship->tile) <= 1 && !u.moving) {
     if (static_cast<int>(ship->passengers.size()) >= ship->def->capacity) {
-      notice(u.owner, "The transport is full");
+      notice(u.owner, tr("The transport is full"));
       return cancel_order(u);
     }
     put_aboard(u, *ship);
@@ -99,7 +99,7 @@ void World::update_board(Unit& u, order::Board& b, double dt) {
     const std::array<Point, 1> where{ship->anchor()};
     auto route = approach(u, where);
     if (!route) {
-      notice(u.owner, "Cannot reach the transport");
+      notice(u.owner, tr("Cannot reach the transport"));
       return cancel_order(u);
     }
     send_along(u, std::move(route->path));
@@ -109,14 +109,14 @@ void World::update_board(Unit& u, order::Board& b, double dt) {
 // ---- unloading ----------------------------------------------------------------------------------
 
 Result World::order_unload(std::span<const EntityId> ids, Point shore) {
-  if (!layer(MoveClass::Land).blocked.is_walkable(shore)) return Result::fail("Choose open ground on the shore to land the troops");
+  if (!layer(MoveClass::Land).blocked.is_walkable(shore)) return Result::fail(tr("Choose open ground on the shore to land the troops"));
   bool any = false, unreachable = false;
   for (const EntityId id : ids) {
     Unit* ship = units_.get(id);
     if (!ship || ship->def->capacity <= 0 || ship->aboard.valid()) continue;
     any = true;
     if (ship->passengers.empty()) {
-      notice(ship->owner, "Nobody is aboard");
+      notice(ship->owner, tr("Nobody is aboard"));
       continue;
     }
     cancel_order(*ship);
@@ -139,8 +139,8 @@ Result World::order_unload(std::span<const EntityId> ids, Point shore) {
     send_along(*ship, a_star(sea, ship->anchor(), *berth));
     ship->order = order::Unload{shore, 0.0};
   }
-  if (!any) return Result::fail("Select a transport");
-  return unreachable ? Result::fail("The ship cannot get close to that shore") : Result::success();
+  if (!any) return Result::fail(tr("Select a transport"));
+  return unreachable ? Result::fail(tr("The ship cannot get close to that shore")) : Result::success();
 }
 
 void World::update_unload(Unit& u, order::Unload& o, double dt) {
@@ -179,8 +179,8 @@ void World::land_passengers(Unit& ship, Point near_tile) {
     events_.publish(ev::UnitLanded{pid, ship.id});
     ++landed;
   }
-  if (landed == 0) notice(ship.owner, "There is no room to land here");
-  else if (!ship.passengers.empty()) notice(ship.owner, "Some troops stayed aboard: no room on the shore");
+  if (landed == 0) notice(ship.owner, tr("There is no room to land here"));
+  else if (!ship.passengers.empty()) notice(ship.owner, tr("Some troops stayed aboard: no room on the shore"));
 }
 
 }  // namespace myrts

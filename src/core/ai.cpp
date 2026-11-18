@@ -15,8 +15,15 @@ double dist(Point a, Point b) { return std::hypot(static_cast<double>(a.x - b.x)
 
 bool is_water_worker(const UnitDef& d) { return d.worker && d.move_class == MoveClass::Water; }
 
-bool has_oil(const World& world) {
-  return std::ranges::any_of(world.mines(), [](const Mine& m) { return m.kind() == ResourceKind::Oil && !m.site.depleted(); });
+// The computer plays by roles, not by names: its land workers mine the first land-site resource ("gold"), cut the
+// tree resource ("lumber") when a farm needs it, and its water workers pump the first water-site resource ("oil").
+ResourceId land_resource(const World& w) { return w.resources().first_site_resource(SiteTerrain::Land); }
+ResourceId tree_resource(const World& w) { return w.resources().tree_resource(); }
+ResourceId water_resource(const World& w) { return w.resources().first_site_resource(SiteTerrain::Water); }
+
+bool has_water_resource(const World& world) {
+  const ResourceId water = water_resource(world);
+  return water != kNoResource && std::ranges::any_of(world.mines(), [&](const Mine& m) { return m.kind() == water && !m.site.depleted(); });
 }
 
 bool is_free(const Unit& u) { return std::holds_alternative<order::Idle>(u.order) && u.is_idle() && !u.hidden; }
@@ -45,7 +52,7 @@ namespace {
 const BuildingDef* farm_def(const Registry& registry, const UnitDef& worker) {
   for (const std::string& id : worker.builds) {
     const BuildingDef* b = registry.building(id);
-    if (b && b->food > 0 && !b->is_depot) return b;
+    if (b && b->food > 0 && !b->is_depot()) return b;
   }
   return nullptr;
 }
@@ -62,14 +69,16 @@ void Ai::manage_workers() {
     if (u.owner != me_ || !u.def->worker || is_water_worker(*u.def) || u.locked()) return;
     workers.push_back(u.id);
     any_worker = u.def;
-    if (const auto* h = std::get_if<order::Harvest>(&u.order)) lumberjacks += h->kind == ResourceKind::Lumber ? 1 : 0;
+    if (const auto* h = std::get_if<order::Harvest>(&u.order)) lumberjacks += h->kind == tree_resource(world_) ? 1 : 0;
   });
   if (workers.empty()) return;
 
   const BuildingDef* farm = farm_def(registry_, *any_worker);
-  const int lumber = world_.player(me_).stock.lumber;
-  const bool want_wood = farm && lumber < farm->cost.lumber;
-  const bool too_much_wood = farm && lumber >= 3 * std::max(1, farm->cost.lumber);
+  const ResourceId wood = tree_resource(world_);
+  const int lumber = wood == kNoResource ? 0 : world_.player(me_).stock[wood];
+  const int farm_wood = (farm && wood != kNoResource) ? farm->cost[wood] : 0;
+  const bool want_wood = farm && wood != kNoResource && lumber < farm_wood;
+  const bool too_much_wood = farm && wood != kNoResource && lumber >= 3 * std::max(1, farm_wood);
 
   const auto nearest_tree = [&](Point from) -> std::optional<Point> {
     std::optional<Point> best;
@@ -85,7 +94,7 @@ void Ai::manage_workers() {
     std::optional<Point> best;
     double best_d = std::numeric_limits<double>::max();
     for (const Mine& m : world_.mines())
-      if (!m.site.depleted() && m.kind() == ResourceKind::Gold)
+      if (!m.site.depleted() && m.kind() == land_resource(world_))
         if (const double d = dist(from, m.site.origin()); d < best_d) {
           best_d = d;
           best = m.site.origin();
@@ -106,7 +115,7 @@ void Ai::manage_workers() {
     for (const EntityId id : workers) {
       const Unit* u = world_.units().get(id);
       const auto* h = std::get_if<order::Harvest>(&u->order);
-      if (h && h->kind == ResourceKind::Lumber && u->carrying == 0)
+      if (h && h->kind == wood && u->carrying == 0)
         if (const auto mine = nearest_mine(u->tile)) {
           const std::array one{id};
           world_.order_harvest(one, *mine);
@@ -129,13 +138,14 @@ void Ai::manage_workers() {
 
 /// Tankers pump the nearest oil patch and bring the oil to a shipyard; they wait while there is no oil depot yet.
 void Ai::manage_tankers() {
-  if (world_.depot_tiles(me_, ResourceKind::Oil).empty()) return;
+  const ResourceId oil = water_resource(world_);
+  if (oil == kNoResource || world_.depot_tiles(me_, oil).empty()) return;
   world_.units().for_each([&](const Unit& u) {
     if (u.owner != me_ || !is_water_worker(*u.def) || !is_free(u)) return;
     std::optional<Point> best;
     double best_d = std::numeric_limits<double>::max();
     for (const Mine& m : world_.mines())
-      if (m.kind() == ResourceKind::Oil && !m.site.depleted())
+      if (m.kind() == oil && !m.site.depleted())
         if (const double d = dist(u.tile, m.site.origin()); d < best_d) {
           best_d = d;
           best = m.site.origin();
@@ -156,8 +166,8 @@ void Ai::manage_construction() {
   world_.buildings().for_each([&](const Building& b) {
     if (b.owner != me_) return;
     building = building || !b.complete;
-    oil_depot = oil_depot || b.def->accepts_oil;
-    if (b.complete && b.def->is_depot && !have_depot) {
+    oil_depot = oil_depot || b.def->accepts_resource(water_resource(world_));
+    if (b.complete && b.def->is_depot() && !have_depot) {
       centre = {b.origin.x + b.def->size / 2, b.origin.y + b.def->size / 2};
       have_depot = true;
     }
@@ -175,10 +185,10 @@ void Ai::manage_construction() {
 
   const BuildingDef* want = nullptr;
   if (world_.food_cap(me_) - world_.food_used(me_) <= cfg_.farm_margin) want = farm_def(registry_, *worker_def);
-  if (!want && !oil_depot && has_oil(world_)) {
+  if (!want && !oil_depot && has_water_resource(world_)) {
     for (const std::string& id : worker_def->builds) {
       const BuildingDef* b = registry_.building(id);
-      if (b && b->accepts_oil && b->placement == Placement::Coast) want = b;
+      if (b && b->accepts_resource(water_resource(world_)) && b->placement == Placement::Coast) want = b;
     }
   }
   if (!want || !can_afford(world_.player(me_).stock, want->cost)) return;
@@ -233,9 +243,9 @@ void Ai::manage_production() {
     const UnitDef* pick = nullptr;
     for (const std::string& unit_id : b->def->trains) {
       const UnitDef* def = registry_.unit(unit_id);
-      if (!def) continue;
-      const bool wanted = is_water_worker(*def) ? (tankers < cfg_.desired_tankers && has_oil(world_) &&
-                                                   !world_.depot_tiles(me_, ResourceKind::Oil).empty())
+      if (!def || !world_.missing_requirement(me_, def->required_defs).empty()) continue;  // the tech is not there yet
+      const bool wanted = is_water_worker(*def) ? (tankers < cfg_.desired_tankers && has_water_resource(world_) &&
+                                                   !world_.depot_tiles(me_, water_resource(world_)).empty())
                           : def->worker  ? workers < cfg_.desired_workers
                                          : (def->aggressive && def->can_attack());
       if (!wanted) continue;

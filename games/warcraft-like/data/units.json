@@ -31,10 +31,16 @@
         "build"
       ],
       "worker": {
-        "lumber_per_trip": 10,
-        "gold_per_trip": 100,
-        "chop_seconds": 3.0,
-        "mine_seconds": 2.5
+        "gather": {
+          "gold": {
+            "per_trip": 100,
+            "seconds": 2.5
+          },
+          "lumber": {
+            "per_trip": 10,
+            "seconds": 3.0
+          }
+        }
       },
       "builds": [
         "great_hall",
@@ -73,7 +79,9 @@
       "commands": [
         "move",
         "stop",
-        "attack"
+        "attack",
+        "patrol",
+        "hold"
       ],
       "icon": 3
     },
@@ -108,10 +116,16 @@
         "build"
       ],
       "worker": {
-        "lumber_per_trip": 10,
-        "gold_per_trip": 100,
-        "chop_seconds": 3.0,
-        "mine_seconds": 2.5
+        "gather": {
+          "gold": {
+            "per_trip": 100,
+            "seconds": 2.5
+          },
+          "lumber": {
+            "per_trip": 10,
+            "seconds": 3.0
+          }
+        }
       },
       "builds": [
         "alliance_town_hall",
@@ -150,7 +164,9 @@
       "commands": [
         "move",
         "stop",
-        "attack"
+        "attack",
+        "patrol",
+        "hold"
       ],
       "icon": 2
     },
@@ -179,7 +195,9 @@
       "commands": [
         "move",
         "stop",
-        "attack"
+        "attack",
+        "patrol",
+        "hold"
       ],
       "attack_seconds": 1.4,
       "icon": 5
@@ -208,7 +226,9 @@
       "commands": [
         "move",
         "stop",
-        "attack"
+        "attack",
+        "patrol",
+        "hold"
       ],
       "attack_seconds": 1.5,
       "food": 2,
@@ -239,7 +259,9 @@
       "commands": [
         "move",
         "stop",
-        "attack"
+        "attack",
+        "patrol",
+        "hold"
       ],
       "attack_seconds": 1.6,
       "food": 2,
@@ -270,7 +292,9 @@
       "commands": [
         "move",
         "stop",
-        "attack"
+        "attack",
+        "patrol",
+        "hold"
       ],
       "attack_seconds": 1.6,
       "food": 3,
@@ -328,7 +352,9 @@
       "commands": [
         "move",
         "stop",
-        "attack"
+        "attack",
+        "patrol",
+        "hold"
       ],
       "attack_seconds": 3.0,
       "siege_multiplier": 2.0,
@@ -362,7 +388,9 @@
       "commands": [
         "move",
         "stop",
-        "attack"
+        "attack",
+        "patrol",
+        "hold"
       ],
       "attack_seconds": 1.4,
       "icon": 4
@@ -391,7 +419,9 @@
       "commands": [
         "move",
         "stop",
-        "attack"
+        "attack",
+        "patrol",
+        "hold"
       ],
       "attack_seconds": 1.4,
       "food": 2,
@@ -422,7 +452,9 @@
       "commands": [
         "move",
         "stop",
-        "attack"
+        "attack",
+        "patrol",
+        "hold"
       ],
       "attack_seconds": 1.6,
       "food": 2,
@@ -452,7 +484,9 @@
       "commands": [
         "move",
         "stop",
-        "attack"
+        "attack",
+        "patrol",
+        "hold"
       ],
       "attack_seconds": 1.4,
       "food": 3,
@@ -483,7 +517,9 @@
       "commands": [
         "move",
         "stop",
-        "attack"
+        "attack",
+        "patrol",
+        "hold"
       ],
       "attack_seconds": 3.0,
       "siege_multiplier": 2.0,
@@ -517,8 +553,12 @@
       "food": 1,
       "icon": 198,
       "worker": {
-        "oil_per_trip": 100,
-        "oil_seconds": 4.0
+        "gather": {
+          "oil": {
+            "per_trip": 100,
+            "seconds": 4.0
+          }
+        }
       },
       "aggressive": false,
       "commands": [
@@ -558,7 +598,9 @@
       "commands": [
         "move",
         "stop",
-        "attack"
+        "attack",
+        "patrol",
+        "hold"
       ]
     },
     {
@@ -593,7 +635,9 @@
       "commands": [
         "move",
         "stop",
-        "attack"
+        "attack",
+        "patrol",
+        "hold"
       ]
     },
     {
@@ -622,8 +666,12 @@
       "food": 1,
       "icon": 201,
       "worker": {
-        "oil_per_trip": 100,
-        "oil_seconds": 4.0
+        "gather": {
+          "oil": {
+            "per_trip": 100,
+            "seconds": 4.0
+          }
+        }
       },
       "aggressive": false,
       "commands": [
@@ -663,7 +711,9 @@
       "commands": [
         "move",
         "stop",
-        "attack"
+        "attack",
+        "patrol",
+        "hold"
       ]
     },
     {
@@ -698,7 +748,9 @@
       "commands": [
         "move",
         "stop",
-        "attack"
+        "attack",
+        "patrol",
+        "hold"
       ]
     },
     {

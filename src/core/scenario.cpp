@@ -7,8 +7,6 @@
 namespace myrts {
 
 namespace {
-constexpr int kGoldPerValueUnit = 2500;  // a mine's value in the map is a multiple of this
-constexpr int kDefaultMineGold = 10000;
 }  // namespace
 
 std::optional<std::size_t> Scenario::farthest_from(std::size_t from) const {
@@ -27,7 +25,7 @@ std::optional<std::size_t> Scenario::farthest_from(std::size_t from) const {
   return best;
 }
 
-Scenario scenario_from(const PudMap& pud) {
+Scenario scenario_from(const PudMap& pud, const GameRules& rules) {
   Scenario s;
 
   std::map<int, StartSlot> by_owner;
@@ -43,9 +41,9 @@ Scenario scenario_from(const PudMap& pud) {
 
   for (const PudUnit& u : pud.units)
     if (u.type == pud_unit::kGoldMine)
-      s.mines.push_back({{u.x, u.y}, u.value > 0 ? u.value * kGoldPerValueUnit : kDefaultMineGold});
+      s.mines.push_back({{u.x, u.y}, u.value > 0 ? u.value * rules.gold_per_value_unit : rules.default_mine_gold, "gold_mine"});
     else if (u.type == pud_unit::kOilPatch)
-      s.mines.push_back({{u.x, u.y}, u.value > 0 ? u.value * kGoldPerValueUnit : kDefaultMineGold, ResourceKind::Oil});
+      s.mines.push_back({{u.x, u.y}, u.value > 0 ? u.value * rules.gold_per_value_unit : rules.default_mine_gold, "oil_patch"});
   return s;
 }
 

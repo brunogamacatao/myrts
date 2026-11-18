@@ -1,4 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
+
+#include "test_resources.hpp"
 #include <filesystem>
 #include <map>
 #include <nlohmann/json.hpp>
@@ -57,7 +59,7 @@ TEST_CASE("a save file keeps four slots, empty ones as null") {
 namespace {
 
 struct Data {
-  fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "games" / "warcraft-like";
   Registry registry = *Registry::load_directory((assets / "data").string());
   Campaign campaign = *Campaign::load_file((assets / "data" / "campaign.json").string());
   std::shared_ptr<const TileSets> tilesets =
@@ -100,7 +102,7 @@ TEST_CASE("a match saved in the middle of play comes back with the same units, b
     w.update(0.05);
     for (auto& ai : a.ais) ai->update(0.05);
   }
-  REQUIRE(w.player(a.local).stock.lumber != 0);
+  REQUIRE(w.player(a.local).stock[kLumber] != 0);
 
   const nlohmann::json state = w.save_state();
   const nlohmann::json reread = nlohmann::json::parse(state.dump());  // through text, as a save file does
@@ -126,12 +128,12 @@ TEST_CASE("a match saved in the middle of play comes back with the same units, b
   CHECK(hall_after->queue.size() == w.buildings().get(hall)->queue.size());
 
   // The restored match goes on: the gatherers keep gathering and nothing crashes.
-  const int lumber = r.player(a.local).stock.lumber;
+  const int lumber = r.player(a.local).stock[kLumber];
   for (int i = 0; i < 60 * 20; ++i) {
     b.world->update(0.05);
     for (auto& ai : b.ais) ai->update(0.05);
   }
-  CHECK(r.player(a.local).stock.lumber > lumber);
+  CHECK(r.player(a.local).stock[kLumber] > lumber);
 }
 
 TEST_CASE("a saved game for another map or with unknown units is refused without touching the world") {
@@ -149,4 +151,36 @@ TEST_CASE("a saved game for another map or with unknown units is refused without
   CHECK_FALSE(b.world->load_state(ghost, d.registry).has_value());
   CHECK(where(*b.world) == before);
   CHECK_FALSE(b.world->load_state(nlohmann::json::object(), d.registry).has_value());
+}
+
+TEST_CASE("a game saved before resources were configurable (numeric cargo and kinds) still loads") {
+  const Data d;
+  Match a = d.make();
+  World& w = *a.world;
+  std::vector<EntityId> workers;
+  w.units().for_each([&](const Unit& u) {
+    if (u.owner == a.local && u.def->worker) workers.push_back(u.id);
+  });
+  REQUIRE(w.order_harvest(workers, *w.nearest_tree(a.local_hall, 12)).ok);
+  for (int i = 0; i < 40 * 20; ++i) w.update(0.05);
+
+  nlohmann::json state = nlohmann::json::parse(w.save_state().dump());
+  const std::map<std::string, int> cargo_codes{{"", 0}, {"lumber", 1}, {"gold", 2}, {"oil", 3}};
+  const std::map<std::string, int> kind_codes{{"gold", 0}, {"lumber", 1}, {"oil", 2}};
+  int harvesters = 0;
+  for (auto& u : state.at("units")) {
+    u["cargo"] = cargo_codes.at(u.at("cargo").get<std::string>());
+    if (u.at("order").at("t") == "harvest") {
+      u["order"]["kind"] = kind_codes.at(u.at("order").at("kind").get<std::string>());
+      ++harvesters;
+    }
+  }
+  REQUIRE(harvesters > 0);
+
+  Match b = d.make();
+  REQUIRE(b.world->load_state(state, d.registry).has_value());
+  CHECK(b.world->player(a.local).stock == w.player(a.local).stock);
+  int still_gathering = 0;
+  b.world->units().for_each([&](const Unit& u) { still_gathering += std::holds_alternative<order::Harvest>(u.order) ? 1 : 0; });
+  CHECK(still_gathering == harvesters);
 }

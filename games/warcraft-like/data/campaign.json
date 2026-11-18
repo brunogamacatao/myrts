@@ -58,9 +58,9 @@
     "Ranged units fire visible missiles. Keep them back, behind your front line."
    ],
    "ai": {
-    "start_delay": 229,
-    "first_wave": 5,
-    "wave_growth": 3,
+    "start_delay": 729,
+    "first_wave": 4,
+    "wave_growth": 2,
     "desired_workers": 3
    },
    "enemy_stock": {
@@ -93,7 +93,7 @@
     "Mix the army: Ogres in front, Axethrowers and Catapults behind."
    ],
    "ai": {
-    "start_delay": 217,
+    "start_delay": 717,
     "first_wave": 5,
     "wave_growth": 3,
     "desired_workers": 3
@@ -129,7 +129,7 @@
     "Watch the minimap (top left): red dots are the Alliance. Click it to jump the camera there."
    ],
    "ai": {
-    "start_delay": 206,
+    "start_delay": 706,
     "first_wave": 6,
     "wave_growth": 3,
     "desired_workers": 3
@@ -165,7 +165,7 @@
     "Winning is about economy as much as fighting: more peons on gold means a bigger army sooner."
    ],
    "ai": {
-    "start_delay": 195,
+    "start_delay": 695,
     "first_wave": 7,
     "wave_growth": 4,
     "desired_workers": 4
@@ -210,7 +210,7 @@
     "lumber": 1500
    },
    "ai": {
-    "start_delay": 183,
+    "start_delay": 683,
     "first_wave": 7,
     "wave_growth": 4,
     "desired_workers": 4
@@ -249,7 +249,7 @@
     "Your ground army cannot cross, so spend on Dragons and farms to feed them."
    ],
    "ai": {
-    "start_delay": 172,
+    "start_delay": 672,
     "first_wave": 8,
     "wave_growth": 4,
     "desired_workers": 4
@@ -288,7 +288,7 @@
     "Scout with a Zeppelin: its sight range is long and it is cheap."
    ],
    "ai": {
-    "start_delay": 161,
+    "start_delay": 661,
     "first_wave": 9,
     "wave_growth": 4,
     "desired_workers": 4
@@ -327,7 +327,7 @@
     "Defend the Great Hall while your dragons strike; the Alliance Gryphons target whatever is exposed."
    ],
    "ai": {
-    "start_delay": 149,
+    "start_delay": 649,
     "first_wave": 9,
     "wave_growth": 4,
     "desired_workers": 4
@@ -358,7 +358,7 @@
    },
    "music": "music/orc4.ogg",
    "ai": {
-    "start_delay": 138,
+    "start_delay": 638,
     "first_wave": 10,
     "wave_growth": 4,
     "desired_workers": 4
@@ -388,7 +388,7 @@
    },
    "music": "music/orc5.ogg",
    "ai": {
-    "start_delay": 127,
+    "start_delay": 627,
     "first_wave": 11,
     "wave_growth": 4,
     "desired_workers": 4
@@ -418,7 +418,7 @@
    },
    "music": "music/orc6.ogg",
    "ai": {
-    "start_delay": 115,
+    "start_delay": 615,
     "first_wave": 11,
     "wave_growth": 4,
     "desired_workers": 4
@@ -445,7 +445,7 @@
    },
    "music": "music/orc1.ogg",
    "ai": {
-    "start_delay": 104,
+    "start_delay": 604,
     "first_wave": 12,
     "wave_growth": 5,
     "desired_workers": 5
@@ -469,7 +469,7 @@
     "All units and buildings are yours. Combine ground and air."
    ],
    "ai": {
-    "start_delay": 93,
+    "start_delay": 593,
     "first_wave": 13,
     "wave_growth": 5,
     "desired_workers": 5
@@ -490,7 +490,7 @@
    "allow": [],
    "hints": [],
    "ai": {
-    "start_delay": 81,
+    "start_delay": 581,
     "first_wave": 13,
     "wave_growth": 5,
     "desired_workers": 5
@@ -511,7 +511,7 @@
    "allow": [],
    "hints": [],
    "ai": {
-    "start_delay": 70,
+    "start_delay": 570,
     "first_wave": 14,
     "wave_growth": 5,
     "desired_workers": 5

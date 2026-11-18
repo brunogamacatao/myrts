@@ -1,4 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
+
+#include "test_resources.hpp"
 #include <array>
 
 #include "core/ai.hpp"
@@ -13,7 +15,7 @@ namespace {
 constexpr const char* kUnits = R"({"units":[
   {"id":"peon","name":"Peon","hp":10,"move_speed":96,"sprite":"s","commands":["move"],
    "stats":{"damage_min":5,"damage_max":5,"range":1,"sight":4},"cost":{"gold":400},"train_seconds":10,
-   "worker":{"lumber_per_trip":10,"gold_per_trip":100,"chop_seconds":1.0,"mine_seconds":1.0},"builds":["hut","farm"]},
+   "worker":{"gather":{"gold":{"per_trip":100,"seconds":1.0},"lumber":{"per_trip":10,"seconds":1.0}}},"builds":["hut","farm"]},
   {"id":"grunt","name":"Grunt","hp":20,"move_speed":96,"sprite":"s","attack_seconds":1.0,
    "stats":{"armor":0,"damage_min":5,"damage_max":5,"range":1,"sight":5},"cost":{"gold":600},"train_seconds":20},
   {"id":"footman","name":"Footman","hp":20,"move_speed":96,"sprite":"s","attack_seconds":1.0,
@@ -27,7 +29,7 @@ constexpr const char* kUnits = R"({"units":[
   {"id":"brute","name":"Brute","hp":30,"move_speed":96,"sprite":"s","attack_seconds":1.0,
    "stats":{"armor":0,"damage_min":1,"damage_max":9,"range":1,"sight":5},"cost":{"gold":500}}]})";
 constexpr const char* kBuildings = R"({"buildings":[
-  {"id":"hall","name":"Hall","size":4,"hp":100,"food":50,"cost":{"gold":1200},"build_seconds":10,"is_depot":true,
+  {"id":"hall","name":"Hall","size":4,"hp":100,"food":50,"cost":{"gold":1200},"build_seconds":10,"accepts":["gold","lumber"],
    "sprite":"h","trains":["peon"]},
   {"id":"barracks","name":"Barracks","size":3,"hp":100,"armor":1,"food":50,"cost":{"gold":700},"build_seconds":10,
    "sprite":"b","trains":["grunt","footman"]},
@@ -35,7 +37,7 @@ constexpr const char* kBuildings = R"({"buildings":[
    "sprite":"k","trains":["grunt"]},
   {"id":"farm","name":"Farm","size":2,"hp":40,"food":4,"cost":{"gold":100,"lumber":20},"build_seconds":2,"sprite":"f"},
   {"id":"smallhall","name":"Small Hall","size":4,"hp":100,"food":2,"cost":{"gold":1200},"build_seconds":10,
-   "is_depot":true,"sprite":"h","trains":["peon"]},
+   "accepts":["gold","lumber"],"sprite":"h","trains":["peon"]},
   {"id":"hut","name":"Hut","size":2,"hp":12,"cost":{"gold":100},"build_seconds":4,"sprite":"x"}]})";
 
 const Registry& registry() {
@@ -231,7 +233,7 @@ TEST_CASE("Training: pay, wait, spawn next to the building, refund on cancel") {
   const UnitDef& grunt = f.def("grunt");
 
   REQUIRE(f.world.order_train(f.me, barracks, grunt).ok);
-  CHECK(f.world.player(f.me).stock.gold == 2000 - 600);
+  CHECK(f.world.player(f.me).stock[kGold] == 2000 - 600);
 
   f.run(19);
   CHECK(f.world.units().size() == 0);  // 20 s needed
@@ -244,9 +246,9 @@ TEST_CASE("Training: pay, wait, spawn next to the building, refund on cancel") {
   CHECK(f.world.grid(MoveClass::Land).is_walkable(spawned));
 
   REQUIRE(f.world.order_train(f.me, barracks, f.def("footman")).ok);
-  CHECK(f.world.player(f.me).stock.gold == 2000 - 600 - 600);
+  CHECK(f.world.player(f.me).stock[kGold] == 2000 - 600 - 600);
   REQUIRE(f.world.order_cancel_train(f.me, barracks, 0).ok);
-  CHECK(f.world.player(f.me).stock.gold == 2000 - 600);  // refunded
+  CHECK(f.world.player(f.me).stock[kGold] == 2000 - 600);  // refunded
   CHECK_FALSE(f.world.order_cancel_train(f.me, barracks, 0).ok);
 }
 
@@ -260,11 +262,11 @@ TEST_CASE("Training is refused when it should be") {
   CHECK_FALSE(f.world.order_train(f.me, barracks, f.def("peon")).ok);       // not trained here
   CHECK_FALSE(f.world.order_train(f.me, barracks, f.def("archer")).ok);
 
-  f.world.player(f.me).stock.gold = 500;
+  f.world.player(f.me).stock[kGold] = 500;
   CHECK_FALSE(f.world.order_train(f.me, barracks, f.def("grunt")).ok);      // too poor
-  CHECK(f.world.player(f.me).stock.gold == 500);
+  CHECK(f.world.player(f.me).stock[kGold] == 500);
 
-  f.world.player(f.me).stock.gold = 100000;
+  f.world.player(f.me).stock[kGold] = 100000;
   for (int i = 0; i < 5; ++i) CHECK(f.world.order_train(f.me, barracks, f.def("grunt")).ok);
   const auto full = f.world.order_train(f.me, barracks, f.def("grunt"));
   CHECK_FALSE(full.ok);
@@ -350,7 +352,7 @@ TEST_CASE("The computer player trains a varied army, not just the first unit of 
 TEST_CASE("Food limits how many units a player can have") {
   Fixture f;
   const EntityId bunker = f.world.add_building(f.bdef("bunker"), f.me, {5, 5}, true);  // food 2
-  f.world.player(f.me).stock.gold = 100000;
+  f.world.player(f.me).stock[kGold] = 100000;
   CHECK(f.world.food_cap(f.me) == 2);
   CHECK(f.world.food_used(f.me) == 0);
 
@@ -384,7 +386,7 @@ TEST_CASE("Units leave the building for its rally point; workers sent to a mine 
   f.world.add_building(f.bdef("hall"), f.me, {2, 2}, true);
   f.world.add_mine({20, 8}, 3, 1000);
   const EntityId barracks = f.world.add_building(f.bdef("barracks"), f.me, {8, 8}, true);
-  f.world.player(f.me).stock.gold = 5000;
+  f.world.player(f.me).stock[kGold] = 5000;
 
   CHECK_FALSE(f.world.order_rally(f.foe, barracks, {15, 3}).ok);  // not yours
   REQUIRE(f.world.order_rally(f.me, barracks, {15, 3}).ok);
@@ -399,7 +401,7 @@ TEST_CASE("Units leave the building for its rally point; workers sent to a mine 
   REQUIRE(f.world.order_rally(f.me, hall, {20, 8}).ok);
   REQUIRE(f.world.order_train(f.me, hall, f.def("peon")).ok);
   f.run(30);
-  CHECK(f.world.player(f.me).stock.gold > 5000 - 600 - 400);  // paid for both units, then earned some back
+  CHECK(f.world.player(f.me).stock[kGold] > 5000 - 600 - 400);  // paid for both units, then earned some back
 }
 
 TEST_CASE("A unit's death says where and facing which way, for the corpse") {
@@ -540,5 +542,73 @@ TEST_CASE("A computer player mines, trains fighters and attacks in waves") {
   CHECK(fighters > 0);                  // it trained some
   CHECK(ai.waves_sent() >= 1);          // and sent them
   CHECK(hall_hp_min < 100);             // the player's hall was hit
-  CHECK(f.world.player(f.foe).stock.gold > 0);  // its peons delivered gold
+  CHECK(f.world.player(f.foe).stock[kGold] > 0);  // its peons delivered gold
+}
+
+TEST_CASE("issue_order carries out the builtin order a command names", "[orders]") {
+  Fixture f;
+  const auto grunt = f.spawn("grunt", {5, 5}, f.me);
+  const std::array ids{grunt};
+  CHECK(f.world.issue_order("move", ids, {12, 5}).ok);
+  f.run(10);
+  CHECK(f.unit(grunt)->tile == Point{12, 5});
+  CHECK(f.world.issue_order("stop", ids, {}).ok);
+  CHECK_FALSE(f.world.issue_order("dance", ids, {1, 1}).ok);
+  CHECK_FALSE(f.world.issue_order("board", ids, {1, 1}).ok);  // nothing to board there
+  for (const std::string_view name : kBuiltinOrders) {
+    INFO(name);
+    CHECK(f.world.issue_order(name, ids, {13, 5}).message != "Unknown order '" + std::string(name) + "'");
+  }
+}
+
+TEST_CASE("A patrol walks back and forth and fights what it meets", "[orders]") {
+  Fixture f;
+  const auto grunt = f.spawn("grunt", {3, 5}, f.me);
+  const std::array ids{grunt};
+  REQUIRE(f.world.order_patrol(ids, {20, 5}).ok);
+  REQUIRE(f.unit(grunt)->patrol.has_value());
+  f.run(14);  // there (17 tiles at 3 tiles a second) and on its way back
+  CHECK(f.unit(grunt)->tile.x < 20);
+  CHECK(f.unit(grunt)->patrol.has_value());
+  int turns = 0;
+  bool near_start = false, near_end = false;
+  for (int i = 0; i < 40 * 20; ++i) {
+    f.world.update(0.05);
+    near_end = near_end || f.unit(grunt)->tile.x >= 19;
+    near_start = near_start || f.unit(grunt)->tile.x <= 4;
+    turns = near_end && near_start ? 2 : turns;
+  }
+  CHECK(turns == 2);  // it keeps going between both ends
+
+  // An enemy in the way is attacked, and the patrol goes on afterwards.
+  Fixture g;
+  const auto patroller = g.spawn("grunt", {3, 5}, g.me);
+  const auto victim = g.spawn("grunt", {10, 5}, g.foe);
+  REQUIRE(g.world.order_patrol(std::array{patroller}, {20, 5}).ok);
+  g.run(30);
+  CHECK(g.unit(victim) == nullptr);
+  CHECK(g.unit(patroller)->patrol.has_value());
+
+  // Any new order ends the patrol.
+  REQUIRE(g.world.order_move(std::array{patroller}, {5, 5}).ok);
+  CHECK_FALSE(g.unit(patroller)->patrol.has_value());
+}
+
+TEST_CASE("A unit holding its ground fights what comes close but never chases", "[orders]") {
+  Fixture f;
+  const auto guard = f.spawn("grunt", {5, 5}, f.me);
+  const auto passer = f.spawn("peon", {5, 9}, f.foe);  // in sight (5) but out of reach (melee: 1); workers do not attack
+  REQUIRE(f.world.order_hold(std::array{guard}).ok);
+  f.run(2);
+  CHECK(f.unit(guard)->tile == Point{5, 5});  // did not move
+  CHECK(f.unit(passer)->hp == 10);
+
+  const auto close = f.spawn("footman", {6, 5}, f.foe);  // next to it: within reach
+  f.run(3);
+  REQUIRE(f.unit(close) != nullptr);
+  CHECK(f.unit(close)->hp < 20);
+  CHECK(f.unit(guard)->tile == Point{5, 5});
+
+  REQUIRE(f.world.order_move(std::array{guard}, {8, 5}).ok);  // a new order ends the stance
+  CHECK_FALSE(f.unit(guard)->hold);
 }

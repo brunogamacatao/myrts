@@ -11,7 +11,8 @@
 
 namespace myrts {
 
-/// The terrain style of a map (the ERA section of a .pud).
+/// The terrain style of a map: an index into the game's tile sets (tilesets.json). The four of Warcraft II are named
+/// here for convenience; a game may define any number (see TileSets::find).
 enum class Era : std::uint8_t { Forest, Winter, Wasteland, Swamp };
 
 /// Pixel position of a 32x32 tile inside the tileset image.
@@ -48,17 +49,21 @@ class TileSet {
   std::unordered_map<std::uint16_t, std::vector<std::uint16_t>> variants_;  // by base code
 };
 
-/// The tile sets of all four eras, loaded from assets/data/tilesets.json.
+/// The tile sets of a game (any number, at least one), loaded from tilesets.json.
 class TileSets {
  public:
   static std::expected<TileSets, std::string> parse(std::string_view json_text);
   static std::expected<TileSets, std::string> load_file(const std::string& path);
 
   [[nodiscard]] const TileSet& era(Era e) const { return sets_[static_cast<std::size_t>(e)]; }
+  [[nodiscard]] std::size_t count() const { return sets_.size(); }
+  [[nodiscard]] bool has(Era e) const { return static_cast<std::size_t>(e) < sets_.size(); }
+  /// The tile set called `name` ("forest"), if there is one.
+  [[nodiscard]] std::optional<Era> find(std::string_view name) const;
   [[nodiscard]] int tile_size() const { return tile_size_; }
 
  private:
-  std::array<TileSet, 4> sets_;
+  std::vector<TileSet> sets_;
   int tile_size_ = 32;
 };
 

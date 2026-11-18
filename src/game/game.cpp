@@ -1,5 +1,7 @@
 #include "game.hpp"
 
+#include "i18n.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -13,9 +15,6 @@
 namespace {
 constexpr float kScrollSpeed = 420.0f;  // pixels per second
 constexpr float kEdgeScrollMargin = 6.0f;
-constexpr double kCorpseSeconds = 25.0;  // how long a body stays (the last 5 s it fades)
-constexpr std::size_t kMaxCorpses = 60;
-constexpr const char* kDefaultMap = "maps/Gold Rush BNE.pud";
 
 }  // namespace
 
@@ -23,7 +22,7 @@ constexpr const char* kDefaultMap = "maps/Gold Rush BNE.pud";
 
 std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContext& ctx, std::size_t level_index,
                                                                 const std::string& faction, const std::string* saved_state) {
-  const myrts::Level fallback = myrts::Campaign::single(kDefaultMap).level(0);
+  const myrts::Level fallback = myrts::Campaign::single(ctx.package ? ctx.package->fallback_map : std::string{}).level(0);
   const myrts::Level level = myrts::play_as(ctx.campaign ? ctx.campaign->level(level_index) : fallback, *ctx.registry, faction);
   std::unique_ptr<Game> game(new Game());
   game->font_ = ctx.font;
@@ -38,6 +37,9 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   myrts::Level setup_level = level;
   if (const char* delay = std::getenv("MYRTS_AI_DELAY")) setup_level.ai.start_delay = std::max(0.0, std::atof(delay));
   myrts::MatchOptions options;
+  if (ctx.rules) options.world.set_rules(*ctx.rules);
+  if (ctx.strings) options.world.strings = ctx.strings;
+  if (ctx.package) options.assets_dir = ctx.package->root().generic_string();
   options.world.tile_size = game->tile_size_;
   if (std::getenv("MYRTS_NOFOG")) options.world.fog = false;  // testing aid: see the whole map
   // Testing aids: speed up construction and training.
@@ -49,6 +51,7 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   game->ais_ = std::move(match->ais);
   game->local_player_ = match->local;
   game->player_faction_ = match->local_faction->id;
+  game->objectives_ = match->objectives;
   myrts::World& world = *game->world_;
   std::optional<myrts::Point> saved_camera;
   if (saved_state) {  // a saved game: the same level is built, then the saved board replaces the fresh one
@@ -74,7 +77,7 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
   game->minimap_ = {world_w, world_h, ui::kMinimap.w, ui::kMinimap.h};
 
   game->art_.load(registry, *ctx.assets, world.terrain()->tileset().name());
-  if (auto loaded = game->ui_art_.load(*ctx.assets); !loaded) return std::unexpected(loaded.error());
+  if (auto loaded = game->ui_art_.load(*ctx.assets, *world.resources_ptr()); !loaded) return std::unexpected(loaded.error());
   if (const myrts::UnitDef* worker = registry.unit(match->local_faction->worker); !worker || !game->sprite_of(*worker))
     return std::unexpected("cannot load the sprite of " + match->local_faction->worker);
 
@@ -101,10 +104,14 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
           for (int ey = -1; ey <= 1; ++ey)
             for (int ex = -1; ex <= 1; ++ex) shore = shore || land.is_walkable({p.x + ex, p.y + ey});
           if (!shore) continue;
-          const char* id = spawned == 0 ? match->local_faction->id == "orcs" ? "orc_transport" : "alliance_transport"
-                                        : match->local_faction->id == "orcs" ? "orc_destroyer" : "alliance_destroyer";
-          if (const myrts::UnitDef* def = registry.unit(id); def && world.spawn_unit(*def, game->local_player_, p).valid()) {
-            std::fprintf(stderr, "NAVY %s at %d,%d (hall %d,%d)\n", id, p.x, p.y, our_hall.x, our_hall.y);
+          // The first transport (spawned == 0) or fighting ship of the player's faction.
+          const myrts::UnitDef* def = nullptr;
+          for (const myrts::UnitDef& candidate : registry.units())
+            if (!def && candidate.faction == match->local_faction->id && candidate.move_class == myrts::MoveClass::Water &&
+                (spawned == 0 ? candidate.capacity > 0 : candidate.can_attack()))
+              def = &candidate;
+          if (def && world.spawn_unit(*def, game->local_player_, p).valid()) {
+            std::fprintf(stderr, "NAVY %s at %d,%d (hall %d,%d)\n", def->id.c_str(), p.x, p.y, our_hall.x, our_hall.y);
             ++spawned;
           }
         }
@@ -126,11 +133,10 @@ std::expected<std::unique_ptr<Game>, std::string> Game::create(const SceneContex
     game->hints_.assign(level.hints.rbegin(), level.hints.rend());  // popped from the back, so shown in order
     game->hint_timer_ = 6.0;
     game->set_message(ctx.campaign && ctx.campaign->size() > 1
-                        ? (level.chapter.empty() ? "" : level.chapter + " - ") + "Level " + std::to_string(level_index + 1) + ": " + level.name + ". " + level.briefing
+                        ? (level.chapter.empty() ? "" : level.chapter + " - ") + tr("Level {0}: {1}.", {std::to_string(level_index + 1), level.name}) + " " + level.briefing
                         : level.briefing,
                     6.0);
   }
-  game->register_commands();
   world.refresh_fog();
   world.events().dispatch();  // spawn / placement events of the initial setup
   return game;
@@ -145,7 +151,7 @@ void Game::subscribe_to_world() {
       if (const SpriteDef* sprite = sprite_of(*d.def)) {
         const std::string name = std::string("death_") + myrts::facing_name(d.facing);
         if (sprite->animations.contains(name)) {
-          if (corpses_.size() >= kMaxCorpses) corpses_.erase(corpses_.begin());
+          if (corpses_.size() >= static_cast<std::size_t>(world_->config().rules.max_corpses)) corpses_.erase(corpses_.begin());
           corpses_.push_back({d.def, d.x, d.y, AnimationState{name, 0, 0.0}, 0.0});
         }
       }
@@ -174,32 +180,24 @@ void Game::spawn_projectile(const myrts::ev::Attacked& a) {
   if (!attacker || attacker->def->projectile.empty() || attacker->def->stats.range <= 1) return;
   if (!sees_point(a.from_x, a.from_y) && !sees_point(a.to_x, a.to_y)) return;  // fought out of sight
   using K = Projectile::Kind;
-  static const std::unordered_map<std::string, std::pair<K, float>> kKinds = {  // kind and speed (pixels per second)
-      {"arrow", {K::Arrow, 460}}, {"bolt", {K::Bolt, 520}},  {"axe", {K::Axe, 320}}, {"boulder", {K::Boulder, 280}},
-      {"fire", {K::Fire, 340}},   {"magic", {K::Magic, 400}}, {"coil", {K::Coil, 360}}};
-  const auto it = kKinds.find(attacker->def->projectile);
-  if (it == kKinds.end()) return;
+  static const std::unordered_map<std::string, K> kShapes = {  // how each shape is drawn (the flight is in projectiles.json)
+      {"arrow", K::Arrow}, {"bolt", K::Bolt}, {"axe", K::Axe}, {"boulder", K::Boulder}, {"fire", K::Fire}, {"magic", K::Magic}, {"coil", K::Coil}};
+  const myrts::ProjectileDef* def = registry_->projectile(attacker->def->projectile);
+  if (!def) return;
+  const auto shape = kShapes.find(def->shape);
+  if (shape == kShapes.end()) return;
   Projectile p;
-  p.kind = it->second.first;
+  p.kind = shape->second;
+  p.arc_max = def->arc_max;
+  p.arc_ratio = def->arc_ratio;
   const float lift = lift_of(*attacker->def);
   p.x0 = a.from_x;
   p.y0 = a.from_y - lift - 6;
   p.x1 = a.to_x;
   p.y1 = a.to_y;
   const float dist = std::hypot(p.x1 - p.x0, p.y1 - p.y0);
-  p.duration = std::clamp(static_cast<double>(dist / it->second.second), 0.12, 1.2);
+  p.duration = std::clamp(static_cast<double>(dist / def->speed), def->min_seconds, def->max_seconds);
   if (projectiles_.size() < 200) projectiles_.push_back(p);
-}
-
-/// The behaviour behind each command id. The data (label, icon, hotkey, how it is targeted)
-/// lives in assets/data/commands.json; adding a command means a JSON entry plus a line here.
-void Game::register_commands() {
-  instant_commands_["stop"] = [this] { ordered(world_->order_stop(selected_)); };
-  targeted_commands_["move"] = [this](myrts::Point t) { ordered(world_->order_move(selected_, t)); };
-  targeted_commands_["harvest"] = [this](myrts::Point t) { ordered(world_->order_harvest(selected_, t)); };
-  targeted_commands_["unload"] = [this](myrts::Point t) { ordered(world_->order_unload(selected_, t)); };
-  targeted_commands_["repair"] = [this](myrts::Point t) { ordered(world_->order_repair(selected_, t)); };
-  targeted_commands_["attack"] = [this](myrts::Point t) { ordered(world_->order_attack(selected_, t)); };
 }
 
 const SpriteDef* Game::sprite_of(const myrts::UnitDef& def) {
@@ -213,6 +211,7 @@ const SpriteDef* Game::sprite_of(const myrts::UnitDef& def) {
 }
 
 void Game::set_message(std::string text, double seconds) {
+  text = tr(text);
   message_ = std::move(text);
   message_time_left_ = seconds;
 }
@@ -326,7 +325,7 @@ void Game::update_cursor(float edge_dx, float edge_dy) {
   if (world_->trees().has_tree(*tile) || world_->mine_at(*tile) >= 0) cursors_->set(K::TargetOk);
 }
 
-std::optional<myrts::Outcome> Game::outcome() const { return myrts::evaluate_outcome(*world_, local_player_); }
+std::optional<myrts::Outcome> Game::outcome() const { return myrts::evaluate_outcome(*world_, local_player_, objectives_); }
 
 // ---- selection & commands ---------------------------------------------------------------
 
@@ -413,33 +412,24 @@ void Game::activate_command(const myrts::CommandDef& command) {
     return;
   }
   switch (command.targeting) {
-    case myrts::Targeting::None: {
-      const auto it = instant_commands_.find(command.id);
-      if (it != instant_commands_.end()) {
-        it->second();
-        return;
-      }
-      break;
-    }
+    case myrts::Targeting::None:
+      ordered(world_->issue_order(command.order, selected_, {}));  // acts at once (stop, stand ground...)
+      return;
     case myrts::Targeting::Ground:
     case myrts::Targeting::Resource:
-      if (targeted_commands_.contains(command.id)) {
-        awaiting_target_ = &command;
-        set_message(command.targeting == myrts::Targeting::Ground ? "Select destination"
-                                                                  : "Select a tree or a gold mine",
-                    10.0);
-        return;
-      }
-      break;
+      awaiting_target_ = &command;
+      set_message(!command.prompt.empty() ? command.prompt
+                  : command.targeting == myrts::Targeting::Ground ? "Select destination" : "Select a tree or a gold mine",
+                  10.0);
+      return;
     case myrts::Targeting::Menu:
       if (!current_build_options().empty()) {
         build_menu_ = true;
         set_message("Choose a building", 10.0);
         return;
       }
-      break;
+      return;
   }
-  set_message(command.label + " is not implemented yet");
 }
 
 myrts::Point Game::placement_origin(const myrts::BuildingDef& def, myrts::Point cursor) const {
@@ -447,12 +437,16 @@ myrts::Point Game::placement_origin(const myrts::BuildingDef& def, myrts::Point 
 }
 
 void Game::start_placing(const myrts::BuildingDef& def) {
+  if (const std::string missing = world_->missing_requirement(local_player_, def.required_defs); !missing.empty()) {
+    set_message(tr("Requires {0}", {tr(missing)}));
+    return;
+  }
   if (!myrts::can_afford(world_->player(local_player_).stock, def.cost)) {
-    set_message("Not enough resources for a " + def.name);
+    set_message(tr("Not enough resources for a {0}", {tr(def.name)}));
     return;
   }
   placing_ = &def;
-  set_message("Place the " + def.name + " (right click cancels)", 10.0);
+  set_message(tr("Place the {0} (right click cancels)", {tr(def.name)}), 10.0);
 }
 
 void Game::try_place_building(myrts::Point origin) {
@@ -472,15 +466,19 @@ void Game::try_place_building(myrts::Point origin) {
 /// Chooses the animation for what a unit is doing. Sprites that lack a variant (say, no
 /// carrying frames) fall back to the plain walk/idle one.
 std::string Game::unit_animation(const myrts::Unit& u, const SpriteDef& sprite) const {
+  // Which animation each state uses is data: the sprite's "states" (see SpriteDef), else these defaults.
   const std::string dir = myrts::facing_name(u.facing);
-  const std::string base = u.moving ? "walk_" : "idle_";
-  if (u.attacking() && !u.moving) return pick_animation(sprite, {"attack_" + dir, "chop_" + dir, base + dir});
-  if (u.working() && !u.moving) return pick_animation(sprite, {"chop_" + dir, base + dir});
+  const std::string move = u.moving ? "walk" : "idle";
+  const auto pick = [&](const char* state, std::vector<std::string> defaults, const std::string& carry = {}) {
+    return resolve_animation(sprite, state, defaults, dir, move, carry);
+  };
+  if (u.attacking() && !u.moving) return pick("attack", {"attack_{dir}", "chop_{dir}"});
+  if (u.working() && !u.moving) return pick("work", {"chop_{dir}"});
   if (u.carrying > 0) {
-    const std::string carried = base + (u.cargo == myrts::Cargo::Gold ? "gold_" : u.cargo == myrts::Cargo::Oil ? "oil_" : "wood_") + dir;
-    return pick_animation(sprite, {carried, base + dir});
+    const std::string carry = world_->resources().valid(u.cargo) ? world_->resources().at(u.cargo).carry_animation : std::string{};
+    return pick("carry", {"{move}_{carry}_{dir}"}, carry);  // walk_gold_up, walk_wood_down...
   }
-  return pick_animation(sprite, {base + dir});
+  return pick("move", {});
 }
 
 void Game::update(double dt) {
@@ -525,7 +523,8 @@ void Game::update(double dt) {
     c.age += dt;
     if (const SpriteDef* sprite = sprite_of(*c.def)) update_animation(*sprite, c.anim, dt);
   }
-  std::erase_if(corpses_, [](const Corpse& c) { return c.age > kCorpseSeconds; });
+  const double corpse_seconds = world_->config().rules.corpse_seconds;
+  std::erase_if(corpses_, [corpse_seconds](const Corpse& c) { return c.age > corpse_seconds; });
   if (!hints_.empty() && (hint_timer_ -= dt) <= 0 && !awaiting_target_ && !placing_) {  // the tutorial lines, in turn
     set_message(hints_.back(), 9.0);
     hints_.pop_back();

@@ -7,7 +7,6 @@
 
 namespace {
 const ALLEGRO_COLOR kSelectGreen = al_map_rgb(60, 230, 60);
-constexpr double kCorpseSeconds = 25.0;  // keep in step with game.cpp
 }
 
 void Game::draw_health_bar(float x, float y, float w, int hp, int max_hp) {
@@ -43,7 +42,7 @@ void Game::draw_world() {
   for (const auto& mine : world_->mines()) {
     if (mine.site.depleted()) continue;
     const auto o = mine.site.origin();
-    draw_centered_in_square(mine.kind() == myrts::ResourceKind::Oil ? art_.oil_patch() : art_.gold_mine(mine.busy), static_cast<float>(o.x) * tile_px,
+    draw_centered_in_square(art_.site(mine.kind(), mine.busy), static_cast<float>(o.x) * tile_px,
                             static_cast<float>(o.y) * tile_px, static_cast<float>(mine.site.size()) * tile_px);
   }
 
@@ -66,7 +65,7 @@ void Game::draw_world() {
     if (!fog().explored({static_cast<int>(c.x) / tile_size_, static_cast<int>(c.y) / tile_size_})) continue;
     const auto sprite = sprites_.find(c.def);
     if (sprite == sprites_.end() || !sprite->second) continue;
-    const float fade = std::clamp(static_cast<float>((kCorpseSeconds - c.age) / 5.0), 0.0f, 1.0f);
+    const float fade = std::clamp(static_cast<float>((world_->config().rules.corpse_seconds - c.age) / world_->config().rules.corpse_fade_seconds), 0.0f, 1.0f);
     draw_sprite_centered(*sprite->second, c.anim, c.x, c.y - lift_of(*c.def), fade);
   }
 
@@ -120,14 +119,7 @@ void Game::draw_projectiles() {
     const float dx = p.x1 - p.x0, dy = p.y1 - p.y0;
     const float len = std::max(1.0f, std::hypot(dx, dy));
     const float ux = dx / len, uy = dy / len;
-    float arc = 0;
-    switch (p.kind) {
-      case Projectile::Kind::Boulder: arc = std::min(46.0f, len * 0.35f); break;
-      case Projectile::Kind::Arrow:
-      case Projectile::Kind::Bolt:
-      case Projectile::Kind::Axe: arc = std::min(12.0f, len * 0.08f); break;
-      default: break;
-    }
+    const float arc = std::min(p.arc_max, len * p.arc_ratio);  // from the projectile's data
     const float lift = arc * 4 * t * (1 - t);  // parabola, highest halfway
     const float x = p.x0 + dx * t, y = p.y0 + dy * t - lift;
     const float slope = arc * 4 * (1 - 2 * t) / len;  // the arc tilts the shaft up, then down
@@ -250,7 +242,7 @@ void Game::draw() {
       card.queue.push_back({q.unit->name, static_cast<float>(q.progress / q.unit->train_seconds), q.unit->icon});
     building_card = std::move(card);
     for (const myrts::UnitDef* def : current_train_options())
-      train_options.push_back({def, myrts::can_afford(stock, def->cost)});
+      train_options.push_back({def, myrts::can_afford(stock, def->cost) && world_->missing_requirement(local_player_, def->required_defs).empty()});
   }
 
   const std::string faction = selected_faction();
@@ -259,9 +251,9 @@ void Game::draw() {
   std::vector<ui::BuildOption> options;
   bool more_pages = false;
   for (const myrts::BuildingDef* def : build_page(&more_pages))
-    options.push_back({def, myrts::can_afford(stock, def->cost), def == placing_});
+    options.push_back({def, myrts::can_afford(stock, def->cost) && world_->missing_requirement(local_player_, def->required_defs).empty(), def == placing_});
 
-  const ui::HudData hud{ui_art_,   stock,       cards,   dots,        terrain_view_.minimap(), minimap_,
+  const ui::HudData hud{ui_art_,   stock,       *world_->config().resources, cards,   dots,        terrain_view_.minimap(), minimap_,
                         camera_,   message_,    mouse_x_, mouse_y_,   commands,                build_menu_,
                         options,   more_pages,  building_card ? &*building_card : nullptr,     train_options,
                         world_->food_used(local_player_), world_->food_cap(local_player_), fog_view_.black()};

@@ -26,7 +26,7 @@ Result World::order_attack(std::span<const EntityId> ids, Point tile) {
   std::vector<EntityId> fighters;
   free_units(ids, fighters);
   std::erase_if(fighters, [&](EntityId id) { return !units_.get(id)->def->can_attack(); });
-  if (fighters.empty()) return Result::fail("These units cannot attack");
+  if (fighters.empty()) return Result::fail(tr("These units cannot attack"));
 
   const PlayerId owner = units_.get(fighters.front())->owner;
   order::Target target;
@@ -47,12 +47,41 @@ Result World::order_attack(std::span<const EntityId> ids, Point tile) {
   return Result::success();
 }
 
+Result World::order_patrol(std::span<const EntityId> ids, Point tile) {
+  if (ids.empty()) return Result::success();
+  std::vector<EntityId> fighters;
+  free_units(ids, fighters);
+  std::erase_if(fighters, [&](EntityId id) { return !units_.get(id)->def->can_attack(); });
+  if (fighters.empty()) return Result::fail(tr("These units cannot attack"));
+  std::vector<std::pair<EntityId, Point>> starts;
+  for (const EntityId id : fighters) starts.emplace_back(id, units_.get(id)->anchor());
+  if (const Result r = order_attack_move(fighters, tile); !r.ok) return r;
+  for (const auto& [id, from] : starts)
+    if (Unit* u = units_.get(id))
+      if (const auto* m = std::get_if<order::AttackMove>(&u->order)) u->patrol = Patrol{from, m->dest};
+  return Result::success();
+}
+
+Result World::order_hold(std::span<const EntityId> ids) {
+  std::vector<EntityId> fighters;
+  free_units(ids, fighters);
+  std::erase_if(fighters, [&](EntityId id) { return !units_.get(id)->def->can_attack(); });
+  if (fighters.empty()) return Result::fail(tr("These units cannot attack"));
+  for (const EntityId id : fighters) {
+    Unit& u = *units_.get(id);
+    cancel_order(u);
+    stop_unit(u);
+    u.hold = true;
+  }
+  return Result::success();
+}
+
 Result World::order_attack_move(std::span<const EntityId> ids, Point tile) {
   if (ids.empty()) return Result::success();
   std::vector<EntityId> fighters;
   free_units(ids, fighters);
   std::erase_if(fighters, [&](EntityId id) { return !units_.get(id)->def->can_attack(); });
-  if (fighters.empty()) return Result::fail("These units cannot attack");
+  if (fighters.empty()) return Result::fail(tr("These units cannot attack"));
 
   for (const EntityId id : fighters) cancel_order(*units_.get(id));
   const auto destinations = move_group(fighters, tile);
@@ -61,34 +90,43 @@ Result World::order_attack_move(std::span<const EntityId> ids, Point tile) {
   return Result::success();
 }
 
+std::string World::missing_requirement(PlayerId owner, const std::vector<const BuildingDef*>& required) const {
+  for (const BuildingDef* def : required) {
+    bool have = false;
+    buildings_.for_each([&](const Building& b) { have = have || (b.owner == owner && b.complete && b.def == def); });
+    if (!have) return def->name;
+  }
+  return {};
+}
+
 Result World::order_train(PlayerId owner, EntityId building, const UnitDef& unit) {
   Building* b = buildings_.get(building);
-  if (!b || b->owner != owner || !b->complete) return Result::fail("That building cannot train units yet");
-  if (!trains(*b->def, unit)) return Result::fail(b->def->name + " cannot train a " + unit.name);
-  if (b->queue.size() >= static_cast<std::size_t>(config_.max_queue)) return Result::fail("The training queue is full");
-  if (food_used(owner) + unit.food > food_cap(owner)) return Result::fail("Not enough food: build more farms");
-  if (!pay(player(owner).stock, unit.cost)) return Result::fail("Not enough resources for a " + unit.name);
+  if (!b || b->owner != owner || !b->complete) return Result::fail(tr("That building cannot train units yet"));
+  if (!trains(*b->def, unit)) return Result::fail(tr("{0} cannot train a {1}", {tr(b->def->name), tr(unit.name)}));
+  if (const std::string missing = missing_requirement(owner, unit.required_defs); !missing.empty())
+    return Result::fail(tr("Requires {0}", {tr(missing)}));
+  if (b->queue.size() >= static_cast<std::size_t>(config_.max_queue)) return Result::fail(tr("The training queue is full"));
+  if (food_used(owner) + unit.food > food_cap(owner)) return Result::fail(tr("Not enough food: build more farms"));
+  if (!pay(player(owner).stock, unit.cost)) return Result::fail(tr("Not enough resources for a {0}", {tr(unit.name)}));
   b->queue.push_back({&unit, 0.0});
   return Result::success();
 }
 
 Result World::order_rally(PlayerId owner, EntityId building, Point tile) {
   Building* b = buildings_.get(building);
-  if (!b || b->owner != owner) return Result::fail("Select one of your buildings");
-  if (b->def->trains.empty()) return Result::fail("This building does not train units");
-  if (!layer(MoveClass::Land).blocked.contains(tile)) return Result::fail("Cannot rally there");
+  if (!b || b->owner != owner) return Result::fail(tr("Select one of your buildings"));
+  if (b->def->trains.empty()) return Result::fail(tr("This building does not train units"));
+  if (!layer(MoveClass::Land).blocked.contains(tile)) return Result::fail(tr("Cannot rally there"));
   b->rally = tile;
   return Result::success();
 }
 
 Result World::order_cancel_train(PlayerId owner, EntityId building, std::size_t index) {
   Building* b = buildings_.get(building);
-  if (!b || b->owner != owner || index >= b->queue.size()) return Result::fail("Nothing to cancel");
+  if (!b || b->owner != owner || index >= b->queue.size()) return Result::fail(tr("Nothing to cancel"));
   const Stock refund = b->queue[index].unit->cost;
   Stock& stock = player(owner).stock;
-  stock.gold += refund.gold;
-  stock.lumber += refund.lumber;
-  stock.oil += refund.oil;
+  receive(stock, refund);
   b->queue.erase(b->queue.begin() + static_cast<std::ptrdiff_t>(index));
   return Result::success();
 }
@@ -161,7 +199,16 @@ void World::auto_acquire(Unit& u, double dt) {
   u.scan_timer -= dt;
   if (u.scan_timer > 0) return;
   u.scan_timer = config_.scan_interval;
-  if (const auto target = find_target(u)) begin_attack(u, *target, std::nullopt);
+  if (const auto target = find_target(u); target && may_engage(u, *target)) begin_attack(u, *target, std::nullopt);
+}
+
+/// Whether `u` takes a fight with `target`: always, except a unit holding its ground, which only fights what is within reach.
+bool World::may_engage(const Unit& u, const order::Target& target) const {
+  if (!u.hold) return true;
+  std::vector<Point> tiles;
+  if (!target_tiles(target, tiles)) return false;
+  const int range = std::max(1, u.def->stats.range);
+  return std::ranges::any_of(tiles, [&](Point p) { return chebyshev(u.tile, p) <= range; });
 }
 
 void World::update_attack_move(Unit& u, order::AttackMove& m, double dt) {
@@ -173,7 +220,20 @@ void World::update_attack_move(Unit& u, order::AttackMove& m, double dt) {
       return;
     }
   }
-  if (u.is_idle()) u.order = order::Idle{};  // arrived (or could not go on)
+  if (!u.is_idle()) return;
+  if (u.patrol) {  // arrived at one end of a patrol: turn round and head for the other
+    std::swap(u.patrol->from, u.patrol->to);
+    const Layer& L = layer(u.def->move_class);
+    const Grid others = L.occupancy.blocked_for(occ_id(u));
+    auto path = a_star(L.blocked, u.anchor(), u.patrol->to, &others);
+    if (!path.empty()) {
+      send_along(u, std::move(path));
+      m.dest = u.patrol->to;
+      m.scan = 0.0;
+      return;
+    }
+  }
+  u.order = order::Idle{};  // arrived (or could not go on)
 }
 
 // NOTE: end_attack() / begin_attack() replace `u.order` and destroy `a`; nothing touches `a` after them.
@@ -193,6 +253,8 @@ void World::update_attack(Unit& u, order::Attack& a, double dt) {
       nearest = p;
     }
   }
+
+  if (u.hold && d > range) return end_attack(u, resume);  // standing ground: the target walked out of reach
 
   if (d <= range) {
     stop_unit(u);
@@ -219,17 +281,18 @@ void World::strike(Unit& attacker, const order::Target& target) {
   const UnitStats& s = attacker.def->stats;
   std::uniform_int_distribution<int> roll(s.damage_min, std::max(s.damage_min, s.damage_max));
   const int raw = roll(rng_);
-  attacker.attack_flash = 0.45;
+  attacker.attack_flash = config_.rules.attack_flash;
 
   if (target.kind == order::Target::Kind::Unit) {
     Unit* t = units_.get(target.id);
     if (!t) return;
-    const int dmg = std::max(1, raw - t->def->stats.armor);
+    const int dmg = std::max(config_.rules.min_damage, raw - t->def->stats.armor);
     t->hp -= dmg;
     events_.publish(ev::Attacked{attacker.id, target.id, false, dmg, attacker.x, attacker.y, t->x, t->y});
     if (t->hp <= 0) {
       kill_unit(target.id);
-    } else if (t->def->can_attack() && std::holds_alternative<order::Idle>(t->order)) {  // anyone armed fights back
+    } else if (t->def->can_attack() && std::holds_alternative<order::Idle>(t->order) &&
+               may_engage(*t, {order::Target::Kind::Unit, attacker.id})) {  // anyone armed fights back
       begin_attack(*t, {order::Target::Kind::Unit, attacker.id}, std::nullopt);  // fight back
     }
     return;
@@ -237,7 +300,7 @@ void World::strike(Unit& attacker, const order::Target& target) {
 
   Building* b = buildings_.get(target.id);
   if (!b) return;
-  const int dmg = std::max(1, static_cast<int>(static_cast<double>(raw) * attacker.def->siege_multiplier) - b->def->armor);
+  const int dmg = std::max(config_.rules.min_damage, static_cast<int>(static_cast<double>(raw) * attacker.def->siege_multiplier) - b->def->armor);
   b->hp -= dmg;
   const float half = static_cast<float>(b->def->size * config_.tile_size) / 2;
   events_.publish(ev::Attacked{attacker.id, target.id, true, dmg, attacker.x, attacker.y,
@@ -257,7 +320,7 @@ void World::destroy_building(EntityId id) {
   const int size = b->def->size;
   buildings_.erase(id);
   events_.publish(ev::BuildingDestroyed{id, owner, origin, size});
-  notice(owner, "Your " + name + " was destroyed");
+  notice(owner, tr("Your {0} was destroyed", {tr(name)}));
 }
 
 // ---- training ---------------------------------------------------------------------------------------
@@ -297,7 +360,7 @@ void World::update_training(double dt) {
     const std::optional<Point> rally = b->rally;
     b->queue.erase(b->queue.begin());
     const EntityId spawned = spawn_unit(def, owner, *tile);
-    notice(owner, def.name + " ready");
+    notice(owner, tr("{0} ready", {tr(def.name)}));
     if (spawned.valid()) events_.publish(ev::UnitTrained{spawned, owner});
 
     // Head for the rally point; workers sent to a tree or a mine start gathering.
