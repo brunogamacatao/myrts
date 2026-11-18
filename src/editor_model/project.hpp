@@ -1,6 +1,7 @@
 #pragma once
 
 #include <expected>
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <map>
@@ -70,6 +71,9 @@ class Project {
   [[nodiscard]] bool can_undo() const { return !undo_.empty(); }
   [[nodiscard]] bool can_redo() const { return !redo_.empty(); }
 
+  /// Changes with every change, undo, redo and discard (for caching what is shown from a document).
+  [[nodiscard]] std::uint64_t revision() const { return revision_; }
+
   [[nodiscard]] bool dirty() const { return !dirty_.empty(); }
   [[nodiscard]] bool dirty(const std::string& name) const { return dirty_.contains(name); }
 
@@ -106,6 +110,7 @@ class Project {
   std::set<std::string> dirty_;
   std::vector<Step> undo_, redo_;
   std::string merge_key_;
+  std::uint64_t revision_ = 0;
   PackageReport report_;
 };
 

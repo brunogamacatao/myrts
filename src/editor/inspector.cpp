@@ -35,6 +35,12 @@ struct Ctx {
     project.seal();
     edited = true;
   }
+  /// Swaps two entries of the array at `list`.
+  void swap(const Ptr& list, std::size_t a, std::size_t b) {
+    project.change(doc, [&](Json& d) { std::swap(d[list][a], d[list][b]); });
+    project.seal();
+    edited = true;
+  }
   void done_typing() {
     if (ImGui::IsItemDeactivatedAfterEdit()) project.seal();
   }
@@ -194,7 +200,9 @@ void draw_text_list(Ctx& c, const Field& f, const Ptr& at) {
     char buffer[2048];
     std::snprintf(buffer, sizeof buffer, "%s", text_of(&(*list)[i]).c_str());
     ImGui::SetNextItemWidth(-30);
-    if (ImGui::InputTextMultiline("##t", buffer, sizeof buffer, {-30, ImGui::GetTextLineHeight() * 3.2f})) c.set(at / i, std::string(buffer));
+    const bool changed = f.compact ? ImGui::InputText("##t", buffer, sizeof buffer)
+                                   : ImGui::InputTextMultiline("##t", buffer, sizeof buffer, {-30, ImGui::GetTextLineHeight() * 3.2f});
+    if (changed) c.set(at / i, std::string(buffer));
     c.done_typing();
     ImGui::SameLine();
     if (ImGui::Button("x")) {
@@ -214,7 +222,6 @@ void draw_text_list(Ctx& c, const Field& f, const Ptr& at) {
     c.edited = true;
   }
   ImGui::PopID();
-  (void)f;
 }
 
 void draw_ref_list(Ctx& c, const Field& f, const Ptr& at) {
@@ -260,7 +267,8 @@ void draw_ref_list(Ctx& c, const Field& f, const Ptr& at) {
 }
 
 void draw_amounts(Ctx& c, const Field& f, const Ptr& at) {
-  const auto resources = reference_options(c.project, "resources");
+  auto resources = reference_options(c.project, f.source.empty() ? "resources" : f.source);
+  resources.insert(resources.end(), f.options.begin(), f.options.end());
   ImGui::PushID("amounts");
   for (const std::string& id : resources) {
     const Json* v = c.get(at / id);
@@ -284,7 +292,6 @@ void draw_amounts(Ctx& c, const Field& f, const Ptr& at) {
     ImGui::PopID();
   }
   ImGui::PopID();
-  (void)f;
 }
 
 Json new_item(Ctx& c, const std::vector<Field>& fields) {
@@ -307,7 +314,11 @@ void draw_object_list(Ctx& c, const Field& f, const Ptr& at) {
     std::string title = std::to_string(i + 1) + ". " + (*list)[i].value("type", std::string{});
     if ((*list)[i].contains("faction")) title += text_of(&(*list)[i]["faction"]);
     const bool open = ImGui::TreeNodeEx("##item", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowOverlap, "%s", title.c_str());
-    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 4);
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 52);
+    if (ImGui::SmallButton("^") && i > 0) c.swap(at, i, i - 1);
+    ImGui::SameLine();
+    if (ImGui::SmallButton("v") && i + 1 < n) c.swap(at, i, i + 1);
+    ImGui::SameLine();
     const bool removed = ImGui::SmallButton("x");
     if (open) {
       if (!removed) draw_list(c, f.fields, at / i);
@@ -340,9 +351,59 @@ Json defaults_of(const std::vector<Field>& fields) {
   return item;
 }
 
+/// Asks for a name; true (and the name) when the user pressed Add.
+bool ask_name(const char* button, std::string& out) {
+  static std::string typed;
+  char buffer[256];
+  std::snprintf(buffer, sizeof buffer, "%s", typed.c_str());
+  ImGui::SetNextItemWidth(180);
+  if (ImGui::InputText("##newname", buffer, sizeof buffer)) typed = buffer;
+  ImGui::SameLine();
+  if (ImGui::Button(button) && !typed.empty()) {
+    out = typed;
+    typed.clear();
+    return true;
+  }
+  return false;
+}
+
+/// An object (or a map to lists) whose keys are names the user makes up: each is a node with its fields, and a name box adds one.
+void draw_free_map(Ctx& c, const Field& f, const Ptr& at) {
+  const Json* map = c.get(at);
+  std::vector<std::string> keys;
+  if (map && map->is_object())
+    for (const auto& [key, value] : map->items()) keys.push_back(key);
+  ImGui::PushID("free");
+  for (const std::string& key : keys) {
+    ImGui::PushID(key.c_str());
+    const bool open = ImGui::TreeNodeEx("##k", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowOverlap, "%s", key.c_str());
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 4);
+    const bool removed = ImGui::SmallButton("x");
+    if (open) {
+      if (!removed) {
+        if (f.type == FieldType::ListMap) draw_text_list(c, f, at / key);
+        else draw_list(c, f.fields, at / key);
+      }
+      ImGui::TreePop();
+    }
+    ImGui::PopID();
+    if (removed) {
+      c.remove(at / key);
+      break;
+    }
+  }
+  std::string name;
+  if (ask_name("+ Add", name) && !(map && map->is_object() && map->contains(name))) {
+    c.set(at / name, f.type == FieldType::ListMap ? Json::array() : Json::object());
+    c.project.seal();
+  }
+  ImGui::PopID();
+}
+
 /// One row per id of the source: a checkbox switches it on (a default object) or off (removed); an object that is on
 /// shows its fields below.
 void draw_object_map(Ctx& c, const Field& f, const Ptr& at) {
+  if (f.free_keys) return draw_free_map(c, f, at);
   ImGui::PushID("map");
   for (const std::string& id : reference_options(c.project, f.source)) {
     const Ptr entry = at / id;
@@ -404,6 +465,7 @@ void draw_list(Ctx& c, const std::vector<Field>& fields, const Ptr& base) {
       case FieldType::TextList:
       case FieldType::RefList:
       case FieldType::ObjectMap:
+      case FieldType::ListMap:
       case FieldType::Amounts: {
         const bool present = c.get(at) != nullptr;
         if (!present) ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
@@ -418,6 +480,7 @@ void draw_list(Ctx& c, const std::vector<Field>& fields, const Ptr& base) {
           if (f.type == FieldType::TextList) draw_text_list(c, f, at);
           else if (f.type == FieldType::RefList) draw_ref_list(c, f, at);
           else if (f.type == FieldType::ObjectMap) draw_object_map(c, f, at);
+          else if (f.type == FieldType::ListMap) draw_free_map(c, f, at);
           else draw_amounts(c, f, at);
           ImGui::TreePop();
         }

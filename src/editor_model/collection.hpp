@@ -19,6 +19,11 @@ struct Collection {
 [[nodiscard]] Collection units_of(const Project& project);
 [[nodiscard]] Collection buildings_of(const Project& project);
 
+[[nodiscard]] Collection resources_of(const Project& project);
+[[nodiscard]] Collection factions_of(const Project& project);
+[[nodiscard]] Collection commands_of(const Project& project);
+[[nodiscard]] Collection projectiles_of(const Project& project);
+
 namespace collection {
 
 [[nodiscard]] std::size_t count(const Project& project, const Collection& c);

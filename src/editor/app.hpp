@@ -5,6 +5,7 @@
 #include <string>
 
 #include "collection_editor.hpp"
+#include "game_editor.hpp"
 #include "map_editor.hpp"
 #include "sprite_editor.hpp"
 #include "textures.hpp"
@@ -52,6 +53,8 @@ class App {
   std::unique_ptr<CollectionEditor> characters_, buildings_;
   std::unique_ptr<SpriteEditor> sprites_;
   std::unique_ptr<MapEditor> map_;
+  std::unique_ptr<GameEditor> game_;
+  RawEditor raw_;
   bool quit_ = false;
 
   enum class Pending { None, Quit, Close, Open };

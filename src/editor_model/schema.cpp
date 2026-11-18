@@ -1,5 +1,7 @@
 #include "schema.hpp"
 
+#include "core/defs.hpp"
+
 namespace myrts::editor {
 
 namespace {
@@ -69,6 +71,33 @@ std::vector<Field> objective_fields(bool victory) {
   return {type, building, resource, amount, seconds, field("text", "Text shown", FieldType::Text, "The line in the objectives list (empty: a default one).")};
 }
 
+std::vector<Field> ai_fields() {
+  return {real("start_delay", "Start delay (s)", 150, 0, 100000, "No attack before this many seconds."),
+          whole("first_wave", "First wave", 5, 1, 500, "Fighters needed for the first attack."),
+          whole("wave_growth", "Wave growth", 3, 0, 500, "Extra fighters for each later attack."),
+          whole("desired_workers", "Workers", 3, 0, 50),
+          whole("desired_tankers", "Tankers", 2, 0, 50),
+          real("think_interval", "Think interval (s)", 1.0, 0.1, 60),
+          whole("farm_margin", "Farm margin", 2, 0, 50, "Builds a farm when this little food is left.")};
+}
+
+std::vector<Field> fog_fields() {
+  return {flag("enabled", "Enabled", true),
+          flag("reveal_map", "Reveal the map", false, "No black: the whole map is seen (the fog of explored areas stays unless off)."),
+          flag("remember", "Remember explored", true),
+          real("sight_scale", "Sight scale", 1.0, 0, 20, "Multiplies every unit's sight."),
+          whole("sight_bonus", "Sight bonus", 0, -20, 40, "Tiles added to every unit's sight."),
+          whole("min_unit_sight", "Min unit sight", -1, -1, 40, "-1: the game's rule."),
+          whole("building_sight_base", "Building sight base", -1, -1, 40, "-1: the game's rule."),
+          real("update_interval", "Update interval (s)", 0.2, 0.02, 5),
+          flag("minimap", "Show on minimap", true),
+          color("unknown_color", "Unknown color", Json::array({0, 0, 0})),
+          real("unknown_opacity", "Unknown opacity", 1.0, 0, 1),
+          color("explored_color", "Explored color", Json::array({102, 102, 110})),
+          real("explored_opacity", "Explored opacity", 0.55, 0, 1),
+          real("edge_softness", "Edge softness", 1.0, 0.1, 5)};
+}
+
 std::vector<Field> build_level_schema() {
   std::vector<Field> f;
   f.push_back(field("name", "Name", FieldType::Text));
@@ -93,30 +122,11 @@ std::vector<Field> build_level_schema() {
   Field profile = reference("ai_profile", "AI profile", "ai_profiles", "A named set of AI settings (ai_profiles.json); the values below change single settings of it.");
   f.push_back(profile);
   Field ai = field("ai", "AI settings", FieldType::Object);
-  ai.fields = {real("start_delay", "Start delay (s)", 150, 0, 100000, "No attack before this many seconds."),
-               whole("first_wave", "First wave", 5, 1, 500, "Fighters needed for the first attack."),
-               whole("wave_growth", "Wave growth", 3, 0, 500, "Extra fighters for each later attack."),
-               whole("desired_workers", "Workers", 3, 0, 50),
-               whole("desired_tankers", "Tankers", 2, 0, 50),
-               real("think_interval", "Think interval (s)", 1.0, 0.1, 60),
-               whole("farm_margin", "Farm margin", 2, 0, 50, "Builds a farm when this little food is left.")};
+  ai.fields = ai_fields();
   f.push_back(ai);
 
   Field fog = field("fog", "Fog of war", FieldType::Object);
-  fog.fields = {flag("enabled", "Enabled", true),
-                flag("reveal_map", "Reveal the map", false, "No black: the whole map is seen (the fog of explored areas stays unless off)."),
-                flag("remember", "Remember explored", true),
-                real("sight_scale", "Sight scale", 1.0, 0, 20, "Multiplies every unit's sight."),
-                whole("sight_bonus", "Sight bonus", 0, -20, 40, "Tiles added to every unit's sight."),
-                whole("min_unit_sight", "Min unit sight", -1, -1, 40, "-1: the game's rule."),
-                whole("building_sight_base", "Building sight base", -1, -1, 40, "-1: the game's rule."),
-                real("update_interval", "Update interval (s)", 0.2, 0.02, 5),
-                flag("minimap", "Show on minimap", true),
-                color("unknown_color", "Unknown color", Json::array({0, 0, 0})),
-                real("unknown_opacity", "Unknown opacity", 1.0, 0, 1),
-                color("explored_color", "Explored color", Json::array({102, 102, 110})),
-                real("explored_opacity", "Explored opacity", 0.55, 0, 1),
-                real("edge_softness", "Edge softness", 1.0, 0.1, 5)};
+  fog.fields = fog_fields();
   f.push_back(fog);
 
   Field objectives = field("objectives", "Objectives", FieldType::Object, "Empty: destroy every enemy unit and building to win.");
@@ -206,6 +216,162 @@ std::vector<Field> build_building_schema() {
   return f;
 }
 
+Field object(std::string key, std::string label, std::vector<Field> fields, std::string help = {}) {
+  Field f = field(std::move(key), std::move(label), FieldType::Object, std::move(help));
+  f.fields = std::move(fields);
+  return f;
+}
+Field texts(std::string key, std::string label, bool compact = false, std::string help = {}) {
+  Field f = field(std::move(key), std::move(label), FieldType::TextList, std::move(help));
+  f.compact = compact;
+  return f;
+}
+
+std::vector<Field> build_manifest_schema() {
+  std::vector<Field> f;
+  f.push_back(text_field("id", "Id", "A short name for the game (letters, digits, '-')."));
+  f.push_back(text_field("title", "Title", "The window title and the name of the game."));
+  f.push_back(text_field("version", "Version"));
+  f.push_back(text_field("default_language", "Default language", "The code of a language file in the strings folder (\"en\": the texts as written)."));
+  f.push_back(object("paths", "Folders and files",
+                     {text_field("data", "Data folder"), text_field("sounds", "Sounds folder"), text_field("cursors", "Cursors folder"),
+                      text_field("campaign", "Campaign"), text_field("tilesets", "Tile sets"), text_field("sound_table", "Sound table"),
+                      text_field("rules", "Rules"), text_field("ai_profiles", "AI profiles"), text_field("strings", "Languages folder"),
+                      text_field("credits", "Credits"), file("fallback_map", "Fallback map", "maps", ".mrmap,.pud", "Played when the game has no campaign.")},
+                     "Where things are, relative to the game's folder. Leave a path out to use the default."));
+  f.push_back(object("music", "Music of the menus",
+                     {file("intro", "Intro", "music", ".ogg"), file("menu", "Menu", "music", ".ogg"), file("victory", "Victory", "music", ".ogg"),
+                      file("defeat", "Defeat", "music", ".ogg")}));
+  return f;
+}
+
+std::vector<Field> build_rules_schema() {
+  std::vector<Field> f;
+  f.push_back(object("simulation", "Simulation",
+                     {whole("lumber_per_tree", "Lumber per tree", 100, 1, 100000, "What a tree holds."), whole("max_queue", "Training queue", 5, 1, 50),
+                      real("scan_interval", "Enemy scan interval (s)", 0.3, 0.01, 10), real("retry_delay", "Route retry delay (s)", 0.5, 0.01, 10)}));
+  f.push_back(object("combat", "Combat",
+                     {whole("min_damage", "Minimum damage", 1, 0, 1000, "A hit always does at least this much, whatever the armor."),
+                      real("attack_flash", "Strike animation (s)", 0.45, 0, 10)}));
+  f.push_back(object("repair", "Repair",
+                     {real("cost_share", "Cost share", 0.25, 0, 10, "Mending from nothing to whole costs this share of the price."),
+                      real("min_seconds", "Minimum time (s)", 20, 0.01, 10000)}));
+  f.push_back(object("vision", "Vision",
+                     {whole("min_unit_sight", "Unit sight at least", 2, 0, 40, "Tiles."), whole("building_sight_base", "Building sight base", 3, 0, 40, "A building sees base + its size.")}));
+  f.push_back(object("match", "Match setup",
+                     {whole("initial_workers", "Starting workers", 8, 0, 100), whole("mine_size", "Mine size (tiles)", 3, 1, 8),
+                      whole("gold_per_value_unit", "Mine value unit", 2500, 1, 1000000, "A map's mine value is a multiple of this."),
+                      whole("default_mine_gold", "Default mine content", 10000, 1, 10000000)}));
+  f.push_back(object("ai", "Computer player", {whole("farm_margin", "Farm margin", 2, 0, 50)}));
+  f.push_back(object("presentation", "Presentation",
+                     {real("corpse_seconds", "Body stays (s)", 25, 0, 1000), real("corpse_fade_seconds", "Body fades (s)", 5, 0.01, 1000),
+                      whole("max_corpses", "Most bodies", 60, 0, 10000), real("air_lift", "Flying height (px)", 14, 0, 200)}));
+  f.push_back(object("fog", "Fog of war (a level may change it)", fog_fields()));
+  return f;
+}
+
+std::vector<Field> build_resource_schema() {
+  std::vector<Field> f;
+  f.push_back(text_field("name", "Name", "Shown to the player."));
+  f.push_back(text_field("short_label", "Short label", "One or two letters after a price."));
+  f.push_back(file("icon", "Icon", "ui", ".png"));
+  f.push_back(choice("source", "Source", {"site", "tree"}, "site: a mine or a patch on the map. tree: cut from trees (only one resource can be)."));
+  f.push_back(choice("site_terrain", "Sites lie on", {"land", "water"}, "water: gathered by ships."));
+  f.push_back(flag("enter_site", "The worker goes inside", false, "One at a time (gold mines)."));
+  f.push_back(text_field("carry_animation", "Carry animation", "walk_<this>_<dir> in a sprite."));
+  f.push_back(text_field("pud_source", "Warcraft II object", "gold_mine or oil_patch: the map object that holds it in a .pud."));
+  f.push_back(file("site_sprite", "Site picture", "buildings", ".png", "{era} is replaced by the tile set's name."));
+  f.push_back(file("site_sprite_active", "Site picture, being worked", "buildings", ".png"));
+  f.push_back(text_field("no_depot_message", "No depot message"));
+  f.push_back(text_field("unreachable_message", "Unreachable message"));
+  f.push_back(text_field("depleted_message", "Depleted message"));
+  f.push_back(text_field("exhausted_message", "Exhausted message"));
+  return f;
+}
+
+std::vector<Field> build_faction_schema() {
+  std::vector<Field> f;
+  f.push_back(text_field("name", "Name"));
+  f.push_back(reference("worker", "Worker", "units", "The unit that gathers and builds; a level starts with some."));
+  f.push_back(reference("town_hall", "Town hall", "buildings", "The building a base starts with."));
+  f.push_back(list_of("base_buildings", "Base buildings", "buildings", "Buildings the computer player builds first."));
+  return f;
+}
+
+std::vector<Field> build_command_schema() {
+  std::vector<Field> f;
+  f.push_back(text_field("label", "Label", "The button's text."));
+  Field order = field("order", "Order", FieldType::Choice, "What it does. Empty: the same as the id.");
+  for (const std::string_view o : kBuiltinOrders) order.options.emplace_back(o);
+  f.push_back(order);
+  f.push_back(text_field("prompt", "Prompt", "Shown while the player picks the target."));
+  f.push_back(text_field("icon", "Icon name"));
+  f.push_back(text_field("hotkey", "Hotkey"));
+  f.push_back(choice("targeting", "Targeting", {"none", "ground", "resource", "menu"}, "none: acts at once. ground: next click picks a tile. resource: a tree or mine. menu: opens a menu (Build)."));
+  f.push_back(flag("implemented", "Implemented", true, "Off: the button is shown but does nothing yet."));
+  Field icons = field("icons", "Icons", FieldType::Amounts, "Icon number per faction (\"default\" for the rest).");
+  icons.source = "factions";
+  icons.options = {"default"};
+  f.push_back(icons);
+  return f;
+}
+
+std::vector<Field> build_context_rules_schema() {
+  Field rules = field("context_orders", "Right-click rules", FieldType::ObjectList,
+                      "The first rule that fits is used. A rule with no condition always fits (put it last). Absent: the game's usual rules.");
+  Field when = field("when", "When", FieldType::RefList, "All of these must hold.");
+  when.source = "conditions";
+  rules.fields = {when, reference("command", "Give the command", "commands")};
+  return {rules};
+}
+
+std::vector<Field> build_projectile_schema() {
+  std::vector<Field> f;
+  f.push_back(choice("shape", "Shape", {"arrow", "bolt", "axe", "boulder", "fire", "magic", "coil"}, "How it is drawn. Empty: the same as the id."));
+  f.push_back(real("speed", "Speed", 400, 1, 5000, "Pixels per second."));
+  f.push_back(real("arc_max", "Highest arc", 0, 0, 500, "How high it rises, in pixels (0: straight). Default depends on the shape."));
+  f.push_back(real("arc_ratio", "Arc, share of distance", 0.08, 0, 5));
+  f.push_back(real("min_seconds", "Shortest flight (s)", 0.12, 0, 60));
+  f.push_back(real("max_seconds", "Longest flight (s)", 1.2, 0, 60));
+  return f;
+}
+
+std::vector<Field> build_ai_profiles_schema() {
+  Field profiles = field("profiles", "Profiles", FieldType::ObjectMap, "Named sets of computer-player settings; a level picks one by name.");
+  profiles.free_keys = true;
+  profiles.fields = ai_fields();
+  return {profiles};
+}
+
+std::vector<Field> build_sounds_schema() {
+  const auto events = [](bool with_attack) {
+    std::vector<Field> e = {texts("selected", "Selected", true), texts("acknowledge", "Acknowledge", true), texts("annoyed", "Annoyed", true),
+                            texts("ready", "Ready", true), texts("help", "Help", true), texts("dead", "Dead", true), texts("work_done", "Work done", true)};
+    if (with_attack) e.push_back(texts("attack", "Attack", true));
+    return e;
+  };
+  std::vector<Field> f;
+  Field voices = field("voices", "Voices", FieldType::ObjectMap, "Sets of sounds that units share.");
+  voices.free_keys = true;
+  voices.fields = events(false);
+  voices.fields.insert(voices.fields.begin(), reference("base", "Takes what is missing from", "voices"));
+  f.push_back(voices);
+  Field units = field("units", "Units", FieldType::ObjectMap, "Sounds of each unit: its voice and anything of its own.");
+  units.source = "units";
+  units.fields = events(true);
+  units.fields.insert(units.fields.begin(), reference("voice", "Voice", "voices"));
+  f.push_back(units);
+  Field buildings = field("buildings", "Buildings", FieldType::ObjectMap);
+  buildings.source = "buildings";
+  buildings.fields = {texts("selected", "Selected", true)};
+  f.push_back(buildings);
+  Field effects = field("effects", "Effects", FieldType::ListMap, "Named sounds the game plays (construct, error, tree, building_destroyed).");
+  effects.free_keys = true;
+  effects.compact = true;
+  f.push_back(effects);
+  return f;
+}
+
 std::vector<std::string> ids_of(const Project& project, const std::string& file, const char* array) {
   std::vector<std::string> ids;
   const Json* doc = project.document(file);
@@ -215,6 +381,22 @@ std::vector<std::string> ids_of(const Project& project, const std::string& file,
   return ids;
 }
 }  // namespace
+
+#define MYRTS_SCHEMA(name, build) \
+  const std::vector<Field>& name() { \
+    static const std::vector<Field> schema = build(); \
+    return schema; \
+  }
+MYRTS_SCHEMA(manifest_schema, build_manifest_schema)
+MYRTS_SCHEMA(rules_schema, build_rules_schema)
+MYRTS_SCHEMA(resource_schema, build_resource_schema)
+MYRTS_SCHEMA(faction_schema, build_faction_schema)
+MYRTS_SCHEMA(command_schema, build_command_schema)
+MYRTS_SCHEMA(context_rules_schema, build_context_rules_schema)
+MYRTS_SCHEMA(projectile_schema, build_projectile_schema)
+MYRTS_SCHEMA(ai_profiles_schema, build_ai_profiles_schema)
+MYRTS_SCHEMA(sounds_schema, build_sounds_schema)
+#undef MYRTS_SCHEMA
 
 const std::vector<Field>& unit_schema() {
   static const std::vector<Field> schema = build_unit_schema();
@@ -240,6 +422,13 @@ std::vector<std::string> reference_options(const Project& project, const std::st
     std::vector<std::string> names;
     if (const Json* doc = project.document(source.substr(11)); doc && doc->contains("animations"))
       for (const Json& a : (*doc)["animations"]) names.push_back(a.value("name", std::string{}));
+    return names;
+  }
+  if (source == "conditions") return {std::begin(kContextConditions), std::end(kContextConditions)};
+  if (source == "voices") {
+    std::vector<std::string> names;
+    if (const Json* doc = project.document(project.package().sound_table_file); doc && doc->contains("voices"))
+      for (const auto& [name, body] : (*doc)["voices"].items()) names.push_back(name);
     return names;
   }
   if (source == "projectiles") return ids_of(project, data + "projectiles.json", "projectiles");

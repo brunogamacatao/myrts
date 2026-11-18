@@ -108,6 +108,7 @@ Project::Json* Project::edit(const std::string& name) {
   const auto it = documents_.find(name);
   if (it == documents_.end()) return nullptr;
   dirty_.insert(name);
+  ++revision_;
   return &it->second;
 }
 
@@ -174,6 +175,7 @@ bool Project::change(const std::string& name, const std::function<void(Json&)>& 
   const auto it = documents_.find(name);
   if (it == documents_.end()) return false;
   push_undo({name}, merge_key);
+  ++revision_;
   fn(it->second);
   refresh_dirty(name);
   return true;
@@ -184,6 +186,7 @@ bool Project::change_many(const std::vector<std::string>& names, const std::func
   for (const std::string& name : names)
     if (!documents_.contains(name)) return false;
   push_undo(names, {});
+  ++revision_;
   std::map<std::string, Json*> docs;
   for (const std::string& name : names) docs[name] = &documents_.at(name);
   fn(docs);
@@ -206,6 +209,7 @@ bool Project::remove(const std::string& name, const Json::json_pointer& at) {
 }
 
 void Project::swap_step(Step& step, std::vector<Step>& to) {
+  ++revision_;
   Step opposite;
   for (auto& [name, before] : step.before) {
     opposite.before.emplace_back(name, std::move(documents_.at(name)));
@@ -241,6 +245,7 @@ std::string Project::campaign_error() const {
 }
 
 void Project::discard_changes() {
+  ++revision_;
   documents_.clear();
   saved_.clear();
   dirty_.clear();

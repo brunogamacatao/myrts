@@ -44,6 +44,11 @@ void replace_all(Json& node, const std::string& from, const std::string& to) {
 Collection units_of(const Project& project) { return {data_file(project, "units.json"), "units"}; }
 Collection buildings_of(const Project& project) { return {data_file(project, "buildings.json"), "buildings"}; }
 
+Collection resources_of(const Project& project) { return {data_file(project, "resources.json"), "resources"}; }
+Collection factions_of(const Project& project) { return {data_file(project, "factions.json"), "factions"}; }
+Collection commands_of(const Project& project) { return {data_file(project, "commands.json"), "commands"}; }
+Collection projectiles_of(const Project& project) { return {data_file(project, "projectiles.json"), "projectiles"}; }
+
 namespace collection {
 
 std::size_t count(const Project& project, const Collection& c) {

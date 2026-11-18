@@ -20,6 +20,7 @@ class CollectionEditor {
     std::function<Collection(const Project&)> collection;
     const std::vector<Field>* schema = nullptr;
     Textures* textures = nullptr;
+    bool hide_faction_filter = false;  ///< the items have no faction
     /// A new item with this id, for this faction (may be empty).
     std::function<Project::Json(const Project&, const std::string& id, const std::string& faction)> make;
   };

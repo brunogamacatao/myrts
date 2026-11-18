@@ -67,6 +67,7 @@ App::App() {
   buildings_ = std::make_unique<CollectionEditor>(buildings);
   sprites_ = std::make_unique<SpriteEditor>(textures_);
   map_ = std::make_unique<MapEditor>(textures_);
+  game_ = std::make_unique<GameEditor>();
 }
 
 App::~App() = default;
@@ -89,11 +90,13 @@ void App::open_project(const std::string& directory) {
   buildings_->reset();
   sprites_->reset();
   map_->reset();
+  game_->reset();
   textures_.clear();
   characters_->reset();
   buildings_->reset();
   sprites_->reset();
   map_->reset();
+  game_->reset();
   textures_.clear();
   dialog_error_.clear();
   set_status("Opened " + project_->root().generic_string());
@@ -305,6 +308,7 @@ void App::draw_dialogs() {
         buildings_->reset();
   sprites_->reset();
   map_->reset();
+  game_->reset();
   textures_.clear();
         dialog_error_.clear();
         set_status("Created " + project_->root().generic_string());
@@ -343,6 +347,7 @@ void App::draw_dialogs() {
     if (ImGui::Button("Discard")) {
       if (project_) project_->discard_changes();
       map_->reset();
+  game_->reset();
       proceed();
     }
     ImGui::SameLine();
@@ -562,15 +567,15 @@ void App::draw_welcome() {
       sprites_->draw(*project_);
       ImGui::EndTabItem();
     }
+    if (ImGui::BeginTabItem("Game")) {
+      game_->draw(*project_);
+      ImGui::EndTabItem();
+    }
     if (ImGui::BeginTabItem("Data files")) {
       if (selected_document_.empty()) {
-        ImGui::TextDisabled("Pick a data file in the Project panel.");
-      } else if (const auto* doc = project_->document(selected_document_)) {
-        ImGui::TextUnformatted(selected_document_.c_str());
-        ImGui::Separator();
-        ImGui::BeginChild("raw", {0, 0}, ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar);
-        ImGui::TextUnformatted(doc->dump(2).c_str());
-        ImGui::EndChild();
+        ImGui::TextDisabled("Pick a data file in the Project panel: anything the other editors do not cover can be edited here as JSON.");
+      } else {
+        raw_.draw(*project_, selected_document_);
       }
       ImGui::EndTabItem();
     }

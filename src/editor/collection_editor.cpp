@@ -70,7 +70,9 @@ void CollectionEditor::draw(Project& project) {
     ImGui::TextDisabled("search...");
   }
   ImGui::SetNextItemWidth(-FLT_MIN);
-  if (ImGui::BeginCombo("##faction", faction_filter_.empty() ? "All factions" : faction_filter_.c_str())) {
+  if (config_.hide_faction_filter) {
+    faction_filter_.clear();
+  } else if (ImGui::BeginCombo("##faction", faction_filter_.empty() ? "All factions" : faction_filter_.c_str())) {
     if (ImGui::Selectable("All factions", faction_filter_.empty())) faction_filter_.clear();
     for (const std::string& faction : reference_options(project, "factions"))
       if (ImGui::Selectable(faction.c_str(), faction == faction_filter_)) faction_filter_ = faction;
