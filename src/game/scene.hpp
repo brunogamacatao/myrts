@@ -12,6 +12,7 @@
 #include "audio.hpp"
 #include "core/campaign.hpp"
 #include "core/defs.hpp"
+#include "core/game_package.hpp"
 #include "core/sounds.hpp"
 #include "core/tileset.hpp"
 #include "cursors.hpp"
@@ -25,11 +26,17 @@ struct SceneContext {
   Assets* assets = nullptr;                    // shared, reference-counted resources
   const myrts::Registry* registry = nullptr;   // game data (units, buildings, commands)
   Cursors* cursors = nullptr;                   // the mouse cursors (a scene may change them each frame)
-  std::shared_ptr<const myrts::Campaign> campaign;  // the levels, in order (assets/data/campaign.json)
+  std::shared_ptr<const myrts::Campaign> campaign;  // the levels, in order (the game package's campaign file)
   Audio* audio = nullptr;                       // the sound device (silent when there is none)
   std::shared_ptr<const myrts::SoundTable> sounds;  // which file plays for which event
   std::shared_ptr<const myrts::TileSets> tilesets;
-  std::string save_path;                            // the file with the saved games (see core/saves.hpp)  // which tile code is drawn where, per terrain era
+  std::string save_path;                            // the file with the saved games (see core/saves.hpp)
+  std::shared_ptr<const myrts::GameRules> rules;      // the game's tunable rules (rules.json)
+  std::shared_ptr<const myrts::Strings> strings;      // the interface language (see game/i18n.hpp)
+  std::shared_ptr<const myrts::GamePackage> package;  // the game being played: where its content lives, its title and screen music
+
+  /// `relative` (a path written in the game's data) as a path the loaders can open.
+  [[nodiscard]] std::string content_path(const std::string& relative) const { return package ? package->path(relative) : relative; }
 };
 
 /// Builds a scene when the manager needs it (the old scene is still alive while this runs, so a

@@ -7,14 +7,14 @@ Sheets (download manually from https://www.spriters-resource.com/ms_dos/warcraft
   asset/29542  Miscellaneous            -> --misc <png>   (gold mine, optional)
 
 Usage: scripts/extract_sprites.py --buildings orc_buildings.png [--human human_buildings.png] [--misc misc.png]
-Writes PNGs to assets/buildings/.
+Writes PNGs to games/warcraft-like/buildings/.
 """
 import argparse
 import pathlib
 
 from PIL import Image
 
-OUT = pathlib.Path(__file__).resolve().parent.parent / "assets" / "buildings"
+OUT = pathlib.Path(__file__).resolve().parent.parent / "games" / "warcraft-like" / "buildings"
 
 # (x, y, w, h) of each sprite inside its sheet.
 BUILDINGS = {

@@ -18,6 +18,23 @@ const s_frame* current_frame(const SpriteDef& def, const AnimationState& state) 
   return &frames[static_cast<std::size_t>(state.frame) % frames.size()];
 }
 
+std::string pick_animation(const SpriteDef& def, const std::vector<std::string>& candidates) {
+  for (const auto& c : candidates)
+    if (def.animations.contains(c)) return c;
+  return def.default_animation;
+}
+
+std::string resolve_animation(const SpriteDef& def, const std::string& state, const std::vector<std::string>& defaults,
+                              const std::string& dir, const std::string& move, const std::string& carry) {
+  const auto it = def.states.find(state);
+  std::vector<std::string> names = it != def.states.end() ? it->second : defaults;
+  names.push_back("{move}_{dir}");
+  for (std::string& n : names)
+    for (const auto& [word, value] : {std::pair<const char*, const std::string&>{"{dir}", dir}, {"{move}", move}, {"{carry}", carry}})
+      for (std::size_t at = n.find(word); at != std::string::npos; at = n.find(word, at + value.size())) n.replace(at, std::string(word).size(), value);
+  return pick_animation(def, names);
+}
+
 std::string pick_animation(const SpriteDef& def, std::initializer_list<std::string> candidates) {
   for (const auto& c : candidates)
     if (def.animations.contains(c)) return c;
@@ -70,8 +87,8 @@ void draw_sprite_fit(const SpriteDef& def, const AnimationState& state, float bx
                         flip_flags(anim));
 }
 
-std::expected<std::shared_ptr<SpriteDef>, std::string> load_sprite_def(const std::string& filename) {
-  std::ifstream f(filename);
+std::expected<std::shared_ptr<SpriteDef>, std::string> load_sprite_def(const std::string& filename, const std::string& root) {
+  std::ifstream f(root.empty() ? filename : root + "/" + filename);
   if (!f) return std::unexpected("cannot open " + filename);
 
   try {
@@ -79,7 +96,7 @@ std::expected<std::shared_ptr<SpriteDef>, std::string> load_sprite_def(const std
     auto def = std::make_shared<SpriteDef>();
 
     const auto spritesheet_file = data.at("spritesheet").get<std::string>();
-    def->spritesheet.reset(al_load_bitmap(spritesheet_file.c_str()));
+    def->spritesheet.reset(al_load_bitmap((root.empty() ? spritesheet_file : root + "/" + spritesheet_file).c_str()));
     if (!def->spritesheet) return std::unexpected("cannot load spritesheet " + spritesheet_file);
     def->default_animation = data.at("default_animation").get<std::string>();
 
@@ -100,6 +117,9 @@ std::expected<std::shared_ptr<SpriteDef>, std::string> load_sprite_def(const std
 
       def->animations[animation_data.at("name").get<std::string>()] = std::move(animation);
     }
+
+    if (data.contains("states"))
+      for (const auto& [state, list] : data.at("states").items()) def->states[state] = list.get<std::vector<std::string>>();
 
     if (!def->animations.contains(def->default_animation)) {
       return std::unexpected("default_animation not found: " + def->default_animation);

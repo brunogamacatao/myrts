@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "id": "warcraft-like",
+  "title": "myrts",
+  "version": "0.1.0",
+  "default_language": "en",
+  "paths": {
+    "data": "data",
+    "sounds": "sounds",
+    "cursors": "cursors",
+    "campaign": "data/campaign.json",
+    "tilesets": "data/tilesets.json",
+    "sound_table": "data/sounds.json",
+    "rules": "data/rules.json",
+    "ai_profiles": "data/ai_profiles.json",
+    "strings": "strings",
+    "credits": "credits.txt",
+    "fallback_map": "maps/Gold Rush BNE.pud"
+  },
+  "music": {
+    "intro": "music/intro.ogg",
+    "menu": "music/war_room.ogg",
+    "victory": "music/victory.ogg",
+    "defeat": "music/defeat.ogg"
+  }
+}

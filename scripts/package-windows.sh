@@ -34,17 +34,17 @@ cmake --build "$BUILD"
 rm -rf "$DIST/$NAME" "$DIST/$NAME.zip"
 mkdir -p "$DIST/$NAME"
 cp "$BUILD/myrts.exe" "$DIST/$NAME/"
-cp -r assets/. "$DIST/$NAME/"
+cp -r games "$DIST/$NAME/games"
 cp NOTICE.md "$DIST/$NAME/"
 cat > "$DIST/$NAME/LEIAME.txt" <<'EOT'
 myrts - Windows 10/11 (64 bits)
 
 Como jogar: extraia TODO o conteudo do zip para uma pasta e de dois cliques em myrts.exe.
 Nao precisa instalar nada (sem DLLs ou runtimes extras). Mantenha o myrts.exe junto das
-pastas data, maps, music, sounds, sprites etc.: o jogo as carrega da pasta do executavel.
+pasta games: o jogo a carrega da pasta do executavel (ou use --game <pasta>).
 
 Controles: veja README.md do projeto. Esc cancela o comando / limpa a selecao / sai.
-Creditos dos assets: credits.txt e NOTICE.md.
+Creditos dos assets: games/warcraft-like/credits.txt e NOTICE.md.
 EOT
 (cd "$DIST" && zip -qr "$NAME.zip" "$NAME")
 echo "Done: $DIST/$NAME.zip ($(du -h "$DIST/$NAME.zip" | cut -f1))"

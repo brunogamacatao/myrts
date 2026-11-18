@@ -53,13 +53,14 @@ Tests: `cmake --preset tests-only && cmake --build --preset tests-only && ctest 
 - `src/core/` – pure logic, unit tested: `Grid`, A* (`pathfinding`), group destinations (`formation`), tile
   reservations (`occupancy`), camera/minimap math (`geometry`), picking (`selection`)
 - `src/game/` – Allegro front-end: `Game` (input, selection, camera), `TileRenderer`, `SpriteDef`, HUD (`ui`), scenes
-- `assets/` – sprites, tilesets, Warcraft II maps (`maps/*.pud`) and game data (`data/*.json`)
+- `docs/GAME_FORMAT.md` – how to make a game: every data file, `myrts_tool validate` and `import-pud`
+- `games/<name>/` – a game package (`game.json` manifest + content); run another with `--game <dir>` or `MYRTS_GAME`. The bundled one: sprites, tilesets, Warcraft II maps (`maps/*.pud`) and game data (`data/*.json`)
 - `tests/` – Catch2 tests
 
 ## Campaign
 The levels are listed in order, grouped in chapters (land warfare, air war, sea power, total war) that introduce the game step by step: early levels
 only allow a few units and buildings and show tutorial hints, and in the air chapter the bases are not connected on foot, so the
-player must build a Dragon Roost. The sea chapter has shipyards, oil tankers, destroyers, the big warships and transports (see Transports). Everything is in `assets/data/campaign.json`: each level has a name, a briefing line, a Warcraft II map and how hard
+player must build a Dragon Roost. The sea chapter has shipyards, oil tankers, destroyers, the big warships and transports (see Transports). Everything is in `games/warcraft-like/data/campaign.json`: each level has a name, a briefing line, a Warcraft II map and how hard
 the Alliance plays (delay before its first attack, size and growth of its waves, workers, starting stock). Winning a level offers
 the next one; losing offers to retry it. Add a level by adding an entry (the map must have two start locations connected by
 land (forests and gold mines count as walls); `tests/campaign_test.cpp` checks this for every level). `MYRTS_MAP=<pud>` plays a single map.
@@ -68,31 +69,36 @@ land (forests and gold mines count as walls); `tests/campaign_test.cpp` checks t
 Maps are Warcraft II `.pud` files, drawn with the same tile scheme the game uses (every tile is built from four terrain
 quadrants, so forests, coasts and cliffs get proper borders, and a felled tree redraws its surroundings).
 The campaign decides which map is played (see above); play one map on its own with `MYRTS_MAP`, for example
-`MYRTS_MAP="maps/Gold Rush BNE.pud" scripts/run.sh`. The sample maps (forest, wasteland and swamp eras) are in `assets/maps/`,
+`MYRTS_MAP="maps/Gold Rush BNE.pud" scripts/run.sh`. The sample maps (forest, wasteland and swamp eras) are in `games/warcraft-like/maps/`,
 and any `.pud` with two or more start locations works. See [NOTICE.md](NOTICE.md) for the sources.
 
 ## Interface
 The HUD is built from the original Warcraft II art: cracked-earth panels, the framed minimap, command / unit / building icons,
 resource icons and the mouse cursors (crosshairs while choosing a target, scroll arrows at the screen edge). The icon of every
-unit, building and command is set in `assets/data/*.json` (an index into `assets/ui/icons.png`). To rebuild the assets from their
+unit, building and command is set in `games/warcraft-like/data/*.json` (an index into `games/warcraft-like/ui/icons.png`). To rebuild the assets from their
 sources run `scripts/extract_ui_assets.py` (see its docstring).
 
 ## Sound
 Ranged units (archers, axe throwers, ballistas, catapults, mages, death knights, dragons) shoot visible missiles, drawn with
-primitives; a unit opts in with `"projectile"` in `assets/data/units.json`.
+primitives; a unit opts in with `"projectile"` in `games/warcraft-like/data/units.json`.
 
 Units speak the way they do in Warcraft II: a line when selected (`what`), when given an order (`yessir`), a sequence of
 increasingly annoyed ones when clicked repeatedly (`pissed`), when they finish training (`ready`), when hit (`help`, at most
 once every six seconds) and when they die; buildings have their own sound when selected, and construction, errors, chopping,
 strikes and explosions have effects, panned and attenuated by where they happen on screen. Which file plays for which event
-is in `assets/data/sounds.json` (`scripts/import_sounds.py "<WarCraft 2 Sounds folder>"` copies the WAVs into `assets/sounds/`
+is in `games/warcraft-like/data/sounds.json` (`scripts/import_sounds.py "<WarCraft 2 Sounds folder>"` copies the WAVs into `games/warcraft-like/sounds/`
 and regenerates it). Volume (music and effects separately) and a global mute are in Options (main and game menus); `MYRTS_MUTE=1` turns the sound off; with no sound card the game stays silent.
 
 ## Music
-The credits, the main menu and every level have their own track (`assets/music/*.ogg`, streamed); level tracks loop and are set per
-level with `"music"` in `assets/data/campaign.json` (the six tracks repeat in turn over the levels), while the victory and defeat
+The credits, the main menu and every level have their own track (`games/warcraft-like/music/*.ogg`, streamed); level tracks loop and are set per
+level with `"music"` in `games/warcraft-like/data/campaign.json` (the six tracks repeat in turn over the levels), while the victory and defeat
 tunes play once. Music volume is independent of the effects volume; mute silences both. `scripts/import_music.py "<songs folder>"`
 converts the original mp3 files to Ogg Vorbis (needs ffmpeg).
+
+## Fullscreen
+`F11` (or `Alt+Enter`) toggles fullscreen from any screen, and the Options screen has a **Fullscreen** button. It is a borderless window at the
+desktop's resolution: the game keeps its 800x600 picture and scales it to fit with black bars on the sides (mouse clicks are mapped
+back, so everything works the same). `MYRTS_FULLSCREEN=1` starts in fullscreen; `MYRTS_WINDOW=1280x800` opens a bigger window.
 
 ## Fog of war
 As in the original, ground nobody has seen is black, with a soft grey rim between it and the explored land; enemy units show only

@@ -33,6 +33,11 @@ struct SpriteDef {
   BitmapPtr spritesheet;
   std::string default_animation;
   std::map<std::string, s_animation> animations;
+  /// Optional: which animations a state of the unit uses, in order of preference. States: "attack" (striking while
+  /// standing), "work" (chopping, building...) and "carry" (moving with cargo). In a name `{dir}` is the facing
+  /// ("up_left"), `{move}` is "walk" or "idle" and `{carry}` is the carried resource's animation name ("gold").
+  /// A state left out gets the default below; plain `{move}_{dir}` is always the last fallback.
+  std::map<std::string, std::vector<std::string>> states;
 };
 
 /// Per-unit playback state.
@@ -43,11 +48,17 @@ struct AnimationState {
 };
 
 /// Loads a sprite definition; returns an error message on failure.
-std::expected<std::shared_ptr<SpriteDef>, std::string> load_sprite_def(const std::string& filename);
+std::expected<std::shared_ptr<SpriteDef>, std::string> load_sprite_def(const std::string& filename, const std::string& root = {});
 
 /// The first of `candidates` that this sprite defines, or its default animation. Lets a unit
 /// without e.g. "walk_gold_*" frames fall back to plain walking.
 std::string pick_animation(const SpriteDef& def, std::initializer_list<std::string> candidates);
+std::string pick_animation(const SpriteDef& def, const std::vector<std::string>& candidates);
+
+/// The animation for `state`: the sprite's own list for it (or `defaults`), with the `{...}` words replaced, then plain
+/// `{move}_{dir}`.
+std::string resolve_animation(const SpriteDef& def, const std::string& state, const std::vector<std::string>& defaults,
+                             const std::string& dir, const std::string& move, const std::string& carry);
 
 /// Switches animation (restarting it only if it actually changed).
 void set_animation(AnimationState& state, const std::string& name);

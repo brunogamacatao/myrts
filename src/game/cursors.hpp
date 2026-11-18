@@ -3,8 +3,9 @@
 #include <allegro5/allegro5.h>
 
 #include <array>
+#include <string>
 
-/// The original Warcraft II mouse cursors (assets/cursors, built by scripts/extract_ui_assets.py).
+/// The original Warcraft II mouse cursors (the game package's cursors folder, built by scripts/extract_ui_assets.py).
 enum class CursorKind {
   Pointer,
   PointerNo,
@@ -32,7 +33,8 @@ class Cursors {
   ~Cursors() { unload(); }
 
   /// Loads the cursors for `display`. Returns false (leaving the system cursor) if the files are missing.
-  bool load(ALLEGRO_DISPLAY* display);
+  /// `directory` holds cursors.json and the cursor images.
+  bool load(ALLEGRO_DISPLAY* display, const std::string& directory);
   /// Frees them; call before the display is destroyed.
   void unload();
   void set(CursorKind kind);

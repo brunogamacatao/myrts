@@ -13,8 +13,8 @@ constexpr const char* kFiles[] = {"pointer",   "pointer_no", "target",    "targe
 static_assert(std::size(kFiles) == static_cast<std::size_t>(CursorKind::Count));
 }  // namespace
 
-bool Cursors::load(ALLEGRO_DISPLAY* display) {
-  std::ifstream in("cursors/cursors.json");
+bool Cursors::load(ALLEGRO_DISPLAY* display, const std::string& directory) {
+  std::ifstream in(directory + "/cursors.json");
   if (!in) return false;
   nlohmann::json hot;
   try {
@@ -26,7 +26,7 @@ bool Cursors::load(ALLEGRO_DISPLAY* display) {
   display_ = display;
   for (std::size_t i = 0; i < cursors_.size(); ++i) {
     const std::string name = kFiles[i];
-    BitmapPtr bmp(al_load_bitmap(("cursors/" + name + ".png").c_str()));
+    BitmapPtr bmp(al_load_bitmap((directory + "/" + name + ".png").c_str()));
     if (!bmp || !hot.contains(name)) {
       std::fprintf(stderr, "warning: cursor %s is missing\n", name.c_str());
       continue;

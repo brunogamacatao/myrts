@@ -54,7 +54,7 @@ TEST_CASE("sounds fade with the distance from the screen") {
 }
 
 TEST_CASE("the shipped sound table covers every unit and building and its files exist") {
-  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "assets";
+  const fs::path assets = fs::path(MYRTS_SOURCE_DIR) / "games" / "warcraft-like";
   const auto reg = Registry::load_directory((assets / "data").string());
   REQUIRE(reg.has_value());
   const auto table = SoundTable::load_file((assets / "data" / "sounds.json").string());

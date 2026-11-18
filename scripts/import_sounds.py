@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Imports the Warcraft II sounds the game uses and writes assets/data/sounds.json.
+"""Imports the Warcraft II sounds the game uses and writes games/warcraft-like/data/sounds.json.
 
 Usage: scripts/import_sounds.py "/path/to/WarCraft 2 Sounds"
 
 Blizzard's naming convention: <unit>what = selected, <unit>yess* = acknowledge, <unit>pis*/pissed* = annoyed,
 <unit>ready = finished training, <unit>help = under attack, <unit>dead = death. The same events are what Wargus
 (scripts/sound.lua, scripts/<race>/units.lua) calls selected, acknowledge, annoyed, ready, help and dead.
-The WAV files are copied, lower-cased, to assets/sounds/ (the table refers to them by that name).
+The WAV files are copied, lower-cased, to games/warcraft-like/sounds/ (the table refers to them by that name).
 """
 import json, re, shutil, sys
 from pathlib import Path
@@ -15,7 +15,7 @@ if len(sys.argv) != 2:
     sys.exit(__doc__)
 src = Path(sys.argv[1])
 root = Path(__file__).resolve().parent.parent
-out = root / "assets" / "sounds"
+out = root / "games" / "warcraft-like" / "sounds"
 out.mkdir(parents=True, exist_ok=True)
 
 
@@ -122,5 +122,5 @@ doc = {
     "buildings": {k: {"selected": [flat(r) for r in x]} for k, x in buildings.items()},
     "effects": {k: [flat(r) for r in x] for k, x in effects.items()},
 }
-(root / "assets" / "data" / "sounds.json").write_text(json.dumps(doc, indent=1) + "\n")
+(root / "games" / "warcraft-like" / "data" / "sounds.json").write_text(json.dumps(doc, indent=1) + "\n")
 print(f"{len(list(out.glob('*.wav')))} sounds in {out}")

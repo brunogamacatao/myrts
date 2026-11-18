@@ -49,7 +49,12 @@ add_library(myrts_core STATIC
   src/core/savegame.cpp
   src/core/transport.cpp
   src/core/saves.cpp
-  src/core/match_setup.cpp)
+  src/core/match_setup.cpp
+  src/core/game_package.cpp
+  src/core/game_rules.cpp
+  src/core/resources.cpp
+  src/core/mapfile.cpp
+  src/core/strings.cpp)
 target_include_directories(myrts_core PUBLIC src)
 target_compile_features(myrts_core PUBLIC cxx_std_23)
 target_link_libraries(myrts_core PRIVATE myrts_warnings nlohmann_json::nlohmann_json)
@@ -98,8 +103,10 @@ if(MYRTS_BUILD_GAME)
     src/game/scene_manager.cpp
     src/game/scenes.cpp
     src/game/assets.cpp
+    src/game/i18n.cpp
     src/game/audio.cpp
     src/game/fog_view.cpp
+    src/game/screen.cpp
     src/game/sound_director.cpp
     src/game/game.cpp
     src/game/game_input.cpp
@@ -110,9 +117,13 @@ if(MYRTS_BUILD_GAME)
   # Make assets available next to the executable (run it from there). A separate target, so that a change to the data
   # alone (a level, a sound table) is copied too, even when the executable itself did not need relinking.
   add_custom_target(copy_assets ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:myrts>)
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/games $<TARGET_FILE_DIR:myrts>/games)
   add_dependencies(myrts copy_assets)
 endif()
+
+# ---- tools: command line utilities for game packages (no graphics) --------
+add_executable(myrts_tool tools/myrts_tool.cpp)
+target_link_libraries(myrts_tool PRIVATE myrts_core myrts_warnings nlohmann_json::nlohmann_json)
 
 # ---- tests ---------------------------------------------------------------
 if(MYRTS_BUILD_TESTS)
@@ -135,10 +146,14 @@ if(MYRTS_BUILD_TESTS)
     tests/campaign_test.cpp
     tests/match_setup_test.cpp
     tests/naval_test.cpp
-    tests/balance_sim_test.cpp
     tests/fog_test.cpp
     tests/saves_test.cpp
-    tests/transport_test.cpp)
+    tests/transport_test.cpp
+    tests/game_package_test.cpp
+    tests/game_rules_test.cpp
+    tests/resources_test.cpp
+    tests/objectives_test.cpp
+    tests/mapfile_test.cpp)
   target_compile_definitions(myrts_tests PRIVATE MYRTS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   target_link_libraries(myrts_tests PRIVATE myrts_core myrts_warnings nlohmann_json::nlohmann_json Catch2::Catch2WithMain)
   if(catch2_SOURCE_DIR)

@@ -6,7 +6,7 @@ the directions up, up-right, right, down-right, down. The left-facing directions
 draw time (flip_horizontal). Rows are found automatically from the transparent gaps.
 
 Usage: scripts/extract_unit_sprites.py --dir ~/Downloads
-Reads wc2_orc_grunt.png, wc2_human_footman.png, wc2_human_peasant.png; writes assets/sprites/.
+Reads wc2_orc_grunt.png, wc2_human_footman.png, wc2_human_peasant.png; writes games/warcraft-like/sprites/.
 """
 import argparse
 import json
@@ -15,7 +15,7 @@ import shutil
 
 from PIL import Image
 
-OUT = pathlib.Path(__file__).resolve().parent.parent / "assets" / "sprites"
+OUT = pathlib.Path(__file__).resolve().parent.parent / "games" / "warcraft-like" / "sprites"
 DIRS = ["up", "up_right", "right", "down_right", "down"]
 
 # Row indices (0-based, top to bottom, gaps between rows detect them) of each animation.
@@ -24,7 +24,7 @@ DIRS = ["up", "up_right", "right", "down_right", "down"]
 UNITS = {
     "orcs_peon": {
         "sheet": "orcs_peon.png",
-        "in_assets": True,  # the sheet already lives in assets/sprites
+        "in_assets": True,  # the sheet already lives in games/warcraft-like/sprites
         "walk": range(0, 5),
         "chop": range(5, 10),
         "fall": 10,

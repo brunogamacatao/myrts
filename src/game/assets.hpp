@@ -12,6 +12,9 @@
 /// whatever the current scene stops using is freed with that scene.
 class Assets {
  public:
+  /// `root`: the folder every path is relative to (the game package); empty for the working directory.
+  explicit Assets(std::string root = {}) : root_(std::move(root)) {}
+
   std::expected<std::shared_ptr<const SpriteDef>, std::string> sprite(const std::string& path);
   std::expected<std::shared_ptr<const Bitmap>, std::string> bitmap(const std::string& path);
 
@@ -20,6 +23,9 @@ class Assets {
   [[nodiscard]] std::size_t live_bitmaps() const { return bitmaps_.live(); }
 
  private:
+  [[nodiscard]] std::string resolve(const std::string& path) const { return root_.empty() ? path : root_ + "/" + path; }
+
+  std::string root_;
   myrts::ResourceCache<SpriteDef> sprites_;
   myrts::ResourceCache<Bitmap> bitmaps_;
 };

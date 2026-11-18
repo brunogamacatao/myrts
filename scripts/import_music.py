@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Converts the Warcraft II soundtrack (mp3) to Ogg Vorbis in assets/music/ (Allegro cannot read mp3).
+"""Converts the Warcraft II soundtrack (mp3) to Ogg Vorbis in games/warcraft-like/music/ (Allegro cannot read mp3).
 
 Usage: scripts/import_music.py "/path/to/warcraft_songs"   (needs ffmpeg with libvorbis)
 
@@ -11,7 +11,7 @@ from pathlib import Path
 if len(sys.argv) != 2:
     sys.exit(__doc__)
 src = Path(sys.argv[1])
-out = Path(__file__).resolve().parent.parent / "assets" / "music"
+out = Path(__file__).resolve().parent.parent / "games" / "warcraft-like" / "music"
 out.mkdir(parents=True, exist_ok=True)
 
 names = [(r"intro", "intro"), (r"war room", "war_room"), (r"orc (\d)", None), (r"orc victory", "victory"), (r"orc defeat", "defeat")]

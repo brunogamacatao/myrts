@@ -1,5 +1,7 @@
 #include "scenes.hpp"
 
+#include "i18n.hpp"
+
 #include <allegro5/allegro_primitives.h>
 
 #include <algorithm>
@@ -25,18 +27,14 @@ SceneFactory factory_of(Args... args) {
 // ---- opening credits ---------------------------------------------------------
 
 /// Slides separated by blank lines in assets/credits.txt; the first line of each is the heading.
-constexpr const char* kIntroMusic = "music/intro.ogg";       // the credits
-constexpr const char* kMenuMusic = "music/war_room.ogg";      // the main menu
-constexpr const char* kVictoryMusic = "music/victory.ogg";    // played once
-constexpr const char* kDefeatMusic = "music/defeat.ogg";      // played once
 
 class IntroScene : public Scene {
  public:
   IntroScene(const SceneContext& ctx, std::function<Transition()> when_done)
-      : ctx_(ctx), when_done_(std::move(when_done)), slides_(load_slides()) {}
+      : ctx_(ctx), when_done_(std::move(when_done)), slides_(load_slides(ctx)) {}
 
   void on_enter() override {
-    if (ctx_.audio) ctx_.audio->play_music(kIntroMusic, true);
+    if (ctx_.audio) ctx_.audio->play_music(ctx_.content_path(ctx_.package ? ctx_.package->music_intro : std::string{}), true);
   }
 
   Transition handle_event(const ALLEGRO_EVENT& e) override {
@@ -95,9 +93,9 @@ class IntroScene : public Scene {
  private:
   static constexpr double kSlideSeconds = 3.5;
 
-  static std::vector<std::vector<std::string>> load_slides() {
+  static std::vector<std::vector<std::string>> load_slides(const SceneContext& ctx) {
     std::vector<std::vector<std::string>> slides{{}};
-    std::ifstream in("credits.txt");
+    std::ifstream in(ctx.content_path(ctx.package ? ctx.package->credits_file : "credits.txt"));
     for (std::string line; std::getline(in, line);) {
       while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) line.pop_back();
       if (line.empty()) {
@@ -107,7 +105,7 @@ class IntroScene : public Scene {
       }
     }
     if (slides.back().empty()) slides.pop_back();
-    if (slides.empty()) slides.push_back({"MYRTS"});
+    if (slides.empty()) slides.push_back({ctx.package ? ctx.package->title : "MYRTS"});
     return slides;
   }
 
@@ -138,10 +136,6 @@ class GameScene : public Scene {
   void on_resume() override { game_->release_input(); }  // keys may have changed while paused
 
   Transition handle_event(const ALLEGRO_EVENT& e) override {
-    if (e.type == ALLEGRO_EVENT_KEY_DOWN) {  // debug shortcuts until real win/lose rules exist
-      if (e.keyboard.keycode == ALLEGRO_KEY_F11) return Transition::replace(make_game_over(GameResult::Victory, level_, faction_));
-      if (e.keyboard.keycode == ALLEGRO_KEY_F12) return Transition::replace(make_game_over(GameResult::Defeat, level_, faction_));
-    }
     game_->handle_event(e);
     if (game_->take_menu_request()) {
       // The pause menu can save the match: it asks this scene (which stays below it on the stack) for a snapshot.
@@ -187,16 +181,16 @@ SceneFactory make_game(std::size_t level, std::string faction, std::shared_ptr<c
     auto game = Game::create(ctx, level, faction, saved.get());
     if (!game) return std::unexpected(game.error());
     return std::make_unique<GameScene>(std::move(*game), level, faction, ctx.audio,
-                                       ctx.campaign ? ctx.campaign->level(level).music : std::string{});
+                                       ctx.campaign ? ctx.content_path(ctx.campaign->level(level).music) : std::string{});
   };
 }
 
 SceneFactory make_main_menu() {
   return [](const SceneContext& ctx) -> std::expected<std::unique_ptr<Scene>, std::string> {
     MenuConfig cfg;
-    cfg.title = "MYRTS";
+    cfg.title = ctx.package ? ctx.package->title : "MYRTS";
     cfg.subtitle = "A real-time strategy game";
-    cfg.music = kMenuMusic;
+    cfg.music = ctx.content_path(ctx.package ? ctx.package->music_menu : std::string{});
     cfg.items = {
         {"New Game", [] { return Transition::push(make_faction_select()); }},
         {"Load Game", [] { return Transition::push(make_slots(SlotsMode::Load)); }},
@@ -213,11 +207,11 @@ SceneFactory make_faction_select() {
     MenuConfig cfg;
     cfg.title = "Choose Your Side";
     cfg.subtitle = "The campaign is the same for both; the enemy is the other side";
-    cfg.music = kMenuMusic;
+    cfg.music = ctx.content_path(ctx.package ? ctx.package->music_menu : std::string{});
     cfg.on_escape = [] { return Transition::pop(); };
     for (const myrts::FactionDef& f : ctx.registry->factions()) {
       const std::string id = f.id;
-      cfg.items.push_back({"Play as the " + f.name, [id] { return Transition::reset(make_game(0, id)); }});
+      cfg.items.push_back({tr("Play as the {0}", {tr(f.name)}), [id] { return Transition::reset(make_game(0, id)); }});
     }
     cfg.items.push_back({"Back", [] { return Transition::pop(); }});
     return std::make_unique<MenuScene>(ctx, std::move(cfg));
@@ -250,9 +244,9 @@ SceneFactory make_game_over(GameResult result, std::size_t level, std::string fa
     const bool multi = ctx.campaign && ctx.campaign->size() > 1;
     MenuConfig cfg;
     cfg.title = won ? (multi && !next ? "Campaign Complete!" : "Victory!") : "Defeat";
-    cfg.subtitle = won ? (next ? "Next: " + ctx.campaign->level(*next).chapter + " - " + ctx.campaign->level(*next).name : "Your enemies have been crushed.")
+    cfg.subtitle = won ? (next ? tr("Next: {0} - {1}", {ctx.campaign->level(*next).chapter, ctx.campaign->level(*next).name}) : "Your enemies have been crushed.")
                        : "Your forces have been destroyed.";
-    cfg.music = won ? kVictoryMusic : kDefeatMusic;
+    cfg.music = ctx.content_path(ctx.package ? (won ? ctx.package->music_victory : ctx.package->music_defeat) : std::string{});
     cfg.music_loop = false;
     cfg.title_color = won ? al_map_rgb(240, 200, 60) : al_map_rgb(220, 60, 50);
     if (won && next) {

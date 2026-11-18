@@ -10,7 +10,7 @@ Needs (see NOTICE.md for where they come from):
     scripts/extract_ui_assets.py --editor ~/src/warcraft2-map-editor --pud build/pud/pud \\
         --maindat war2tools/data/maindat.war --misc ~/Downloads/wc2_miscellaneous.png
 
-Writes assets/ui/*, assets/cursors/* and assets/buildings/gold_mine_*.png.
+Writes games/warcraft-like/ui/*, games/warcraft-like/cursors/* and games/warcraft-like/buildings/gold_mine_*.png.
 """
 import argparse
 import json
@@ -22,7 +22,7 @@ import tempfile
 
 from PIL import Image
 
-ASSETS = pathlib.Path(__file__).resolve().parent.parent / "assets"
+ASSETS = pathlib.Path(__file__).resolve().parent.parent / "games" / "warcraft-like"
 ICON_COLS = 15
 ICON_W, ICON_H = 46, 38
 

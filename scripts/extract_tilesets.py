@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds assets/data/tilesets.json: for each of the four terrain eras, where every map-tile code lives in the
+"""Builds games/warcraft-like/data/tilesets.json: for each of the four terrain eras, where every map-tile code lives in the
 tileset image.
 
 A Warcraft II map stores one 16-bit code per 32x32 tile (the MTXM section of a .pud). The tileset image holds
@@ -13,7 +13,7 @@ import pathlib
 import re
 import sys
 
-OUT = pathlib.Path(__file__).resolve().parent.parent / "assets" / "data" / "tilesets.json"
+OUT = pathlib.Path(__file__).resolve().parent.parent / "games" / "warcraft-like" / "data" / "tilesets.json"
 ERAS = ["forest", "winter", "wasteland", "swamp"]  # the values of the ERA section of a .pud
 
 

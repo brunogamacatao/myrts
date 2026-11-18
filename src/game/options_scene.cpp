@@ -5,6 +5,7 @@
 
 #include "draw_util.hpp"
 #include "scenes.hpp"
+#include "screen.hpp"
 #include "ui.hpp"
 
 namespace {
@@ -92,6 +93,9 @@ class OptionsScene : public Scene {
         al_draw_filled_rectangle(bx, by, bx + bw, by + 6, al_map_rgb(30, 28, 26));
         al_draw_filled_rectangle(bx, by, bx + bw * volume, by + 6, muted ? al_map_rgb(120, 110, 90) : al_map_rgb(240, 200, 60));
         al_draw_filled_rectangle(bx + bw * volume - 3, by - 5, bx + bw * volume + 3, by + 11, al_map_rgb(236, 224, 190));
+      } else if (i == 3) {
+        const bool on = screen() && screen()->fullscreen();
+        draw_text_scaled(ctx_.font, w / 2, y + 7, 2.0f, ALLEGRO_ALIGN_CENTER, on ? "Fullscreen: On (F11)" : "Fullscreen: Off (F11)", text);
       } else if (i == 2) {
         label = !has_audio ? "Sound unavailable" : (muted ? "Mute: On" : "Mute: Off");
         draw_text_scaled(ctx_.font, w / 2, y + 7, 2.0f, ALLEGRO_ALIGN_CENTER, label, text);
@@ -102,7 +106,7 @@ class OptionsScene : public Scene {
   }
 
  private:
-  static constexpr int kRows = 4;  // music volume, effects volume, mute (everything), back
+  static constexpr int kRows = 5;  // music volume, effects volume, mute (everything), fullscreen, back
   static constexpr float kSliderOffset = 132;
 
   static float row_y(int i) {
@@ -131,7 +135,8 @@ class OptionsScene : public Scene {
   }
   Transition activate(int row) {
     if (row == 2 && ctx_.audio) ctx_.audio->set_muted(!ctx_.audio->muted());
-    if (row == 3) return Transition::pop();
+    if (row == 3 && screen()) screen()->toggle_fullscreen();
+    if (row == 4) return Transition::pop();
     return Transition::none();
   }
 
