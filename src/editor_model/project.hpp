@@ -44,6 +44,9 @@ class Project {
   /// destination exists and is a different file.
   std::expected<void, std::string> import_file(const std::filesystem::path& source, const std::string& relative);
 
+  /// Writes a text file inside the package (a map, say). Not undoable.
+  std::expected<void, std::string> write_file(const std::string& relative, const std::string& text);
+
   /// The document for changing directly: it counts as changed from now on (and cannot be undone). nullptr for an
   /// unknown name. Editors go through `change`, `set` and `remove` instead.
   [[nodiscard]] Json* edit(const std::string& name);

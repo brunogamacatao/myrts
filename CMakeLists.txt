@@ -72,6 +72,7 @@ add_library(myrts_editor_model STATIC
   src/editor_model/levels.cpp
   src/editor_model/collection.cpp
   src/editor_model/sprite.cpp
+  src/editor_model/map_edit.cpp
   src/editor_model/schema.cpp)
 target_include_directories(myrts_editor_model PUBLIC src)
 target_compile_features(myrts_editor_model PUBLIC cxx_std_23)
@@ -151,7 +152,8 @@ if(MYRTS_BUILD_EDITOR)
       src/editor/collection_editor.cpp
       src/editor/textures.cpp
       src/editor/sprite_view.cpp
-      src/editor/sprite_editor.cpp)
+      src/editor/sprite_editor.cpp
+      src/editor/map_editor.cpp)
     target_link_libraries(myrts_engine PRIVATE
       myrts_editor_model myrts_core myrts_warnings nlohmann_json::nlohmann_json imgui::imgui ${MYRTS_ALLEGRO_LIBS})
     # Same folder as the game's copy (both executables are built in the same place): never copy the two at once.
@@ -204,7 +206,8 @@ if(MYRTS_BUILD_TESTS)
     tests/project_test.cpp
     tests/levels_test.cpp
     tests/collection_test.cpp
-    tests/sprite_test.cpp)
+    tests/sprite_test.cpp
+    tests/map_edit_test.cpp)
   target_compile_definitions(myrts_tests PRIVATE MYRTS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   target_link_libraries(myrts_tests PRIVATE myrts_core myrts_editor_model myrts_warnings nlohmann_json::nlohmann_json Catch2::Catch2WithMain)
   if(catch2_SOURCE_DIR)

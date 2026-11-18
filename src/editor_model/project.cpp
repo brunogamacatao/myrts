@@ -142,6 +142,18 @@ std::expected<void, std::string> Project::import_file(const fs::path& source, co
   return {};
 }
 
+std::expected<void, std::string> Project::write_file(const std::string& relative, const std::string& text) {
+  const fs::path file = package_.path(relative);
+  std::error_code ec;
+  fs::create_directories(file.parent_path(), ec);
+  std::ofstream out(file, std::ios::binary | std::ios::trunc);
+  if (!out) return std::unexpected("cannot write " + relative);
+  out << text;
+  out.flush();
+  if (!out) return std::unexpected("error writing " + relative);
+  return {};
+}
+
 void Project::push_undo(const std::vector<std::string>& names, const std::string& merge_key) {
   redo_.clear();
   if (!merge_key.empty() && merge_key == merge_key_ && !undo_.empty() && undo_.back().before.size() == 1 &&

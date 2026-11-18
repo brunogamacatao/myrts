@@ -60,13 +60,14 @@ App::App() {
   };
   buildings_ = std::make_unique<CollectionEditor>(buildings);
   sprites_ = std::make_unique<SpriteEditor>(textures_);
+  map_ = std::make_unique<MapEditor>(textures_);
 }
 
 App::~App() = default;
 
 std::string App::window_title() const {
   if (!project_) return "MyRTS Engine";
-  return "MyRTS Engine - " + project_->title() + (project_->dirty() ? " *" : "");
+  return "MyRTS Engine - " + project_->title() + (unsaved() ? " *" : "");
 }
 
 void App::open_project(const std::string& directory) {
@@ -81,10 +82,12 @@ void App::open_project(const std::string& directory) {
   characters_->reset();
   buildings_->reset();
   sprites_->reset();
+  map_->reset();
   textures_.clear();
   characters_->reset();
   buildings_->reset();
   sprites_->reset();
+  map_->reset();
   textures_.clear();
   dialog_error_.clear();
   set_status("Opened " + project_->root().generic_string());
@@ -94,6 +97,10 @@ void App::save() {
   if (!project_) return;
   if (auto saved = project_->save(); !saved) {
     set_status("Save failed: " + saved.error());
+    return;
+  }
+  if (const std::string failure = map_->save(*project_); !failure.empty()) {
+    set_status("Saving the map failed: " + failure);
     return;
   }
   project_->revalidate();
@@ -107,7 +114,7 @@ void App::close_project() {
 }
 
 void App::request_quit() {
-  if (project_ && project_->dirty()) {
+  if (project_ && unsaved()) {
     pending_ = Pending::Quit;
     ask_unsaved_ = true;
   } else {
@@ -116,6 +123,7 @@ void App::request_quit() {
 }
 
 void App::draw() {
+  map_->begin_frame();
   // One dockspace over the whole window; the panels dock into it.
   const ImGuiViewport* viewport = ImGui::GetMainViewport();
   const ImGuiID dockspace = ImGui::DockSpaceOverViewport(0, viewport);
@@ -134,8 +142,10 @@ void App::draw() {
   ImGuiIO& io = ImGui::GetIO();
   if (project_ && io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false)) save();
   if (project_ && io.KeyCtrl && !io.WantTextInput) {  // a text field has its own undo while it is being typed in
-    if (ImGui::IsKeyPressed(ImGuiKey_Z, true)) io.KeyShift ? project_->redo() : project_->undo();
-    if (ImGui::IsKeyPressed(ImGuiKey_Y, true)) project_->redo();
+    const bool undo = ImGui::IsKeyPressed(ImGuiKey_Z, true) && !io.KeyShift;
+    const bool redo = (ImGui::IsKeyPressed(ImGuiKey_Z, true) && io.KeyShift) || ImGui::IsKeyPressed(ImGuiKey_Y, true);
+    if (undo && !map_->undo()) project_->undo();  // the map tab's own history first, when it is in front
+    if (redo && !map_->redo()) project_->redo();
   }
   first_frame_ = false;
 }
@@ -163,9 +173,9 @@ void App::draw_menu() {
     if (ImGui::MenuItem("New from template...")) ask_new_ = true;
     if (ImGui::MenuItem("Open...")) ask_open_ = true;
     ImGui::Separator();
-    if (ImGui::MenuItem("Save", "Ctrl+S", false, project_ && project_->dirty())) save();
+    if (ImGui::MenuItem("Save", "Ctrl+S", false, project_ && unsaved())) save();
     if (ImGui::MenuItem("Close project", nullptr, false, project_.has_value())) {
-      if (project_->dirty()) {
+      if (unsaved()) {
         pending_ = Pending::Close;
         ask_unsaved_ = true;
       } else {
@@ -200,7 +210,7 @@ void App::draw_dialogs() {
 
   const auto center = [] { ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f}); };
   const auto switch_to = [&](const std::string& directory) {
-    if (project_ && project_->dirty()) {
+    if (project_ && unsaved()) {
       open_path_ = directory;
       pending_ = Pending::Open;
       ask_unsaved_ = true;
@@ -216,7 +226,7 @@ void App::draw_dialogs() {
     text_field("##open", open_path_);
     if (!dialog_error_.empty()) ImGui::TextColored({1, 0.4f, 0.4f, 1}, "%s", dialog_error_.c_str());
     if (ImGui::Button("Open")) {
-      if (project_ && project_->dirty()) {
+      if (project_ && unsaved()) {
         ImGui::CloseCurrentPopup();
         switch_to(open_path_);
       } else {
@@ -252,6 +262,7 @@ void App::draw_dialogs() {
         characters_->reset();
         buildings_->reset();
   sprites_->reset();
+  map_->reset();
   textures_.clear();
         dialog_error_.clear();
         set_status("Created " + project_->root().generic_string());
@@ -283,12 +294,13 @@ void App::draw_dialogs() {
     };
     if (ImGui::Button("Save")) {
       save();
-      if (!project_ || !project_->dirty()) proceed();
+      if (!project_ || !unsaved()) proceed();
       else ImGui::CloseCurrentPopup();
     }
     ImGui::SameLine();
     if (ImGui::Button("Discard")) {
       if (project_) project_->discard_changes();
+      map_->reset();
       proceed();
     }
     ImGui::SameLine();
@@ -481,6 +493,13 @@ void App::draw_welcome() {
   } else if (ImGui::BeginTabBar("editors")) {
     if (ImGui::BeginTabItem("Level")) {
       draw_level_inspector();
+      ImGui::EndTabItem();
+    }
+    if (ImGui::BeginTabItem("Map")) {
+      const std::size_t n = levels::count(*project_);
+      std::string level_map;
+      if (n > 0) level_map = (*project_->document(project_->package().campaign_file))["levels"][active_level_].value("map", std::string{});
+      map_->draw(*project_, level_map, active_level_);
       ImGui::EndTabItem();
     }
     if (ImGui::BeginTabItem("Characters")) {

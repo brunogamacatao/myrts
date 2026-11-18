@@ -5,6 +5,7 @@
 #include <string>
 
 #include "collection_editor.hpp"
+#include "map_editor.hpp"
 #include "sprite_editor.hpp"
 #include "textures.hpp"
 #include "editor_model/project.hpp"
@@ -29,6 +30,7 @@ class App {
   void open_project(const std::string& directory);
 
  private:
+  [[nodiscard]] bool unsaved() const { return project_ && (project_->dirty() || map_->dirty()); }
   void build_default_layout(unsigned int dockspace);
   void draw_menu();
   void draw_dialogs();
@@ -46,6 +48,7 @@ class App {
   Textures textures_;
   std::unique_ptr<CollectionEditor> characters_, buildings_;
   std::unique_ptr<SpriteEditor> sprites_;
+  std::unique_ptr<MapEditor> map_;
   bool quit_ = false;
 
   enum class Pending { None, Quit, Close, Open };
