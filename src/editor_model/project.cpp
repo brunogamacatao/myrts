@@ -111,10 +111,14 @@ Project::Json* Project::edit(const std::string& name) {
   return &it->second;
 }
 
-void Project::push_undo(const std::string& name, const std::string& merge_key) {
+void Project::push_undo(const std::vector<std::string>& names, const std::string& merge_key) {
   redo_.clear();
-  if (!merge_key.empty() && merge_key == merge_key_ && !undo_.empty() && undo_.back().name == name) return;
-  undo_.push_back({name, documents_.at(name)});
+  if (!merge_key.empty() && merge_key == merge_key_ && !undo_.empty() && undo_.back().before.size() == 1 &&
+      undo_.back().before[0].first == names[0])
+    return;
+  Step step;
+  for (const std::string& name : names) step.before.emplace_back(name, documents_.at(name));
+  undo_.push_back(std::move(step));
   merge_key_ = merge_key;
 }
 
@@ -126,9 +130,21 @@ void Project::refresh_dirty(const std::string& name) {
 bool Project::change(const std::string& name, const std::function<void(Json&)>& fn, const std::string& merge_key) {
   const auto it = documents_.find(name);
   if (it == documents_.end()) return false;
-  push_undo(name, merge_key);
+  push_undo({name}, merge_key);
   fn(it->second);
   refresh_dirty(name);
+  return true;
+}
+
+bool Project::change_many(const std::vector<std::string>& names, const std::function<void(std::map<std::string, Json*>&)>& fn) {
+  if (names.empty()) return false;
+  for (const std::string& name : names)
+    if (!documents_.contains(name)) return false;
+  push_undo(names, {});
+  std::map<std::string, Json*> docs;
+  for (const std::string& name : names) docs[name] = &documents_.at(name);
+  fn(docs);
+  for (const std::string& name : names) refresh_dirty(name);
   return true;
 }
 
@@ -146,14 +162,22 @@ bool Project::remove(const std::string& name, const Json::json_pointer& at) {
   });
 }
 
+void Project::swap_step(Step& step, std::vector<Step>& to) {
+  Step opposite;
+  for (auto& [name, before] : step.before) {
+    opposite.before.emplace_back(name, std::move(documents_.at(name)));
+    documents_.at(name) = std::move(before);
+  }
+  for (const auto& [name, _] : opposite.before) refresh_dirty(name);
+  to.push_back(std::move(opposite));
+  merge_key_.clear();
+}
+
 bool Project::undo() {
   if (undo_.empty()) return false;
   Step step = std::move(undo_.back());
   undo_.pop_back();
-  redo_.push_back({step.name, documents_.at(step.name)});
-  documents_.at(step.name) = std::move(step.before);
-  refresh_dirty(redo_.back().name);
-  merge_key_.clear();
+  swap_step(step, redo_);
   return true;
 }
 
@@ -161,10 +185,7 @@ bool Project::redo() {
   if (redo_.empty()) return false;
   Step step = std::move(redo_.back());
   redo_.pop_back();
-  undo_.push_back({step.name, documents_.at(step.name)});
-  documents_.at(step.name) = std::move(step.before);
-  refresh_dirty(undo_.back().name);
-  merge_key_.clear();
+  swap_step(step, undo_);
   return true;
 }
 

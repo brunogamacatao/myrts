@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 
+#include "collection_editor.hpp"
 #include "editor_model/project.hpp"
 
 namespace myrts::editor {
@@ -13,6 +14,7 @@ namespace myrts::editor {
 class App {
  public:
   App();
+  ~App();
 
   void draw();
   /// True once the user asked to quit and there is nothing left to save (or they chose to discard it).
@@ -39,6 +41,7 @@ class App {
   void set_status(std::string text) { status_ = std::move(text); }
 
   std::optional<Project> project_;
+  std::unique_ptr<CollectionEditor> characters_, buildings_;
   bool quit_ = false;
 
   enum class Pending { None, Quit, Close, Open };

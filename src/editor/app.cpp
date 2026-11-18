@@ -21,7 +21,45 @@ bool text_field(const char* label, std::string& value) {
 }
 }  // namespace
 
-App::App() { set_status("Open a game (File > Open) or make one from a template (File > New)."); }
+namespace {
+using Json = Project::Json;
+
+/// A sprite path to start a new thing from: the first one the game already has.
+std::string any_sprite(const Project& project, const Collection& c) {
+  for (std::size_t i = 0; i < collection::count(project, c); ++i)
+    if (const std::string sprite = collection::item(project, c, i)->value("sprite", std::string{}); !sprite.empty()) return sprite;
+  return {};
+}
+}  // namespace
+
+App::App() {
+  set_status("Open a game (File > Open) or make one from a template (File > New).");
+  CollectionEditor::Config characters;
+  characters.noun = "character";
+  characters.collection = [](const Project& p) { return units_of(p); };
+  characters.schema = &unit_schema();
+  characters.make = [](const Project& p, const std::string& id, const std::string& faction) {
+    Json unit = {{"id", id}, {"name", "New character"}, {"hp", 50}, {"sprite", any_sprite(p, units_of(p))},
+                 {"stats", {{"damage_min", 1}, {"damage_max", 3}, {"range", 1}, {"sight", 4}}},
+                 {"commands", Json::array({"move", "stop", "attack"})}};
+    if (!faction.empty()) unit["faction"] = faction;
+    return unit;
+  };
+  characters_ = std::make_unique<CollectionEditor>(characters);
+  CollectionEditor::Config buildings;
+  buildings.noun = "building";
+  buildings.collection = [](const Project& p) { return buildings_of(p); };
+  buildings.schema = &building_schema();
+  buildings.make = [](const Project& p, const std::string& id, const std::string& faction) {
+    Json building = {{"id", id}, {"name", "New building"}, {"size", 2}, {"hp", 400}, {"build_seconds", 100},
+                     {"sprite", any_sprite(p, buildings_of(p))}};
+    if (!faction.empty()) building["faction"] = faction;
+    return building;
+  };
+  buildings_ = std::make_unique<CollectionEditor>(buildings);
+}
+
+App::~App() = default;
 
 std::string App::window_title() const {
   if (!project_) return "MyRTS Engine";
@@ -37,6 +75,10 @@ void App::open_project(const std::string& directory) {
   project_ = std::move(*opened);
   selected_document_.clear();
   selected_level_ = active_level_ = 0;
+  characters_->reset();
+  buildings_->reset();
+  characters_->reset();
+  buildings_->reset();
   dialog_error_.clear();
   set_status("Opened " + project_->root().generic_string());
 }
@@ -200,6 +242,8 @@ void App::draw_dialogs() {
         project_->revalidate();
         selected_document_.clear();
         selected_level_ = active_level_ = 0;
+        characters_->reset();
+        buildings_->reset();
         dialog_error_.clear();
         set_status("Created " + project_->root().generic_string());
         ImGui::CloseCurrentPopup();
@@ -428,6 +472,14 @@ void App::draw_welcome() {
   } else if (ImGui::BeginTabBar("editors")) {
     if (ImGui::BeginTabItem("Level")) {
       draw_level_inspector();
+      ImGui::EndTabItem();
+    }
+    if (ImGui::BeginTabItem("Characters")) {
+      characters_->draw(*project_);
+      ImGui::EndTabItem();
+    }
+    if (ImGui::BeginTabItem("Buildings")) {
+      buildings_->draw(*project_);
       ImGui::EndTabItem();
     }
     if (ImGui::BeginTabItem("Data files")) {

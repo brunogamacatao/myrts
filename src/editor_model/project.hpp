@@ -43,6 +43,9 @@ class Project {
   /// Runs `fn` on the document as one undoable step. Consecutive changes with the same non-empty `merge_key` (typing in
   /// one text field, dragging one slider) are a single step. False (and nothing done) for an unknown document.
   bool change(const std::string& name, const std::function<void(Json&)>& fn, const std::string& merge_key = {});
+  /// Like `change`, for a change that touches several documents (a rename that updates every reference): `fn` gets each
+  /// named document, and the whole thing is one undo step. False if a name is unknown.
+  bool change_many(const std::vector<std::string>& names, const std::function<void(std::map<std::string, Json*>&)>& fn);
   /// `doc[at] = value` as an undoable step (parents are created as needed).
   bool set(const std::string& name, const Json::json_pointer& at, const Json& value);
   /// Removes the key or array element at `at`, as an undoable step. False if it is not there.
@@ -79,10 +82,10 @@ class Project {
   void load_documents();
 
   struct Step {
-    std::string name;
-    Json before;  ///< the document as it was before the step
+    std::vector<std::pair<std::string, Json>> before;  ///< the documents the step touched, as they were before it
   };
-  void push_undo(const std::string& name, const std::string& merge_key);
+  void push_undo(const std::vector<std::string>& names, const std::string& merge_key);
+  void swap_step(Step& from, std::vector<Step>& to);
   void refresh_dirty(const std::string& name);
 
   GamePackage package_ = GamePackage::defaults({});

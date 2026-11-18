@@ -222,7 +222,6 @@ void draw_ref_list(Ctx& c, const Field& f, const Ptr& at) {
 
 void draw_amounts(Ctx& c, const Field& f, const Ptr& at) {
   const auto resources = reference_options(c.project, "resources");
-  ImGui::NewLine();
   ImGui::PushID("amounts");
   for (const std::string& id : resources) {
     const Json* v = c.get(at / id);
@@ -295,6 +294,40 @@ void draw_object_list(Ctx& c, const Field& f, const Ptr& at) {
   ImGui::PopID();
 }
 
+Json defaults_of(const std::vector<Field>& fields) {
+  Json item = Json::object();
+  for (const Field& f : fields)
+    if (!f.default_value.is_null() && (f.type == FieldType::Int || f.type == FieldType::Float)) item[f.key] = f.default_value;
+  return item;
+}
+
+/// One row per id of the source: a checkbox switches it on (a default object) or off (removed); an object that is on
+/// shows its fields below.
+void draw_object_map(Ctx& c, const Field& f, const Ptr& at) {
+  ImGui::PushID("map");
+  for (const std::string& id : reference_options(c.project, f.source)) {
+    const Ptr entry = at / id;
+    const bool on = c.get(entry) != nullptr;
+    ImGui::PushID(id.c_str());
+    bool value = on;
+    if (ImGui::Checkbox(id.c_str(), &value)) {
+      if (value) c.set(entry, defaults_of(f.fields));
+      else {
+        c.remove(entry);
+        if (const Json* rest = c.get(at); rest && rest->empty()) c.remove(at);
+      }
+      c.project.seal();
+    }
+    if (on) {
+      ImGui::Indent(24);
+      draw_list(c, f.fields, entry);
+      ImGui::Unindent(24);
+    }
+    ImGui::PopID();
+  }
+  ImGui::PopID();
+}
+
 bool shown(Ctx& c, const Field& f, const std::vector<Field>& siblings, const Ptr& base) {
   if (f.only_key.empty()) return true;
   std::string current;
@@ -331,6 +364,7 @@ void draw_list(Ctx& c, const std::vector<Field>& fields, const Ptr& base) {
       }
       case FieldType::TextList:
       case FieldType::RefList:
+      case FieldType::ObjectMap:
       case FieldType::Amounts: {
         const bool present = c.get(at) != nullptr;
         if (!present) ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
@@ -344,6 +378,7 @@ void draw_list(Ctx& c, const std::vector<Field>& fields, const Ptr& base) {
         if (open) {
           if (f.type == FieldType::TextList) draw_text_list(c, f, at);
           else if (f.type == FieldType::RefList) draw_ref_list(c, f, at);
+          else if (f.type == FieldType::ObjectMap) draw_object_map(c, f, at);
           else draw_amounts(c, f, at);
           ImGui::TreePop();
         }

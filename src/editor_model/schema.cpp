@@ -128,6 +128,78 @@ std::vector<Field> build_level_schema() {
   return f;
 }
 
+Field text_field(std::string key, std::string label, std::string help = {}) { return field(std::move(key), std::move(label), FieldType::Text, std::move(help)); }
+Field choice(std::string key, std::string label, std::vector<std::string> options, std::string help = {}) {
+  Field f = field(std::move(key), std::move(label), FieldType::Choice, std::move(help));
+  f.default_value = options.front();
+  f.options = std::move(options);
+  return f;
+}
+Field list_of(std::string key, std::string label, std::string source, std::string help = {}) {
+  Field f = field(std::move(key), std::move(label), FieldType::RefList, std::move(help));
+  f.source = std::move(source);
+  return f;
+}
+
+std::vector<Field> build_unit_schema() {
+  std::vector<Field> f;
+  f.push_back(text_field("name", "Name"));
+  f.push_back(reference("faction", "Faction", "factions"));
+  f.push_back(whole("level", "Level", 1, 1, 99, "Shown on the unit's card."));
+  f.push_back(whole("hp", "Hit points", 0, 1, 100000));
+  f.push_back(real("move_speed", "Move speed", 64, 0, 2000, "Pixels per second."));
+  f.push_back(choice("move_class", "Moves on", {"land", "water", "air"}));
+  f.push_back(field("sprite", "Sprite", FieldType::File, "The sprite definition (a .json next to its sheet)."));
+  f.push_back(whole("icon", "Icon", -1, -1, 9999, "Index in the icon sheet; -1: none."));
+  Field stats = field("stats", "Stats", FieldType::Object);
+  stats.fields = {whole("armor", "Armor", 0, 0, 1000, "Taken off each hit (a hit still does at least 1)."),
+                  whole("damage_min", "Damage min", 0, 0, 10000),
+                  whole("damage_max", "Damage max", 0, 0, 10000, "0: the unit cannot attack."),
+                  whole("range", "Range", 0, 0, 30, "Tiles; 1 is melee."),
+                  whole("sight", "Sight", 0, 0, 30, "Tiles."),
+                  whole("speed", "Speed (shown)", 0, 0, 100, "Only the number shown on the unit's card.")};
+  f.push_back(stats);
+  f.push_back(real("attack_seconds", "Seconds per attack", 1.5, 0.05, 100));
+  f.push_back(reference("projectile", "Projectile", "projectiles", "Empty: a melee attack."));
+  f.push_back(real("siege_multiplier", "Damage vs buildings", 1.0, 0, 100));
+  f.push_back(flag("aggressive", "Fights on its own", true, "Workers default to false: they keep working unless ordered."));
+  f.push_back(flag("mechanical", "Mechanical", false, "Repaired by workers."));
+  f.push_back(whole("capacity", "Carries", 0, 0, 50, "Units it can carry (transports)."));
+  f.push_back(whole("food", "Food", 1, 0, 100, "Food the unit eats."));
+  f.push_back(field("cost", "Cost", FieldType::Amounts));
+  f.push_back(real("train_seconds", "Training time (s)", 0, 0, 10000));
+  f.push_back(list_of("commands", "Commands", "commands", "The buttons it has, in order."));
+  f.push_back(list_of("requires", "Requires", "buildings", "Buildings the player must have to train it."));
+  Field worker = field("worker", "Worker", FieldType::Object, "Present: the unit gathers resources.");
+  Field gather = field("gather", "Gathers", FieldType::ObjectMap, "What it gathers and how: amount per trip and seconds of work.");
+  gather.source = "resources";
+  gather.fields = {whole("per_trip", "Per trip", 100, 1, 100000), real("seconds", "Seconds", 2.5, 0, 1000)};
+  worker.fields = {gather};
+  f.push_back(worker);
+  f.push_back(list_of("builds", "Builds", "buildings", "Needs the Worker block."));
+  return f;
+}
+
+std::vector<Field> build_building_schema() {
+  std::vector<Field> f;
+  f.push_back(text_field("name", "Name"));
+  f.push_back(reference("faction", "Faction", "factions"));
+  f.push_back(whole("size", "Size (tiles)", 2, 1, 8, "The building covers size x size tiles."));
+  f.push_back(whole("hp", "Hit points", 400, 1, 100000));
+  f.push_back(whole("armor", "Armor", 0, 0, 1000));
+  f.push_back(whole("food", "Food provided", 0, 0, 1000));
+  f.push_back(field("cost", "Cost", FieldType::Amounts));
+  f.push_back(real("build_seconds", "Build time (s)", 100, 1, 10000));
+  f.push_back(list_of("accepts", "Accepts deliveries of", "resources", "A depot: workers bring these resources here."));
+  f.push_back(choice("placement", "Placement", {"land", "coast", "water"}, "coast: next to open water (shipyards). water: on the sea (oil platforms)."));
+  f.push_back(field("sprite", "Sprite", FieldType::File));
+  f.push_back(field("sprite_construction", "Sprite while building", FieldType::File));
+  f.push_back(whole("icon", "Icon", -1, -1, 9999));
+  f.push_back(list_of("trains", "Trains", "units"));
+  f.push_back(list_of("requires", "Requires", "buildings", "Buildings the player must have to build it."));
+  return f;
+}
+
 std::vector<std::string> ids_of(const Project& project, const std::string& file, const char* array) {
   std::vector<std::string> ids;
   const Json* doc = project.document(file);
@@ -137,6 +209,16 @@ std::vector<std::string> ids_of(const Project& project, const std::string& file,
   return ids;
 }
 }  // namespace
+
+const std::vector<Field>& unit_schema() {
+  static const std::vector<Field> schema = build_unit_schema();
+  return schema;
+}
+
+const std::vector<Field>& building_schema() {
+  static const std::vector<Field> schema = build_building_schema();
+  return schema;
+}
 
 const std::vector<Field>& level_schema() {
   static const std::vector<Field> schema = build_level_schema();
@@ -148,6 +230,7 @@ std::vector<std::string> reference_options(const Project& project, const std::st
   if (source == "factions") return ids_of(project, data + "factions.json", "factions");
   if (source == "units") return ids_of(project, data + "units.json", "units");
   if (source == "buildings") return ids_of(project, data + "buildings.json", "buildings");
+  if (source == "projectiles") return ids_of(project, data + "projectiles.json", "projectiles");
   if (source == "commands") return ids_of(project, data + "commands.json", "commands");
   if (source == "resources") {
     if (!project.document(data + "resources.json")) return {"gold", "lumber", "oil"};  // the game's built-in set
