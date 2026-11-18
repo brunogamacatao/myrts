@@ -1,0 +1,8 @@
+{
+  "format_version": 1,
+  "profiles": {
+    "default":    { "think_interval": 1.0, "desired_workers": 3, "desired_tankers": 2, "first_wave": 5, "wave_growth": 3, "start_delay": 150, "farm_margin": 2 },
+    "patient":    { "start_delay": 360, "first_wave": 8, "wave_growth": 4, "desired_workers": 4 },
+    "aggressive": { "start_delay": 60, "first_wave": 3, "wave_growth": 2, "desired_workers": 3 }
+  }
+}
