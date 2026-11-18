@@ -8,6 +8,7 @@
 #include <cstdio>
 
 #include "inspector.hpp"
+#include "sprite_view.hpp"
 
 namespace myrts::editor {
 
@@ -96,14 +97,19 @@ void CollectionEditor::draw(Project& project) {
   if (selected_index >= n) {
     ImGui::TextDisabled("Pick a %s in the list, or add one.", config_.noun.c_str());
   } else {
+    if (config_.textures) {
+      draw_preview(project, *config_.textures, collection::item(project, coll, selected_index)->value("sprite", std::string{}), 72);
+      ImGui::SameLine();
+    }
+    ImGui::BeginGroup();
     ImGui::AlignTextToFramePadding();
     ImGui::Text("Id: %s", selected_.c_str());
-    ImGui::SameLine();
     if (ImGui::SmallButton("Rename id...")) {
       rename_text_ = selected_;
       rename_error_.clear();
       ask_rename_ = true;
     }
+    ImGui::EndGroup();
     ImGui::Separator();
     ImGui::BeginChild("fields");
     draw_fields(project, coll.doc, *config_.schema, Json::json_pointer("/" + coll.array + "/" + std::to_string(selected_index)));

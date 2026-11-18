@@ -35,6 +35,15 @@ class Project {
   // ---- documents: paths relative to the package root ("game.json", "data/units.json", ...) ----
   [[nodiscard]] std::vector<std::string> document_names() const;
   [[nodiscard]] const Json* document(const std::string& name) const;
+  /// Loads another JSON file of the package (a sprite definition, say) so it can be edited like the rest. False if
+  /// there is no such valid file. Already loaded: true.
+  bool open_document(const std::string& name);
+  /// A new document that does not exist on disk yet (written by `save`).
+  bool create_document(const std::string& name, const Json& value);
+  /// Copies a file from outside into the package (`relative` is where, inside it). Not undoable. Fails if the
+  /// destination exists and is a different file.
+  std::expected<void, std::string> import_file(const std::filesystem::path& source, const std::string& relative);
+
   /// The document for changing directly: it counts as changed from now on (and cannot be undone). nullptr for an
   /// unknown name. Editors go through `change`, `set` and `remove` instead.
   [[nodiscard]] Json* edit(const std::string& name);

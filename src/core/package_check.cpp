@@ -7,7 +7,11 @@
 #include "game_package.hpp"
 #include "game_rules.hpp"
 #include "match_setup.hpp"
+#include <fstream>
+#include <set>
+
 #include "sounds.hpp"
+#include "sprite_doc.hpp"
 #include "tileset.hpp"
 
 namespace fs = std::filesystem;
@@ -59,7 +63,19 @@ PackageReport check_package(const fs::path& dir) {
   }
   report.info.push_back(std::to_string(campaign->size()) + " levels");
 
-  for (const UnitDef& u : registry->units()) check_file(report, *pkg, u.sprite, "unit " + u.id);
+  std::set<std::string> sprites_checked;
+  for (const UnitDef& u : registry->units()) {
+    check_file(report, *pkg, u.sprite, "unit " + u.id);
+    if (u.sprite.empty() || !sprites_checked.insert(u.sprite).second || !fs::exists(pkg->path(u.sprite))) continue;
+    std::ifstream in(pkg->path(u.sprite));
+    const auto doc = nlohmann::json::parse(in, nullptr, false);
+    if (doc.is_discarded()) {
+      report.problems.push_back("sprite " + u.sprite + ": not valid JSON");
+      continue;
+    }
+    if (const std::string problem = sprite_problem(doc); !problem.empty()) report.problems.push_back("sprite " + u.sprite + ": " + problem);
+    else check_file(report, *pkg, doc["spritesheet"].get<std::string>(), "sprite " + u.sprite);
+  }
   for (const BuildingDef& b : registry->buildings()) {
     check_file(report, *pkg, b.sprite, "building " + b.id);
     check_file(report, *pkg, b.sprite_construction, "building " + b.id);

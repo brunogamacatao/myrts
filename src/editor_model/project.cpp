@@ -111,6 +111,37 @@ Project::Json* Project::edit(const std::string& name) {
   return &it->second;
 }
 
+bool Project::open_document(const std::string& name) {
+  if (documents_.contains(name)) return true;
+  auto doc = read_json(package_.path(name));
+  if (!doc) return false;
+  saved_[name] = *doc;
+  documents_.emplace(name, std::move(*doc));
+  return true;
+}
+
+bool Project::create_document(const std::string& name, const Json& value) {
+  if (documents_.contains(name) || fs::exists(package_.path(name))) return false;
+  saved_[name] = Json();  // not on disk: always differs, so it is saved
+  documents_.emplace(name, value);
+  dirty_.insert(name);
+  return true;
+}
+
+std::expected<void, std::string> Project::import_file(const fs::path& source, const std::string& relative) {
+  const fs::path destination = package_.path(relative);
+  std::error_code ec;
+  if (!fs::is_regular_file(source, ec)) return std::unexpected(source.generic_string() + " is not a file");
+  if (fs::exists(destination) && !fs::equivalent(source, destination, ec))
+    return std::unexpected(relative + " already exists in the game");
+  fs::create_directories(destination.parent_path(), ec);
+  if (!fs::exists(destination)) {
+    fs::copy_file(source, destination, ec);
+    if (ec) return std::unexpected("cannot copy " + source.generic_string() + ": " + ec.message());
+  }
+  return {};
+}
+
 void Project::push_undo(const std::vector<std::string>& names, const std::string& merge_key) {
   redo_.clear();
   if (!merge_key.empty() && merge_key == merge_key_ && !undo_.empty() && undo_.back().before.size() == 1 &&

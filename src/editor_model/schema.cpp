@@ -37,6 +37,12 @@ Field color(std::string key, std::string label, Json def, std::string help = {})
   f.default_value = std::move(def);
   return f;
 }
+Field file(std::string key, std::string label, std::string dir, std::string ext, std::string help = {}) {
+  Field f = field(std::move(key), std::move(label), FieldType::File, std::move(help));
+  f.file_dir = std::move(dir);
+  f.file_ext = std::move(ext);
+  return f;
+}
 Field reference(std::string key, std::string label, std::string source, std::string help = {}) {
   Field f = field(std::move(key), std::move(label), FieldType::Ref, std::move(help));
   f.source = std::move(source);
@@ -71,8 +77,8 @@ std::vector<Field> build_level_schema() {
   kind.options = {"land", "air", "naval"};
   kind.default_value = "land";
   f.push_back(kind);
-  f.push_back(field("map", "Map", FieldType::File, "A .mrmap or .pud file."));
-  f.push_back(field("music", "Music", FieldType::File));
+  f.push_back(file("map", "Map", "maps", ".mrmap,.pud", "A .mrmap or .pud file."));
+  f.push_back(file("music", "Music", "music", ".ogg"));
   f.push_back(reference("player_faction", "Your faction", "factions", "Empty: the first faction of the game."));
   f.push_back(reference("enemy_faction", "Enemy faction", "factions", "Empty: the second faction of the game."));
   f.push_back(field("briefing", "Briefing", FieldType::MultiText));
@@ -149,7 +155,7 @@ std::vector<Field> build_unit_schema() {
   f.push_back(whole("hp", "Hit points", 0, 1, 100000));
   f.push_back(real("move_speed", "Move speed", 64, 0, 2000, "Pixels per second."));
   f.push_back(choice("move_class", "Moves on", {"land", "water", "air"}));
-  f.push_back(field("sprite", "Sprite", FieldType::File, "The sprite definition (a .json next to its sheet)."));
+  f.push_back(file("sprite", "Sprite", "sprites", ".json", "The sprite definition (edit it in the Sprites tab)."));
   f.push_back(whole("icon", "Icon", -1, -1, 9999, "Index in the icon sheet; -1: none."));
   Field stats = field("stats", "Stats", FieldType::Object);
   stats.fields = {whole("armor", "Armor", 0, 0, 1000, "Taken off each hit (a hit still does at least 1)."),
@@ -192,8 +198,8 @@ std::vector<Field> build_building_schema() {
   f.push_back(real("build_seconds", "Build time (s)", 100, 1, 10000));
   f.push_back(list_of("accepts", "Accepts deliveries of", "resources", "A depot: workers bring these resources here."));
   f.push_back(choice("placement", "Placement", {"land", "coast", "water"}, "coast: next to open water (shipyards). water: on the sea (oil platforms)."));
-  f.push_back(field("sprite", "Sprite", FieldType::File));
-  f.push_back(field("sprite_construction", "Sprite while building", FieldType::File));
+  f.push_back(file("sprite", "Sprite", "buildings", ".png"));
+  f.push_back(file("sprite_construction", "Sprite while building", "buildings", ".png"));
   f.push_back(whole("icon", "Icon", -1, -1, 9999));
   f.push_back(list_of("trains", "Trains", "units"));
   f.push_back(list_of("requires", "Requires", "buildings", "Buildings the player must have to build it."));
@@ -230,6 +236,12 @@ std::vector<std::string> reference_options(const Project& project, const std::st
   if (source == "factions") return ids_of(project, data + "factions.json", "factions");
   if (source == "units") return ids_of(project, data + "units.json", "units");
   if (source == "buildings") return ids_of(project, data + "buildings.json", "buildings");
+  if (source.starts_with("animations:")) {
+    std::vector<std::string> names;
+    if (const Json* doc = project.document(source.substr(11)); doc && doc->contains("animations"))
+      for (const Json& a : (*doc)["animations"]) names.push_back(a.value("name", std::string{}));
+    return names;
+  }
   if (source == "projectiles") return ids_of(project, data + "projectiles.json", "projectiles");
   if (source == "commands") return ids_of(project, data + "commands.json", "commands");
   if (source == "resources") {

@@ -38,6 +38,7 @@ App::App() {
   characters.noun = "character";
   characters.collection = [](const Project& p) { return units_of(p); };
   characters.schema = &unit_schema();
+  characters.textures = &textures_;
   characters.make = [](const Project& p, const std::string& id, const std::string& faction) {
     Json unit = {{"id", id}, {"name", "New character"}, {"hp", 50}, {"sprite", any_sprite(p, units_of(p))},
                  {"stats", {{"damage_min", 1}, {"damage_max", 3}, {"range", 1}, {"sight", 4}}},
@@ -50,6 +51,7 @@ App::App() {
   buildings.noun = "building";
   buildings.collection = [](const Project& p) { return buildings_of(p); };
   buildings.schema = &building_schema();
+  buildings.textures = &textures_;
   buildings.make = [](const Project& p, const std::string& id, const std::string& faction) {
     Json building = {{"id", id}, {"name", "New building"}, {"size", 2}, {"hp", 400}, {"build_seconds", 100},
                      {"sprite", any_sprite(p, buildings_of(p))}};
@@ -57,6 +59,7 @@ App::App() {
     return building;
   };
   buildings_ = std::make_unique<CollectionEditor>(buildings);
+  sprites_ = std::make_unique<SpriteEditor>(textures_);
 }
 
 App::~App() = default;
@@ -77,8 +80,12 @@ void App::open_project(const std::string& directory) {
   selected_level_ = active_level_ = 0;
   characters_->reset();
   buildings_->reset();
+  sprites_->reset();
+  textures_.clear();
   characters_->reset();
   buildings_->reset();
+  sprites_->reset();
+  textures_.clear();
   dialog_error_.clear();
   set_status("Opened " + project_->root().generic_string());
 }
@@ -244,6 +251,8 @@ void App::draw_dialogs() {
         selected_level_ = active_level_ = 0;
         characters_->reset();
         buildings_->reset();
+  sprites_->reset();
+  textures_.clear();
         dialog_error_.clear();
         set_status("Created " + project_->root().generic_string());
         ImGui::CloseCurrentPopup();
@@ -480,6 +489,10 @@ void App::draw_welcome() {
     }
     if (ImGui::BeginTabItem("Buildings")) {
       buildings_->draw(*project_);
+      ImGui::EndTabItem();
+    }
+    if (ImGui::BeginTabItem("Sprites")) {
+      sprites_->draw(*project_);
       ImGui::EndTabItem();
     }
     if (ImGui::BeginTabItem("Data files")) {

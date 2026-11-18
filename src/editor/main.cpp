@@ -1,6 +1,7 @@
 // MyRTS Engine: the editor. Dear ImGui drawn through Allegro; the editing itself is in editor_model/.
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_font.h>
+#include <allegro5/allegro_image.h>
 #include <allegro5/allegro_primitives.h>
 #include <imgui_impl_allegro5.h>
 #include <imgui.h>
@@ -25,6 +26,7 @@ int main(int argc, char** argv) {
   must_init(al_install_keyboard(), "keyboard");
   must_init(al_install_mouse(), "mouse");
   must_init(al_init_primitives_addon(), "primitives addon");
+  must_init(al_init_image_addon(), "image addon");
 
   al_set_new_display_flags(ALLEGRO_RESIZABLE);
   int width = 1400, height = 860;
@@ -46,6 +48,7 @@ int main(int argc, char** argv) {
   ImGui::StyleColorsDark();
   ImGui_ImplAllegro5_Init(display);
 
+  {  // the app holds pictures (Allegro bitmaps): it must be gone before the display is
   myrts::editor::App app;
   // The game to open at start: the first argument, or MYRTS_GAME.
   if (argc > 1) app.open_project(argv[1]);
@@ -78,6 +81,7 @@ int main(int argc, char** argv) {
     }
   }
 
+  }
   ImGui_ImplAllegro5_Shutdown();
   ImGui::DestroyContext();
   al_destroy_timer(timer);

@@ -35,6 +35,8 @@ struct Field {
   double min = 0, max = 1000000;
   Project::Json default_value;          ///< what the game uses when the key is absent (null: nothing to show)
   std::vector<std::string> options;     ///< Choice
+  std::string file_dir;                 ///< File: the folder (inside the game) the picker lists
+  std::string file_ext;                 ///< File: the extensions the picker offers, ".png,.bmp" (empty: any)
   std::string source;                   ///< Ref, RefList: "factions", "units", "buildings", "units_buildings", "resources", "ai_profiles", "commands", "projectiles"
   std::vector<Field> fields;            ///< Object, ObjectList
   std::string only_key;                 ///< shown only when this sibling key ...

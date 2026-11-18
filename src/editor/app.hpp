@@ -5,6 +5,8 @@
 #include <string>
 
 #include "collection_editor.hpp"
+#include "sprite_editor.hpp"
+#include "textures.hpp"
 #include "editor_model/project.hpp"
 
 namespace myrts::editor {
@@ -41,7 +43,9 @@ class App {
   void set_status(std::string text) { status_ = std::move(text); }
 
   std::optional<Project> project_;
+  Textures textures_;
   std::unique_ptr<CollectionEditor> characters_, buildings_;
+  std::unique_ptr<SpriteEditor> sprites_;
   bool quit_ = false;
 
   enum class Pending { None, Quit, Close, Open };

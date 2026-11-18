@@ -72,17 +72,56 @@ bool draw_text(Ctx& c, const Field&, const Ptr& at, bool multiline) {
   return changed;
 }
 
+/// The files of the game under `dir` with one of the `extensions` (".png,.bmp"), as package-relative paths.
+std::vector<std::string> files_for_picker(const Project& project, const std::string& dir, const std::string& extensions) {
+  std::vector<std::string> out;
+  std::error_code ec;
+  for (const auto& entry : std::filesystem::recursive_directory_iterator(project.package().path(dir), ec)) {
+    if (!entry.is_regular_file()) continue;
+    const std::string ext = entry.path().extension().generic_string();
+    bool wanted = extensions.empty();
+    for (std::size_t at = 0; !wanted && at < extensions.size();) {
+      const std::size_t end = std::min(extensions.find(',', at), extensions.size());
+      wanted = extensions.substr(at, end - at) == ext;
+      at = end + 1;
+    }
+    if (wanted) out.push_back(std::filesystem::relative(entry.path(), project.root()).generic_string());
+  }
+  std::ranges::sort(out);
+  return out;
+}
+
 void draw_file(Ctx& c, const Field& f, const Ptr& at) {
   char buffer[1024];
   const std::string current = text_of(c.get(at));
   std::snprintf(buffer, sizeof buffer, "%s", current.c_str());
   const bool missing = !current.empty() && !std::filesystem::exists(c.project.package().path(current));
+  const bool picker = !f.file_dir.empty();
+  ImGui::SetNextItemWidth(picker ? -34.0f : -FLT_MIN);
   if (missing) ImGui::PushStyleColor(ImGuiCol_Text, kBad);
   if (ImGui::InputText("##v", buffer, sizeof buffer)) c.set(at, std::string(buffer));
   if (missing) ImGui::PopStyleColor();
   c.done_typing();
   if (missing && ImGui::IsItemHovered()) ImGui::SetTooltip("This file is not in the game's folder.");
-  (void)f;
+  if (!picker) return;
+  ImGui::SameLine();
+  static std::vector<std::string> choices;
+  if (ImGui::Button("...")) {
+    choices = files_for_picker(c.project, f.file_dir, f.file_ext);
+    ImGui::OpenPopup("pick");
+  }
+  if (ImGui::BeginPopup("pick")) {
+    ImGui::BeginChild("choices", {420, 260});
+    if (choices.empty()) ImGui::TextDisabled("No files in %s/", f.file_dir.c_str());
+    for (const std::string& choice : choices)
+      if (ImGui::Selectable(choice.c_str(), choice == current)) {
+        c.set(at, choice);
+        c.project.seal();
+        ImGui::CloseCurrentPopup();
+      }
+    ImGui::EndChild();
+    ImGui::EndPopup();
+  }
 }
 
 void draw_int(Ctx& c, const Field& f, const Ptr& at) {

@@ -7,6 +7,7 @@
 #include "editor_model/collection.hpp"
 #include "editor_model/project.hpp"
 #include "editor_model/schema.hpp"
+#include "textures.hpp"
 
 namespace myrts::editor {
 
@@ -18,6 +19,7 @@ class CollectionEditor {
     std::string noun;                                              ///< "character", "building"
     std::function<Collection(const Project&)> collection;
     const std::vector<Field>* schema = nullptr;
+    Textures* textures = nullptr;
     /// A new item with this id, for this faction (may be empty).
     std::function<Project::Json(const Project&, const std::string& id, const std::string& faction)> make;
   };
