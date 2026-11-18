@@ -1,0 +1,27 @@
+{
+  "levels": [
+    {
+      "name": "First Skirmish",
+      "chapter": "Tutorial",
+      "kind": "land",
+      "map": "maps/field.mrmap",
+      "briefing": "Gather gold and lumber, build a Barracks and train Soldiers. Destroy the enemy base.",
+      "hints": [
+        "Right-click a gold mine or a tree with a Worker selected to gather.",
+        "Build Farms for food, and a Barracks to train Soldiers."
+      ],
+      "player_stock": {
+        "gold": 2000,
+        "lumber": 1500
+      },
+      "enemy_stock": {
+        "gold": 2000,
+        "lumber": 1500
+      },
+      "ai": {
+        "start_delay": 240,
+        "first_wave": 4
+      }
+    }
+  ]
+}

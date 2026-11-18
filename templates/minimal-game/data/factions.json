@@ -1,0 +1,13 @@
+{
+  "factions": [
+    {
+      "id": "kingdom",
+      "name": "Kingdom",
+      "worker": "worker",
+      "town_hall": "hall",
+      "base_buildings": [
+        "barracks"
+      ]
+    }
+  ]
+}

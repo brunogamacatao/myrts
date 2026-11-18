@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "default_language": {
+      "description": "The code of a language file in the strings folder (\"en\": the texts as written).",
+      "title": "Default language",
+      "type": "string"
+    },
+    "id": {
+      "description": "A short name for the game (letters, digits, '-').",
+      "title": "Id",
+      "type": "string"
+    },
+    "music": {
+      "additionalProperties": false,
+      "properties": {
+        "defeat": {
+          "title": "Defeat",
+          "type": "string"
+        },
+        "intro": {
+          "title": "Intro",
+          "type": "string"
+        },
+        "menu": {
+          "title": "Menu",
+          "type": "string"
+        },
+        "victory": {
+          "title": "Victory",
+          "type": "string"
+        }
+      },
+      "title": "Music of the menus",
+      "type": "object"
+    },
+    "paths": {
+      "additionalProperties": false,
+      "description": "Where things are, relative to the game's folder. Leave a path out to use the default.",
+      "properties": {
+        "ai_profiles": {
+          "title": "AI profiles",
+          "type": "string"
+        },
+        "campaign": {
+          "title": "Campaign",
+          "type": "string"
+        },
+        "credits": {
+          "title": "Credits",
+          "type": "string"
+        },
+        "cursors": {
+          "title": "Cursors folder",
+          "type": "string"
+        },
+        "data": {
+          "title": "Data folder",
+          "type": "string"
+        },
+        "fallback_map": {
+          "description": "Played when the game has no campaign.",
+          "title": "Fallback map",
+          "type": "string"
+        },
+        "rules": {
+          "title": "Rules",
+          "type": "string"
+        },
+        "sound_table": {
+          "title": "Sound table",
+          "type": "string"
+        },
+        "sounds": {
+          "title": "Sounds folder",
+          "type": "string"
+        },
+        "strings": {
+          "title": "Languages folder",
+          "type": "string"
+        },
+        "tilesets": {
+          "title": "Tile sets",
+          "type": "string"
+        }
+      },
+      "title": "Folders and files",
+      "type": "object"
+    },
+    "title": {
+      "description": "The window title and the name of the game.",
+      "title": "Title",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "title": "The manifest (game.json)",
+  "type": "object"
+}

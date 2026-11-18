@@ -1,0 +1,315 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "ai": {
+      "additionalProperties": false,
+      "properties": {
+        "farm_margin": {
+          "default": 2,
+          "maximum": 50,
+          "minimum": 0,
+          "title": "Farm margin",
+          "type": "integer"
+        }
+      },
+      "title": "Computer player",
+      "type": "object"
+    },
+    "combat": {
+      "additionalProperties": false,
+      "properties": {
+        "attack_flash": {
+          "default": 0.45,
+          "maximum": 10.0,
+          "minimum": 0.0,
+          "title": "Strike animation (s)",
+          "type": "number"
+        },
+        "min_damage": {
+          "default": 1,
+          "description": "A hit always does at least this much, whatever the armor.",
+          "maximum": 1000,
+          "minimum": 0,
+          "title": "Minimum damage",
+          "type": "integer"
+        }
+      },
+      "title": "Combat",
+      "type": "object"
+    },
+    "fog": {
+      "additionalProperties": false,
+      "properties": {
+        "building_sight_base": {
+          "default": -1,
+          "description": "-1: the game's rule.",
+          "maximum": 40,
+          "minimum": -1,
+          "title": "Building sight base",
+          "type": "integer"
+        },
+        "edge_softness": {
+          "default": 1.0,
+          "maximum": 5.0,
+          "minimum": 0.1,
+          "title": "Edge softness",
+          "type": "number"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "explored_color": {
+          "default": [
+            102,
+            102,
+            110
+          ],
+          "items": {
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Explored color",
+          "type": "array"
+        },
+        "explored_opacity": {
+          "default": 0.55,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Explored opacity",
+          "type": "number"
+        },
+        "min_unit_sight": {
+          "default": -1,
+          "description": "-1: the game's rule.",
+          "maximum": 40,
+          "minimum": -1,
+          "title": "Min unit sight",
+          "type": "integer"
+        },
+        "minimap": {
+          "default": true,
+          "title": "Show on minimap",
+          "type": "boolean"
+        },
+        "remember": {
+          "default": true,
+          "title": "Remember explored",
+          "type": "boolean"
+        },
+        "reveal_map": {
+          "default": false,
+          "description": "No black: the whole map is seen (the fog of explored areas stays unless off).",
+          "title": "Reveal the map",
+          "type": "boolean"
+        },
+        "sight_bonus": {
+          "default": 0,
+          "description": "Tiles added to every unit's sight.",
+          "maximum": 40,
+          "minimum": -20,
+          "title": "Sight bonus",
+          "type": "integer"
+        },
+        "sight_scale": {
+          "default": 1.0,
+          "description": "Multiplies every unit's sight.",
+          "maximum": 20.0,
+          "minimum": 0.0,
+          "title": "Sight scale",
+          "type": "number"
+        },
+        "unknown_color": {
+          "default": [
+            0,
+            0,
+            0
+          ],
+          "items": {
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Unknown color",
+          "type": "array"
+        },
+        "unknown_opacity": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Unknown opacity",
+          "type": "number"
+        },
+        "update_interval": {
+          "default": 0.2,
+          "maximum": 5.0,
+          "minimum": 0.02,
+          "title": "Update interval (s)",
+          "type": "number"
+        }
+      },
+      "title": "Fog of war (a level may change it)",
+      "type": "object"
+    },
+    "match": {
+      "additionalProperties": false,
+      "properties": {
+        "default_mine_gold": {
+          "default": 10000,
+          "maximum": 10000000,
+          "minimum": 1,
+          "title": "Default mine content",
+          "type": "integer"
+        },
+        "gold_per_value_unit": {
+          "default": 2500,
+          "description": "A map's mine value is a multiple of this.",
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Mine value unit",
+          "type": "integer"
+        },
+        "initial_workers": {
+          "default": 8,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Starting workers",
+          "type": "integer"
+        },
+        "mine_size": {
+          "default": 3,
+          "maximum": 8,
+          "minimum": 1,
+          "title": "Mine size (tiles)",
+          "type": "integer"
+        }
+      },
+      "title": "Match setup",
+      "type": "object"
+    },
+    "presentation": {
+      "additionalProperties": false,
+      "properties": {
+        "air_lift": {
+          "default": 14.0,
+          "maximum": 200.0,
+          "minimum": 0.0,
+          "title": "Flying height (px)",
+          "type": "number"
+        },
+        "corpse_fade_seconds": {
+          "default": 5.0,
+          "maximum": 1000.0,
+          "minimum": 0.01,
+          "title": "Body fades (s)",
+          "type": "number"
+        },
+        "corpse_seconds": {
+          "default": 25.0,
+          "maximum": 1000.0,
+          "minimum": 0.0,
+          "title": "Body stays (s)",
+          "type": "number"
+        },
+        "max_corpses": {
+          "default": 60,
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Most bodies",
+          "type": "integer"
+        }
+      },
+      "title": "Presentation",
+      "type": "object"
+    },
+    "repair": {
+      "additionalProperties": false,
+      "properties": {
+        "cost_share": {
+          "default": 0.25,
+          "description": "Mending from nothing to whole costs this share of the price.",
+          "maximum": 10.0,
+          "minimum": 0.0,
+          "title": "Cost share",
+          "type": "number"
+        },
+        "min_seconds": {
+          "default": 20.0,
+          "maximum": 10000.0,
+          "minimum": 0.01,
+          "title": "Minimum time (s)",
+          "type": "number"
+        }
+      },
+      "title": "Repair",
+      "type": "object"
+    },
+    "simulation": {
+      "additionalProperties": false,
+      "properties": {
+        "lumber_per_tree": {
+          "default": 100,
+          "description": "What a tree holds.",
+          "maximum": 100000,
+          "minimum": 1,
+          "title": "Lumber per tree",
+          "type": "integer"
+        },
+        "max_queue": {
+          "default": 5,
+          "maximum": 50,
+          "minimum": 1,
+          "title": "Training queue",
+          "type": "integer"
+        },
+        "retry_delay": {
+          "default": 0.5,
+          "maximum": 10.0,
+          "minimum": 0.01,
+          "title": "Route retry delay (s)",
+          "type": "number"
+        },
+        "scan_interval": {
+          "default": 0.3,
+          "maximum": 10.0,
+          "minimum": 0.01,
+          "title": "Enemy scan interval (s)",
+          "type": "number"
+        }
+      },
+      "title": "Simulation",
+      "type": "object"
+    },
+    "vision": {
+      "additionalProperties": false,
+      "properties": {
+        "building_sight_base": {
+          "default": 3,
+          "description": "A building sees base + its size.",
+          "maximum": 40,
+          "minimum": 0,
+          "title": "Building sight base",
+          "type": "integer"
+        },
+        "min_unit_sight": {
+          "default": 2,
+          "description": "Tiles.",
+          "maximum": 40,
+          "minimum": 0,
+          "title": "Unit sight at least",
+          "type": "integer"
+        }
+      },
+      "title": "Vision",
+      "type": "object"
+    }
+  },
+  "title": "The rules (rules.json)",
+  "type": "object"
+}

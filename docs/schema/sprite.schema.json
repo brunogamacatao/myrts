@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "flip_horizontal": {
+      "default": false,
+      "description": "Draws the frames flipped left to right (so a left-facing animation can reuse the right-facing frames).",
+      "title": "Mirrored",
+      "type": "boolean"
+    },
+    "fps": {
+      "default": 5,
+      "maximum": 120,
+      "minimum": 1,
+      "title": "Frames per second",
+      "type": "integer"
+    },
+    "frames": {
+      "items": {
+        "properties": {
+          "h": {
+            "default": 0,
+            "maximum": 100000,
+            "minimum": 0,
+            "title": "h",
+            "type": "integer"
+          },
+          "w": {
+            "default": 0,
+            "maximum": 100000,
+            "minimum": 0,
+            "title": "w",
+            "type": "integer"
+          },
+          "x": {
+            "default": 0,
+            "maximum": 100000,
+            "minimum": 0,
+            "title": "x",
+            "type": "integer"
+          },
+          "y": {
+            "default": 0,
+            "maximum": 100000,
+            "minimum": 0,
+            "title": "y",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "title": "Frames",
+      "type": "array"
+    },
+    "loop": {
+      "default": true,
+      "description": "Off: stops on the last frame (death animations).",
+      "title": "Loops",
+      "type": "boolean"
+    },
+    "name": {
+      "description": "The game picks animations by name: idle_<dir>, walk_<dir>, attack_<dir>, death_<dir> with <dir> up, up_right, right, down_right, down.",
+      "title": "Name",
+      "type": "string"
+    }
+  },
+  "title": "An animation of a sprite (sprites/*.json)",
+  "type": "object"
+}

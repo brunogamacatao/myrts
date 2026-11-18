@@ -1,0 +1,5 @@
+MINIMAL GAME
+Made with MyRTS Engine
+
+Art
+Placeholders: replace the pictures in sprites/, buildings/, ui/ and tilesets/ with your own.

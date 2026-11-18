@@ -1,4 +1,5 @@
 # Making a game with the engine
+> The editor ([EDITOR.md](EDITOR.md)) edits all of this without writing JSON by hand.
 
 A game is a folder (a *package*) with a `game.json` manifest and its content. The engine knows nothing about
 Warcraft: everything below is data. Run a package with `myrts --game <dir>` (or `MYRTS_GAME=<dir>`), and check one with

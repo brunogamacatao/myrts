@@ -30,7 +30,7 @@ class App {
 
   void open_project(const std::string& directory);
   /// Where the game executable is (it is started by "Play").
-  void set_game_program(std::string path) { game_program_ = std::move(path); }
+  void set_game_program(std::string path);
 
  private:
   [[nodiscard]] bool unsaved() const { return project_ && (project_->dirty() || map_->dirty()); }
@@ -59,6 +59,8 @@ class App {
 
   enum class Pending { None, Quit, Close, Open };
   Pending pending_ = Pending::None;  ///< what the "unsaved changes" dialog is guarding
+  bool ask_export_ = false;
+  std::string export_path_ = "export";
   bool ask_open_ = false, ask_new_ = false, ask_unsaved_ = false, first_frame_ = true;
   std::string open_path_ = "games/warcraft-like";
   std::string new_path_ = "my-game";

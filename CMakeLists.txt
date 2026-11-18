@@ -74,6 +74,8 @@ add_library(myrts_editor_model STATIC
   src/editor_model/sprite.cpp
   src/editor_model/map_edit.cpp
   src/editor_model/texts.cpp
+  src/editor_model/json_schema.cpp
+  src/editor_model/export.cpp
   src/editor_model/schema.cpp)
 target_include_directories(myrts_editor_model PUBLIC src)
 target_compile_features(myrts_editor_model PUBLIC cxx_std_23)
@@ -137,7 +139,8 @@ if(MYRTS_BUILD_GAME)
   # Make assets available next to the executable (run it from there). A separate target, so that a change to the data
   # alone (a level, a sound table) is copied too, even when the executable itself did not need relinking.
   add_custom_target(copy_assets ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/games $<TARGET_FILE_DIR:myrts>/games)
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/games $<TARGET_FILE_DIR:myrts>/games
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/templates $<TARGET_FILE_DIR:myrts>/templates)
   add_dependencies(myrts copy_assets)
 endif()
 
@@ -163,7 +166,8 @@ if(MYRTS_BUILD_EDITOR)
       add_dependencies(myrts_engine copy_assets)
     else()
       add_custom_target(copy_assets ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/games $<TARGET_FILE_DIR:myrts_engine>/games)
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/games $<TARGET_FILE_DIR:myrts_engine>/games
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/templates $<TARGET_FILE_DIR:myrts_engine>/templates)
       add_dependencies(myrts_engine copy_assets)
     endif()
   else()
@@ -173,7 +177,7 @@ endif()
 
 # ---- tools: command line utilities for game packages (no graphics) --------
 add_executable(myrts_tool tools/myrts_tool.cpp)
-target_link_libraries(myrts_tool PRIVATE myrts_core myrts_warnings nlohmann_json::nlohmann_json)
+target_link_libraries(myrts_tool PRIVATE myrts_editor_model myrts_core myrts_warnings nlohmann_json::nlohmann_json)
 
 # ---- tests ---------------------------------------------------------------
 if(MYRTS_BUILD_TESTS)
@@ -210,7 +214,8 @@ if(MYRTS_BUILD_TESTS)
     tests/collection_test.cpp
     tests/sprite_test.cpp
     tests/map_edit_test.cpp
-    tests/game_data_test.cpp)
+    tests/game_data_test.cpp
+    tests/distribution_test.cpp)
   target_compile_definitions(myrts_tests PRIVATE MYRTS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   target_link_libraries(myrts_tests PRIVATE myrts_core myrts_editor_model myrts_warnings nlohmann_json::nlohmann_json Catch2::Catch2WithMain)
   if(catch2_SOURCE_DIR)

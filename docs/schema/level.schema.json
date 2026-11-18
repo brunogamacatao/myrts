@@ -1,0 +1,414 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "ai": {
+      "additionalProperties": false,
+      "properties": {
+        "desired_tankers": {
+          "default": 2,
+          "maximum": 50,
+          "minimum": 0,
+          "title": "Tankers",
+          "type": "integer"
+        },
+        "desired_workers": {
+          "default": 3,
+          "maximum": 50,
+          "minimum": 0,
+          "title": "Workers",
+          "type": "integer"
+        },
+        "farm_margin": {
+          "default": 2,
+          "description": "Builds a farm when this little food is left.",
+          "maximum": 50,
+          "minimum": 0,
+          "title": "Farm margin",
+          "type": "integer"
+        },
+        "first_wave": {
+          "default": 5,
+          "description": "Fighters needed for the first attack.",
+          "maximum": 500,
+          "minimum": 1,
+          "title": "First wave",
+          "type": "integer"
+        },
+        "start_delay": {
+          "default": 150.0,
+          "description": "No attack before this many seconds.",
+          "maximum": 100000.0,
+          "minimum": 0.0,
+          "title": "Start delay (s)",
+          "type": "number"
+        },
+        "think_interval": {
+          "default": 1.0,
+          "maximum": 60.0,
+          "minimum": 0.1,
+          "title": "Think interval (s)",
+          "type": "number"
+        },
+        "wave_growth": {
+          "default": 3,
+          "description": "Extra fighters for each later attack.",
+          "maximum": 500,
+          "minimum": 0,
+          "title": "Wave growth",
+          "type": "integer"
+        }
+      },
+      "title": "AI settings",
+      "type": "object"
+    },
+    "ai_profile": {
+      "description": "A named set of AI settings (ai_profiles.json); the values below change single settings of it.",
+      "title": "AI profile",
+      "type": "string"
+    },
+    "allow": {
+      "description": "The units and buildings you can make. None listed: everything.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Allowed",
+      "type": "array"
+    },
+    "briefing": {
+      "title": "Briefing",
+      "type": "string"
+    },
+    "chapter": {
+      "description": "Levels with the same chapter are grouped in the level list of the game.",
+      "title": "Chapter",
+      "type": "string"
+    },
+    "enemy_faction": {
+      "description": "Empty: the second faction of the game.",
+      "title": "Enemy faction",
+      "type": "string"
+    },
+    "enemy_stock": {
+      "additionalProperties": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "description": "Resources the enemy starts with.",
+      "title": "Enemy stock",
+      "type": "object"
+    },
+    "enemy_workers": {
+      "default": 4,
+      "maximum": 50,
+      "minimum": 0,
+      "title": "Enemy workers",
+      "type": "integer"
+    },
+    "fog": {
+      "additionalProperties": false,
+      "properties": {
+        "building_sight_base": {
+          "default": -1,
+          "description": "-1: the game's rule.",
+          "maximum": 40,
+          "minimum": -1,
+          "title": "Building sight base",
+          "type": "integer"
+        },
+        "edge_softness": {
+          "default": 1.0,
+          "maximum": 5.0,
+          "minimum": 0.1,
+          "title": "Edge softness",
+          "type": "number"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "explored_color": {
+          "default": [
+            102,
+            102,
+            110
+          ],
+          "items": {
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Explored color",
+          "type": "array"
+        },
+        "explored_opacity": {
+          "default": 0.55,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Explored opacity",
+          "type": "number"
+        },
+        "min_unit_sight": {
+          "default": -1,
+          "description": "-1: the game's rule.",
+          "maximum": 40,
+          "minimum": -1,
+          "title": "Min unit sight",
+          "type": "integer"
+        },
+        "minimap": {
+          "default": true,
+          "title": "Show on minimap",
+          "type": "boolean"
+        },
+        "remember": {
+          "default": true,
+          "title": "Remember explored",
+          "type": "boolean"
+        },
+        "reveal_map": {
+          "default": false,
+          "description": "No black: the whole map is seen (the fog of explored areas stays unless off).",
+          "title": "Reveal the map",
+          "type": "boolean"
+        },
+        "sight_bonus": {
+          "default": 0,
+          "description": "Tiles added to every unit's sight.",
+          "maximum": 40,
+          "minimum": -20,
+          "title": "Sight bonus",
+          "type": "integer"
+        },
+        "sight_scale": {
+          "default": 1.0,
+          "description": "Multiplies every unit's sight.",
+          "maximum": 20.0,
+          "minimum": 0.0,
+          "title": "Sight scale",
+          "type": "number"
+        },
+        "unknown_color": {
+          "default": [
+            0,
+            0,
+            0
+          ],
+          "items": {
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Unknown color",
+          "type": "array"
+        },
+        "unknown_opacity": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Unknown opacity",
+          "type": "number"
+        },
+        "update_interval": {
+          "default": 0.2,
+          "maximum": 5.0,
+          "minimum": 0.02,
+          "title": "Update interval (s)",
+          "type": "number"
+        }
+      },
+      "title": "Fog of war",
+      "type": "object"
+    },
+    "hints": {
+      "description": "Shown in the first minutes of the level.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Hints",
+      "type": "array"
+    },
+    "kind": {
+      "default": "land",
+      "description": "land: bases connect on foot. air: they do not. naval: war at sea.",
+      "enum": [
+        "land",
+        "air",
+        "naval"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "map": {
+      "description": "A .mrmap or .pud file.",
+      "title": "Map",
+      "type": "string"
+    },
+    "more_opponents": {
+      "description": "Extra computer players.",
+      "items": {
+        "properties": {
+          "ai_profile": {
+            "title": "AI profile",
+            "type": "string"
+          },
+          "faction": {
+            "title": "Faction",
+            "type": "string"
+          },
+          "stock": {
+            "additionalProperties": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "title": "Stock",
+            "type": "object"
+          },
+          "workers": {
+            "default": 4,
+            "maximum": 50,
+            "minimum": 0,
+            "title": "Workers",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "title": "More opponents",
+      "type": "array"
+    },
+    "music": {
+      "title": "Music",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "objectives": {
+      "additionalProperties": false,
+      "description": "Empty: destroy every enemy unit and building to win.",
+      "properties": {
+        "defeat": {
+          "description": "Lose when any of these happens.",
+          "items": {
+            "properties": {
+              "amount": {
+                "default": 1,
+                "description": "How many to destroy, build or collect.",
+                "maximum": 1000000,
+                "minimum": 1,
+                "title": "Amount",
+                "type": "integer"
+              },
+              "building": {
+                "title": "Building",
+                "type": "string"
+              },
+              "resource": {
+                "title": "Resource",
+                "type": "string"
+              },
+              "seconds": {
+                "default": 0.0,
+                "maximum": 100000.0,
+                "minimum": 0.0,
+                "title": "Seconds",
+                "type": "number"
+              },
+              "text": {
+                "description": "The line in the objectives list (empty: a default one).",
+                "title": "Text shown",
+                "type": "string"
+              },
+              "type": {
+                "default": "lose_building",
+                "enum": [
+                  "lose_building",
+                  "time_limit"
+                ],
+                "title": "Type",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "title": "Defeat",
+          "type": "array"
+        },
+        "victory": {
+          "description": "Win when all of these are met.",
+          "items": {
+            "properties": {
+              "amount": {
+                "default": 1,
+                "description": "How many to destroy, build or collect.",
+                "maximum": 1000000,
+                "minimum": 1,
+                "title": "Amount",
+                "type": "integer"
+              },
+              "building": {
+                "title": "Building",
+                "type": "string"
+              },
+              "resource": {
+                "title": "Resource",
+                "type": "string"
+              },
+              "seconds": {
+                "default": 0.0,
+                "maximum": 100000.0,
+                "minimum": 0.0,
+                "title": "Seconds",
+                "type": "number"
+              },
+              "text": {
+                "description": "The line in the objectives list (empty: a default one).",
+                "title": "Text shown",
+                "type": "string"
+              },
+              "type": {
+                "default": "destroy_all",
+                "enum": [
+                  "destroy_all",
+                  "destroy_building",
+                  "survive",
+                  "collect",
+                  "build"
+                ],
+                "title": "Type",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "title": "Victory",
+          "type": "array"
+        }
+      },
+      "title": "Objectives",
+      "type": "object"
+    },
+    "player_faction": {
+      "description": "Empty: the first faction of the game.",
+      "title": "Your faction",
+      "type": "string"
+    },
+    "player_stock": {
+      "additionalProperties": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "description": "Resources you start with.",
+      "title": "Your stock",
+      "type": "object"
+    }
+  },
+  "title": "A level of the campaign",
+  "type": "object"
+}

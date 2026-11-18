@@ -1,0 +1,32 @@
+{
+  "format_version": 1,
+  "resources": [
+    {
+      "id": "gold",
+      "name": "Gold",
+      "short_label": "g",
+      "icon": "ui/gold.png",
+      "source": "site",
+      "site_terrain": "land",
+      "enter_site": true,
+      "carry_animation": "gold",
+      "site_sprite": "buildings/gold_mine_{era}.png",
+      "site_sprite_active": "buildings/gold_mine_active_{era}.png",
+      "no_depot_message": "You need a Great Hall or Town Hall to deliver resources",
+      "unreachable_message": "Cannot reach that gold mine",
+      "depleted_message": "There is no gold left to mine",
+      "exhausted_message": "The gold mine is exhausted"
+    },
+    {
+      "id": "lumber",
+      "name": "Lumber",
+      "short_label": "w",
+      "icon": "ui/lumber.png",
+      "source": "tree",
+      "carry_animation": "wood",
+      "no_depot_message": "You need a Great Hall or Town Hall to deliver resources",
+      "unreachable_message": "Cannot reach that tree",
+      "depleted_message": "There are no more trees"
+    }
+  ]
+}

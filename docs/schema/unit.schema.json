@@ -1,0 +1,241 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "aggressive": {
+      "default": true,
+      "description": "Workers default to false: they keep working unless ordered.",
+      "title": "Fights on its own",
+      "type": "boolean"
+    },
+    "attack_seconds": {
+      "default": 1.5,
+      "maximum": 100.0,
+      "minimum": 0.05,
+      "title": "Seconds per attack",
+      "type": "number"
+    },
+    "builds": {
+      "description": "Needs the Worker block.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Builds",
+      "type": "array"
+    },
+    "capacity": {
+      "default": 0,
+      "description": "Units it can carry (transports).",
+      "maximum": 50,
+      "minimum": 0,
+      "title": "Carries",
+      "type": "integer"
+    },
+    "commands": {
+      "description": "The buttons it has, in order.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Commands",
+      "type": "array"
+    },
+    "cost": {
+      "additionalProperties": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "title": "Cost",
+      "type": "object"
+    },
+    "faction": {
+      "title": "Faction",
+      "type": "string"
+    },
+    "food": {
+      "default": 1,
+      "description": "Food the unit eats.",
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Food",
+      "type": "integer"
+    },
+    "hp": {
+      "default": 0,
+      "maximum": 100000,
+      "minimum": 1,
+      "title": "Hit points",
+      "type": "integer"
+    },
+    "icon": {
+      "default": -1,
+      "description": "Index in the icon sheet; -1: none.",
+      "maximum": 9999,
+      "minimum": -1,
+      "title": "Icon",
+      "type": "integer"
+    },
+    "id": {
+      "description": "Unique in its table; other files refer to it.",
+      "title": "Id",
+      "type": "string"
+    },
+    "level": {
+      "default": 1,
+      "description": "Shown on the unit's card.",
+      "maximum": 99,
+      "minimum": 1,
+      "title": "Level",
+      "type": "integer"
+    },
+    "mechanical": {
+      "default": false,
+      "description": "Repaired by workers.",
+      "title": "Mechanical",
+      "type": "boolean"
+    },
+    "move_class": {
+      "default": "land",
+      "enum": [
+        "land",
+        "water",
+        "air"
+      ],
+      "title": "Moves on",
+      "type": "string"
+    },
+    "move_speed": {
+      "default": 64.0,
+      "description": "Pixels per second.",
+      "maximum": 2000.0,
+      "minimum": 0.0,
+      "title": "Move speed",
+      "type": "number"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "projectile": {
+      "description": "Empty: a melee attack.",
+      "title": "Projectile",
+      "type": "string"
+    },
+    "requires": {
+      "description": "Buildings the player must have to train it.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Requires",
+      "type": "array"
+    },
+    "siege_multiplier": {
+      "default": 1.0,
+      "maximum": 100.0,
+      "minimum": 0.0,
+      "title": "Damage vs buildings",
+      "type": "number"
+    },
+    "sprite": {
+      "description": "The sprite definition (edit it in the Sprites tab).",
+      "title": "Sprite",
+      "type": "string"
+    },
+    "stats": {
+      "additionalProperties": false,
+      "properties": {
+        "armor": {
+          "default": 0,
+          "description": "Taken off each hit (a hit still does at least 1).",
+          "maximum": 1000,
+          "minimum": 0,
+          "title": "Armor",
+          "type": "integer"
+        },
+        "damage_max": {
+          "default": 0,
+          "description": "0: the unit cannot attack.",
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Damage max",
+          "type": "integer"
+        },
+        "damage_min": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Damage min",
+          "type": "integer"
+        },
+        "range": {
+          "default": 0,
+          "description": "Tiles; 1 is melee.",
+          "maximum": 30,
+          "minimum": 0,
+          "title": "Range",
+          "type": "integer"
+        },
+        "sight": {
+          "default": 0,
+          "description": "Tiles.",
+          "maximum": 30,
+          "minimum": 0,
+          "title": "Sight",
+          "type": "integer"
+        },
+        "speed": {
+          "default": 0,
+          "description": "Only the number shown on the unit's card.",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Speed (shown)",
+          "type": "integer"
+        }
+      },
+      "title": "Stats",
+      "type": "object"
+    },
+    "train_seconds": {
+      "default": 0.0,
+      "maximum": 10000.0,
+      "minimum": 0.0,
+      "title": "Training time (s)",
+      "type": "number"
+    },
+    "worker": {
+      "additionalProperties": false,
+      "description": "Present: the unit gathers resources.",
+      "properties": {
+        "gather": {
+          "additionalProperties": {
+            "properties": {
+              "per_trip": {
+                "default": 100,
+                "maximum": 100000,
+                "minimum": 1,
+                "title": "Per trip",
+                "type": "integer"
+              },
+              "seconds": {
+                "default": 2.5,
+                "maximum": 1000.0,
+                "minimum": 0.0,
+                "title": "Seconds",
+                "type": "number"
+              }
+            },
+            "type": "object"
+          },
+          "description": "What it gathers and how: amount per trip and seconds of work.",
+          "title": "Gathers",
+          "type": "object"
+        }
+      },
+      "title": "Worker",
+      "type": "object"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "title": "A unit (units.json)",
+  "type": "object"
+}

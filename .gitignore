@@ -3,3 +3,4 @@ build/
 compile_commands.json
 dist/
 myrts_engine.ini
+__pycache__/

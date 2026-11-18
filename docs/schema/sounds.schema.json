@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "buildings": {
+      "additionalProperties": {
+        "properties": {
+          "selected": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Selected",
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "title": "Buildings",
+      "type": "object"
+    },
+    "effects": {
+      "additionalProperties": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "description": "Named sounds the game plays (construct, error, tree, building_destroyed).",
+      "title": "Effects",
+      "type": "object"
+    },
+    "units": {
+      "additionalProperties": {
+        "properties": {
+          "acknowledge": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Acknowledge",
+            "type": "array"
+          },
+          "annoyed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Annoyed",
+            "type": "array"
+          },
+          "attack": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Attack",
+            "type": "array"
+          },
+          "dead": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dead",
+            "type": "array"
+          },
+          "help": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Help",
+            "type": "array"
+          },
+          "ready": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ready",
+            "type": "array"
+          },
+          "selected": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Selected",
+            "type": "array"
+          },
+          "voice": {
+            "title": "Voice",
+            "type": "string"
+          },
+          "work_done": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Work done",
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "description": "Sounds of each unit: its voice and anything of its own.",
+      "title": "Units",
+      "type": "object"
+    },
+    "voices": {
+      "additionalProperties": {
+        "properties": {
+          "acknowledge": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Acknowledge",
+            "type": "array"
+          },
+          "annoyed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Annoyed",
+            "type": "array"
+          },
+          "base": {
+            "title": "Takes what is missing from",
+            "type": "string"
+          },
+          "dead": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dead",
+            "type": "array"
+          },
+          "help": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Help",
+            "type": "array"
+          },
+          "ready": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ready",
+            "type": "array"
+          },
+          "selected": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Selected",
+            "type": "array"
+          },
+          "work_done": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Work done",
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "description": "Sets of sounds that units share.",
+      "title": "Voices",
+      "type": "object"
+    }
+  },
+  "title": "The sound table (sounds.json)",
+  "type": "object"
+}

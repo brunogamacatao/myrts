@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "carry_animation": {
+      "description": "walk_<this>_<dir> in a sprite.",
+      "title": "Carry animation",
+      "type": "string"
+    },
+    "depleted_message": {
+      "title": "Depleted message",
+      "type": "string"
+    },
+    "enter_site": {
+      "default": false,
+      "description": "One at a time (gold mines).",
+      "title": "The worker goes inside",
+      "type": "boolean"
+    },
+    "exhausted_message": {
+      "title": "Exhausted message",
+      "type": "string"
+    },
+    "icon": {
+      "title": "Icon",
+      "type": "string"
+    },
+    "id": {
+      "description": "Unique in its table; other files refer to it.",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "description": "Shown to the player.",
+      "title": "Name",
+      "type": "string"
+    },
+    "no_depot_message": {
+      "title": "No depot message",
+      "type": "string"
+    },
+    "pud_source": {
+      "description": "gold_mine or oil_patch: the map object that holds it in a .pud.",
+      "title": "Warcraft II object",
+      "type": "string"
+    },
+    "short_label": {
+      "description": "One or two letters after a price.",
+      "title": "Short label",
+      "type": "string"
+    },
+    "site_sprite": {
+      "description": "{era} is replaced by the tile set's name.",
+      "title": "Site picture",
+      "type": "string"
+    },
+    "site_sprite_active": {
+      "title": "Site picture, being worked",
+      "type": "string"
+    },
+    "site_terrain": {
+      "default": "land",
+      "description": "water: gathered by ships.",
+      "enum": [
+        "land",
+        "water"
+      ],
+      "title": "Sites lie on",
+      "type": "string"
+    },
+    "source": {
+      "default": "site",
+      "description": "site: a mine or a patch on the map. tree: cut from trees (only one resource can be).",
+      "enum": [
+        "site",
+        "tree"
+      ],
+      "title": "Source",
+      "type": "string"
+    },
+    "unreachable_message": {
+      "title": "Unreachable message",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "title": "A resource (resources.json)",
+  "type": "object"
+}

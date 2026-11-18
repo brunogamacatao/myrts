@@ -12,6 +12,7 @@
 #include <unistd.h>
 #endif
 
+#include "editor_model/export.hpp"
 #include "editor_model/levels.hpp"
 #include "inspector.hpp"
 
@@ -114,6 +115,14 @@ void App::save() {
   }
   project_->revalidate();
   set_status(project_->report().ok() ? "Saved. No problems found." : "Saved, but the game has problems (see Problems).");
+}
+
+void App::set_game_program(std::string path) {
+  game_program_ = std::move(path);
+  // New games start from the template that is installed next to the programs.
+  const std::filesystem::path installed = std::filesystem::path(game_program_).parent_path() / "templates" / "minimal-game";
+  if (std::filesystem::exists(installed / "game.json")) template_path_ = installed.string();
+  else if (std::filesystem::exists("templates/minimal-game/game.json")) template_path_ = "templates/minimal-game";
 }
 
 void App::play_level() {
@@ -237,6 +246,7 @@ void App::draw_menu() {
   }
   if (ImGui::BeginMenu("Project", project_.has_value())) {
     if (ImGui::MenuItem("Play the active level", "F5")) play_level();
+    if (ImGui::MenuItem("Export the game...")) ask_export_ = true;
     if (ImGui::MenuItem("Check the game")) {
       project_->revalidate();
       set_status(project_->report().ok() ? "No problems found." : "The game has problems (see Problems).");
@@ -251,7 +261,8 @@ void App::draw_dialogs() {
   if (ask_open_) ImGui::OpenPopup("Open game");
   if (ask_new_) ImGui::OpenPopup("New game from template");
   if (ask_unsaved_) ImGui::OpenPopup("Unsaved changes");
-  ask_open_ = ask_new_ = ask_unsaved_ = false;
+  if (ask_export_) ImGui::OpenPopup("Export the game");
+  ask_open_ = ask_new_ = ask_unsaved_ = ask_export_ = false;
 
   const auto center = [] { ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f}); };
   const auto switch_to = [&](const std::string& directory) {
@@ -290,6 +301,7 @@ void App::draw_dialogs() {
   center();
   if (ImGui::BeginPopupModal("New game from template", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
     ImGui::TextUnformatted("The new game starts as a copy of the template and is yours to change.");
+    ImGui::TextDisabled("(templates/minimal-game: one faction, a worker, a soldier, three buildings and a level; the art is a placeholder.)");
     ImGui::SetNextItemWidth(420);
     text_field("Title", new_title_);
     ImGui::SetNextItemWidth(420);
@@ -315,6 +327,32 @@ void App::draw_dialogs() {
         ImGui::CloseCurrentPopup();
       } else {
         dialog_error_ = created.error();
+      }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel")) {
+      dialog_error_.clear();
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+  }
+
+  center();
+  if (ImGui::BeginPopupModal("Export the game", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    ImGui::TextUnformatted("Makes a folder with the game program and the game's files, ready to give to players.");
+    ImGui::TextUnformatted("The game is saved and checked first.");
+    ImGui::SetNextItemWidth(420);
+    text_field("Folder to make it in", export_path_);
+    if (!dialog_error_.empty()) ImGui::TextColored({1, 0.45f, 0.4f, 1}, "%s", dialog_error_.c_str());
+    if (ImGui::Button("Export") && project_) {
+      save();
+      const auto made = unsaved() ? std::unexpected(std::string("saving failed: ") + status_) : export_game(*project_, game_program_, export_path_);
+      if (made) {
+        set_status("Exported to " + made->generic_string());
+        dialog_error_.clear();
+        ImGui::CloseCurrentPopup();
+      } else {
+        dialog_error_ = made.error();
       }
     }
     ImGui::SameLine();

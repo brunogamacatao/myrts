@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "accepts": {
+      "description": "A depot: workers bring these resources here.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Accepts deliveries of",
+      "type": "array"
+    },
+    "armor": {
+      "default": 0,
+      "maximum": 1000,
+      "minimum": 0,
+      "title": "Armor",
+      "type": "integer"
+    },
+    "build_seconds": {
+      "default": 100.0,
+      "maximum": 10000.0,
+      "minimum": 1.0,
+      "title": "Build time (s)",
+      "type": "number"
+    },
+    "cost": {
+      "additionalProperties": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "title": "Cost",
+      "type": "object"
+    },
+    "faction": {
+      "title": "Faction",
+      "type": "string"
+    },
+    "food": {
+      "default": 0,
+      "maximum": 1000,
+      "minimum": 0,
+      "title": "Food provided",
+      "type": "integer"
+    },
+    "hp": {
+      "default": 400,
+      "maximum": 100000,
+      "minimum": 1,
+      "title": "Hit points",
+      "type": "integer"
+    },
+    "icon": {
+      "default": -1,
+      "maximum": 9999,
+      "minimum": -1,
+      "title": "Icon",
+      "type": "integer"
+    },
+    "id": {
+      "description": "Unique in its table; other files refer to it.",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "placement": {
+      "default": "land",
+      "description": "coast: next to open water (shipyards). water: on the sea (oil platforms).",
+      "enum": [
+        "land",
+        "coast",
+        "water"
+      ],
+      "title": "Placement",
+      "type": "string"
+    },
+    "requires": {
+      "description": "Buildings the player must have to build it.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Requires",
+      "type": "array"
+    },
+    "size": {
+      "default": 2,
+      "description": "The building covers size x size tiles.",
+      "maximum": 8,
+      "minimum": 1,
+      "title": "Size (tiles)",
+      "type": "integer"
+    },
+    "sprite": {
+      "title": "Sprite",
+      "type": "string"
+    },
+    "sprite_construction": {
+      "title": "Sprite while building",
+      "type": "string"
+    },
+    "trains": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Trains",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "title": "A building (buildings.json)",
+  "type": "object"
+}

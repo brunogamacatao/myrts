@@ -19,8 +19,24 @@
 #include "scenes.hpp"
 #include "ui.hpp"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace {
 constexpr double kFps = 60.0;
+
+/// The folder the program is in (empty if unknown).
+std::filesystem::path program_dir() {
+  std::error_code ec;
+#ifdef _WIN32
+  char buffer[MAX_PATH];
+  const DWORD n = GetModuleFileNameA(nullptr, buffer, MAX_PATH);
+  return n > 0 && n < MAX_PATH ? std::filesystem::path(std::string(buffer, n)).parent_path() : std::filesystem::path{};
+#else
+  return std::filesystem::read_symlink("/proc/self/exe", ec).parent_path();
+#endif
+}
 
 void must_init(bool ok, const char* what) {
   if (ok) return;
@@ -30,8 +46,10 @@ void must_init(bool ok, const char* what) {
 }  // namespace
 
 int main(int argc, char** argv) {
-  // The game to play is a folder with a game.json: --game <dir>, or MYRTS_GAME, or the bundled one.
+  // The game to play is a folder with a game.json: --game <dir>, or MYRTS_GAME, or the one beside the program.
+  // A game made with the editor and exported has its package in a "game" folder beside the program.
   std::string game_dir = "games/warcraft-like";
+  if (const auto beside = program_dir() / "game"; std::filesystem::exists(beside / "game.json")) game_dir = beside.string();
   if (const char* env = std::getenv("MYRTS_GAME")) game_dir = env;
   std::string level_arg, faction_arg;  // --level N --faction ID: start that level straight away (the editor's "Play")
   for (int i = 1; i + 1 < argc; ++i) {

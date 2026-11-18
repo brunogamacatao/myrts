@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "profiles": {
+      "additionalProperties": {
+        "properties": {
+          "desired_tankers": {
+            "default": 2,
+            "maximum": 50,
+            "minimum": 0,
+            "title": "Tankers",
+            "type": "integer"
+          },
+          "desired_workers": {
+            "default": 3,
+            "maximum": 50,
+            "minimum": 0,
+            "title": "Workers",
+            "type": "integer"
+          },
+          "farm_margin": {
+            "default": 2,
+            "description": "Builds a farm when this little food is left.",
+            "maximum": 50,
+            "minimum": 0,
+            "title": "Farm margin",
+            "type": "integer"
+          },
+          "first_wave": {
+            "default": 5,
+            "description": "Fighters needed for the first attack.",
+            "maximum": 500,
+            "minimum": 1,
+            "title": "First wave",
+            "type": "integer"
+          },
+          "start_delay": {
+            "default": 150.0,
+            "description": "No attack before this many seconds.",
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Start delay (s)",
+            "type": "number"
+          },
+          "think_interval": {
+            "default": 1.0,
+            "maximum": 60.0,
+            "minimum": 0.1,
+            "title": "Think interval (s)",
+            "type": "number"
+          },
+          "wave_growth": {
+            "default": 3,
+            "description": "Extra fighters for each later attack.",
+            "maximum": 500,
+            "minimum": 0,
+            "title": "Wave growth",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "description": "Named sets of computer-player settings; a level picks one by name.",
+      "title": "Profiles",
+      "type": "object"
+    }
+  },
+  "title": "The AI profiles (ai_profiles.json)",
+  "type": "object"
+}

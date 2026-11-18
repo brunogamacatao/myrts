@@ -1,0 +1,160 @@
+{
+  "commands": [
+    {
+      "id": "move",
+      "label": "Move",
+      "icon": "move",
+      "hotkey": "M",
+      "targeting": "ground",
+      "icons": {
+        "default": 83,
+        "orcs": 84
+      }
+    },
+    {
+      "id": "stop",
+      "label": "Stop",
+      "icon": "stop",
+      "hotkey": "S",
+      "targeting": "none",
+      "icons": {
+        "default": 164,
+        "orcs": 167
+      }
+    },
+    {
+      "id": "attack",
+      "label": "Attack",
+      "icon": "attack",
+      "hotkey": "A",
+      "targeting": "ground",
+      "icons": {
+        "default": 116,
+        "orcs": 119
+      }
+    },
+    {
+      "id": "repair",
+      "label": "Repair",
+      "icon": "repair",
+      "hotkey": "R",
+      "targeting": "ground",
+      "implemented": true,
+      "icons": {
+        "default": 85
+      }
+    },
+    {
+      "id": "harvest",
+      "label": "Harvest",
+      "icon": "harvest",
+      "hotkey": "H",
+      "targeting": "resource",
+      "icons": {
+        "default": 86
+      }
+    },
+    {
+      "id": "build",
+      "label": "Build",
+      "icon": "build",
+      "hotkey": "B",
+      "targeting": "menu",
+      "icons": {
+        "default": 87
+      }
+    },
+    {
+      "id": "unload",
+      "label": "Unload",
+      "icon": "unload",
+      "hotkey": "U",
+      "targeting": "ground",
+      "implemented": true,
+      "icons": {
+        "default": 208,
+        "orcs": 209
+      }
+    },
+    {
+      "id": "patrol",
+      "label": "Patrol",
+      "icon": "patrol",
+      "hotkey": "P",
+      "targeting": "ground",
+      "prompt": "Select where to patrol to",
+      "icons": {
+        "default": 178,
+        "orcs": 179
+      }
+    },
+    {
+      "id": "hold",
+      "label": "Stand Ground",
+      "icon": "hold",
+      "hotkey": "G",
+      "targeting": "none",
+      "icons": {
+        "default": 165,
+        "orcs": 168
+      }
+    },
+    {
+      "id": "board",
+      "label": "Board",
+      "icon": "board",
+      "targeting": "ground",
+      "order": "board",
+      "implemented": true,
+      "icons": {
+        "default": 83,
+        "orcs": 84
+      }
+    },
+    {
+      "id": "resume_build",
+      "label": "Resume building",
+      "icon": "resume_build",
+      "targeting": "ground",
+      "order": "resume_build",
+      "icons": {
+        "default": 87
+      }
+    }
+  ],
+  "context_orders": [
+    {
+      "when": [
+        "enemy"
+      ],
+      "command": "attack"
+    },
+    {
+      "when": [
+        "resource"
+      ],
+      "command": "harvest"
+    },
+    {
+      "when": [
+        "own_transport"
+      ],
+      "command": "board"
+    },
+    {
+      "when": [
+        "own_damaged"
+      ],
+      "command": "repair"
+    },
+    {
+      "when": [
+        "unfinished_building"
+      ],
+      "command": "resume_build"
+    },
+    {
+      "command": "move"
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "hotkey": {
+      "title": "Hotkey",
+      "type": "string"
+    },
+    "icon": {
+      "title": "Icon name",
+      "type": "string"
+    },
+    "icons": {
+      "additionalProperties": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "description": "Icon number per faction (\"default\" for the rest).",
+      "title": "Icons",
+      "type": "object"
+    },
+    "id": {
+      "description": "Unique in its table; other files refer to it.",
+      "title": "Id",
+      "type": "string"
+    },
+    "implemented": {
+      "default": true,
+      "description": "Off: the button is shown but does nothing yet.",
+      "title": "Implemented",
+      "type": "boolean"
+    },
+    "label": {
+      "description": "The button's text.",
+      "title": "Label",
+      "type": "string"
+    },
+    "order": {
+      "description": "What it does. Empty: the same as the id.",
+      "enum": [
+        "move",
+        "stop",
+        "attack",
+        "repair",
+        "harvest",
+        "unload",
+        "board",
+        "resume_build",
+        "patrol",
+        "hold",
+        "build"
+      ],
+      "title": "Order",
+      "type": "string"
+    },
+    "prompt": {
+      "description": "Shown while the player picks the target.",
+      "title": "Prompt",
+      "type": "string"
+    },
+    "targeting": {
+      "default": "none",
+      "description": "none: acts at once. ground: next click picks a tile. resource: a tree or mine. menu: opens a menu (Build).",
+      "enum": [
+        "none",
+        "ground",
+        "resource",
+        "menu"
+      ],
+      "title": "Targeting",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "title": "A command (commands.json)",
+  "type": "object"
+}

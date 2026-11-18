@@ -54,6 +54,7 @@ Tests: `cmake --preset tests-only && cmake --build --preset tests-only && ctest 
   reservations (`occupancy`), camera/minimap math (`geometry`), picking (`selection`)
 - `src/game/` – Allegro front-end: `Game` (input, selection, camera), `TileRenderer`, `SpriteDef`, HUD (`ui`), scenes
 - `docs/GAME_FORMAT.md` – how to make a game: every data file, `myrts_tool validate` and `import-pud`
+- `docs/EDITOR.md` – the graphical editor (MyRTS Engine, `myrts_engine`) and `docs/schema/` (JSON Schemas of the data files)
 - `games/<name>/` – a game package (`game.json` manifest + content); run another with `--game <dir>` or `MYRTS_GAME`. The bundled one: sprites, tilesets, Warcraft II maps (`maps/*.pud`) and game data (`data/*.json`)
 - `tests/` – Catch2 tests
 

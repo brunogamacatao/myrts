@@ -1,0 +1,84 @@
+{
+  "units": [
+    {
+      "id": "worker",
+      "name": "Worker",
+      "faction": "kingdom",
+      "level": 1,
+      "hp": 30,
+      "move_speed": 72,
+      "move_class": "land",
+      "sprite": "sprites/worker.json",
+      "stats": {
+        "armor": 0,
+        "damage_min": 3,
+        "damage_max": 9,
+        "range": 1,
+        "sight": 4,
+        "speed": 10
+      },
+      "attack_seconds": 1.5,
+      "cost": {
+        "gold": 400
+      },
+      "train_seconds": 45,
+      "commands": [
+        "move",
+        "stop",
+        "attack",
+        "repair",
+        "harvest",
+        "build"
+      ],
+      "worker": {
+        "gather": {
+          "gold": {
+            "per_trip": 100,
+            "seconds": 2.5
+          },
+          "lumber": {
+            "per_trip": 10,
+            "seconds": 3.0
+          }
+        }
+      },
+      "builds": [
+        "hall",
+        "farm",
+        "barracks"
+      ],
+      "icon": 0
+    },
+    {
+      "id": "soldier",
+      "name": "Soldier",
+      "faction": "kingdom",
+      "level": 1,
+      "hp": 60,
+      "move_speed": 72,
+      "move_class": "land",
+      "sprite": "sprites/soldier.json",
+      "stats": {
+        "armor": 2,
+        "damage_min": 4,
+        "damage_max": 9,
+        "range": 1,
+        "sight": 5,
+        "speed": 10
+      },
+      "attack_seconds": 1.2,
+      "cost": {
+        "gold": 600
+      },
+      "train_seconds": 60,
+      "commands": [
+        "move",
+        "stop",
+        "attack",
+        "patrol",
+        "hold"
+      ],
+      "icon": 2
+    }
+  ]
+}

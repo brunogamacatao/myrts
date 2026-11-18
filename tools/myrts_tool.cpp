@@ -2,6 +2,8 @@
 //
 //   myrts_tool validate <game-dir>                      check a whole game: data, references, files, every level
 //   myrts_tool import-pud <game-dir> <in.pud> <out.mrmap>   convert a Warcraft II map to the native map format
+//   myrts_tool new-map <game-dir> <tileset> <width> <height> <out.mrmap>   a two-player map to start from
+//   myrts_tool schema <out-dir>                         write JSON Schemas of the data files
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -16,6 +18,8 @@
 #include "core/match_setup.hpp"
 #include "core/sounds.hpp"
 #include "core/tileset.hpp"
+#include "editor_model/json_schema.hpp"
+#include "editor_model/map_edit.hpp"
 
 namespace fs = std::filesystem;
 using namespace myrts;
@@ -103,13 +107,57 @@ int import_pud(const fs::path& dir, const std::string& in, const std::string& ou
   return 0;
 }
 
+/// A two-player map to start from: grass, a forest on the edges, a lake in the middle, a start and a gold mine for each.
+int new_map(const fs::path& dir, const std::string& tileset, int width, int height, const std::string& out) {
+  const auto pkg = GamePackage::load(dir);
+  if (!pkg) {
+    std::fprintf(stderr, "%s\n", pkg.error().c_str());
+    return 1;
+  }
+  auto tilesets = TileSets::load_file(pkg->path(pkg->tilesets_file));
+  if (!tilesets) {
+    std::fprintf(stderr, "%s\n", tilesets.error().c_str());
+    return 1;
+  }
+  const auto shared = std::make_shared<const TileSets>(std::move(*tilesets));
+  auto made = editor::MapEdit::create(shared, tileset, width, height, Terrain::GrassLight, fs::path(out).stem().string());
+  if (!made) {
+    std::fprintf(stderr, "%s\n", made.error().c_str());
+    return 1;
+  }
+  editor::MapEdit& map = *made;
+  for (int i = 0; i <= width; ++i) {  // forest along the four edges
+    for (const auto& [x, y] : {std::pair{i, 1}, std::pair{i, height - 1}, std::pair{1, i}, std::pair{width - 1, i}}) map.paint(x, y, 3, Terrain::Trees);
+  }
+  map.paint(width / 2, height / 2, std::max(2, width / 8), Terrain::WaterLight);
+  const Point a = map.map().starts[0].at, b = map.map().starts[1].at;
+  map.add_mine({a.x + 4, a.y - 1}, "gold", 5000);
+  map.add_mine({b.x - 6, b.y - 1}, "gold", 5000);
+  std::ofstream(out) << map.to_mrmap();
+  std::printf("wrote %s: %dx%d tiles\n", out.c_str(), width, height);
+  return 0;
+}
+
+int write_schemas(const fs::path& out_dir) {
+  std::error_code ec;
+  fs::create_directories(out_dir, ec);
+  for (const auto& [name, schema] : editor::all_json_schemas()) {
+    std::ofstream(out_dir / name) << schema.dump(2) << "\n";
+    std::printf("wrote %s\n", (out_dir / name).generic_string().c_str());
+  }
+  return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
   const std::string command = argc > 1 ? argv[1] : "";
   if (command == "validate" && argc == 3) return validate(argv[2]);
   if (command == "import-pud" && argc == 5) return import_pud(argv[2], argv[3], argv[4]);
+  if (command == "new-map" && argc == 7) return new_map(argv[2], argv[3], std::atoi(argv[4]), std::atoi(argv[5]), argv[6]);
+  if (command == "schema" && argc == 3) return write_schemas(argv[2]);
   std::fprintf(stderr,
-               "usage:\n  myrts_tool validate <game-dir>\n  myrts_tool import-pud <game-dir> <in.pud> <out.mrmap>\n");
+               "usage:\n  myrts_tool validate <game-dir>\n  myrts_tool import-pud <game-dir> <in.pud> <out.mrmap>\n"
+               "  myrts_tool new-map <game-dir> <tileset> <width> <height> <out.mrmap>\n  myrts_tool schema <out-dir>   (JSON Schemas of the data files)\n");
   return 2;
 }

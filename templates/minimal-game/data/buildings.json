@@ -1,0 +1,61 @@
+{
+  "buildings": [
+    {
+      "id": "hall",
+      "name": "Hall",
+      "faction": "kingdom",
+      "size": 4,
+      "hp": 1200,
+      "food": 10,
+      "cost": {
+        "gold": 1200,
+        "lumber": 800
+      },
+      "build_seconds": 255,
+      "accepts": [
+        "gold",
+        "lumber"
+      ],
+      "sprite": "buildings/alliance_town_hall.png",
+      "sprite_construction": "buildings/alliance_town_hall_construction.png",
+      "trains": [
+        "worker"
+      ],
+      "icon": 40
+    },
+    {
+      "id": "farm",
+      "name": "Farm",
+      "faction": "kingdom",
+      "size": 2,
+      "hp": 400,
+      "food": 4,
+      "cost": {
+        "gold": 500,
+        "lumber": 250
+      },
+      "build_seconds": 100,
+      "sprite": "buildings/alliance_farm.png",
+      "sprite_construction": "buildings/alliance_farm_construction.png",
+      "icon": 38
+    },
+    {
+      "id": "barracks",
+      "name": "Barracks",
+      "faction": "kingdom",
+      "size": 3,
+      "hp": 800,
+      "cost": {
+        "gold": 700,
+        "lumber": 450
+      },
+      "build_seconds": 200,
+      "sprite": "buildings/alliance_barracks.png",
+      "sprite_construction": "buildings/alliance_barracks_construction.png",
+      "trains": [
+        "soldier"
+      ],
+      "icon": 42
+    }
+  ]
+}
