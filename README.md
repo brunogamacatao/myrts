@@ -1,14 +1,41 @@
 # myrts
 
-Small RTS prototype in C++23 (Allegro 5, Warcraft II maps, A* pathfinding).
+A small real-time strategy **engine** in C++23 (Allegro 5, Warcraft II maps, A* pathfinding) with a demo game in the style
+of Warcraft II, and **MyRTS Engine**, a graphical editor to make your own games with it.
+
+| The game | The editor |
+|---|---|
+| ![The game, level 1](docs/images/game-level1.png) | ![The editor: map](docs/images/editor-map.png) |
+| ![The game, level 7](docs/images/game-level7.png) | ![The editor: characters](docs/images/editor-characters.png) |
+
+More editor pictures: [levels](docs/images/editor-level.png), [sprites](docs/images/editor-sprites.png).
 
 ## Quick start
 ```sh
-scripts/setup.sh   # once: system packages (apt) + vcpkg in ~/vcpkg
-scripts/run.sh     # build (release) and run the game
-scripts/test.sh    # unit tests only (no Allegro needed)
+scripts/setup.sh         # once: system packages (apt) + vcpkg in ~/vcpkg
+scripts/run.sh           # build (release) and play the demo game
+scripts/run-editor.sh    # build (release) and open the editor on the demo game
+scripts/test.sh          # unit tests only (no Allegro needed)
 ```
-`scripts/build.sh [release|debug|tests-only|debug-system]` builds a given preset.
+`scripts/build.sh [release|debug|tests-only|debug-system]` builds a given preset. A normal build makes three programs
+in `build/<preset>/`: `myrts` (the game), `myrts_engine` (the editor) and `myrts_tool` (command line checks and
+converters). Both windows are opened by running them from that folder: the game folders (`games/`) and the templates
+(`templates/`) are copied next to them.
+
+### Running on a virtual display (without taking over your screen)
+Handy when you are working on the same machine, on a server, or to take pictures. Needs `xvfb`, `xdotool` and
+`imagemagick` (`sudo apt install xvfb xdotool imagemagick`).
+```sh
+Xvfb :99 -screen 0 1600x1000x24 &                  # a display that exists only in memory
+export DISPLAY=:99
+cd build/release
+./myrts_engine games/warcraft-like &               # the editor (1400x860 window)
+./myrts --game games/warcraft-like --level 1 --faction orcs &   # the game (800x600), straight into level 1
+import -window root shot.png                       # take a picture (ImageMagick)
+xdotool mousemove 80 150 click 1                   # click, if you want to drive it (give it a moment between moves)
+```
+`MYRTS_MUTE=1` silences the game when there is no sound card. `scripts/screenshots.sh` does all of this and refreshes
+the pictures in `docs/images/`.
 
 ## Requirements
 - C++23 compiler (GCC ≥ 13 or Clang ≥ 17), CMake ≥ 3.25, Ninja
@@ -23,6 +50,7 @@ scripts/test.sh    # unit tests only (no Allegro needed)
 export VCPKG_ROOT=~/vcpkg
 cmake --preset release && cmake --build --preset release
 cd build/release && ./myrts      # assets are copied next to the executable
+./myrts_engine                   # the editor (File > New from template, or File > Open)
 ```
 Without vcpkg, use `--preset debug-system` (needs `liballegro5-dev`; json/Catch2 are then fetched by CMake).
 

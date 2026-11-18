@@ -1,5 +1,7 @@
 # MyRTS Engine: the editor
 
+![The map tab](images/editor-map.png)
+
 `myrts_engine` is the graphical editor for games made with the engine. It opens a game (a *package*: a folder with a
 `game.json`, see [GAME_FORMAT.md](GAME_FORMAT.md)) and edits all of it: levels, characters, buildings, sprites, maps,
 rules, texts. It writes the very files the game reads, so there is nothing to export before trying a change.
@@ -11,6 +13,9 @@ scripts/build.sh release                 # builds myrts (the game), myrts_engine
 build/release/myrts_engine [game-folder]
 scripts/run-editor.sh                    # builds and opens the demo game
 ```
+
+To try it without opening a window on your own screen, run it on a virtual display (see the README, "Running on a virtual
+display"; `scripts/screenshots.sh` is a worked example that drives the editor with `xdotool`).
 
 The editor needs Dear ImGui (the vcpkg feature `editor`, on by default). Without it everything else still builds. The
 layout of the panels is remembered in `myrts_engine.ini` (next to where you run it).
