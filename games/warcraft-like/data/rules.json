@@ -1,0 +1,10 @@
+{
+  "format_version": 1,
+  "simulation": { "lumber_per_tree": 100, "max_queue": 5, "scan_interval": 0.3, "retry_delay": 0.5 },
+  "combat": { "min_damage": 1, "attack_flash": 0.45 },
+  "repair": { "cost_share": 0.25, "min_seconds": 20 },
+  "vision": { "min_unit_sight": 2, "building_sight_base": 3 },
+  "match": { "initial_workers": 8, "mine_size": 3, "gold_per_value_unit": 2500, "default_mine_gold": 10000 },
+  "ai": { "farm_margin": 2 },
+  "presentation": { "corpse_seconds": 25, "corpse_fade_seconds": 5, "max_corpses": 60, "air_lift": 14 }
+}
