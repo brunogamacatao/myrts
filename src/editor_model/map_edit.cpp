@@ -7,6 +7,8 @@
 #include <queue>
 #include <set>
 
+#include "core/pathfinding.hpp"
+
 namespace myrts::editor {
 
 namespace {
@@ -164,6 +166,7 @@ std::optional<std::uint16_t> MapEdit::solid_tile(Terrain terrain) const {
 
 bool MapEdit::paint(int x, int y, int size, Terrain terrain) {
   if (is_wall(terrain) || size < 1) return false;
+  ++revision_;
   const int w = map_.width, h = map_.height;
   const int first = -(size / 2);  // the cursor is at the middle of the brush
   std::map<std::size_t, Terrain> old_values;  // every vertex changed, with what it was
@@ -266,7 +269,143 @@ bool MapEdit::paint(int x, int y, int size, Terrain terrain) {
   return true;
 }
 
+bool MapEdit::Objects::operator==(const Objects& o) const {
+  if (starts.size() != o.starts.size() || mines.size() != o.mines.size()) return false;
+  for (std::size_t i = 0; i < starts.size(); ++i)
+    if (starts[i].owner != o.starts[i].owner || !(starts[i].at == o.starts[i].at) || starts[i].hall != o.starts[i].hall) return false;
+  for (std::size_t i = 0; i < mines.size(); ++i)
+    if (!(mines[i].at == o.mines[i].at) || mines[i].resource != o.mines[i].resource || mines[i].amount != o.mines[i].amount) return false;
+  return true;
+}
+
+bool MapEdit::change_objects(const std::function<void(Objects&)>& edit, const std::string& key) {
+  ++revision_;
+  Objects before{map_.starts, map_.mines};
+  Objects after = before;
+  edit(after);
+  if (after == before) return false;
+  map_.starts = after.starts;
+  map_.mines = after.mines;
+  redo_.clear();
+  if (!key.empty() && key == object_key_ && !undo_.empty() && undo_.back().objects && undo_.back().key == key) {
+    undo_.back().objects->second = std::move(after);  // the same field again: one step
+    return true;
+  }
+  Step step;
+  step.id = next_id_++;
+  step.objects = std::make_pair(std::move(before), std::move(after));
+  step.key = key;
+  object_key_ = key;
+  undo_.push_back(std::move(step));
+  return true;
+}
+
+std::size_t MapEdit::add_start(int owner, Point at) {
+  const std::size_t index = map_.starts.size();
+  change_objects([&](Objects& o) { o.starts.push_back({owner, at, std::nullopt}); }, {});
+  return index;
+}
+bool MapEdit::move_start(std::size_t i, Point at) {
+  return i < map_.starts.size() && change_objects([&](Objects& o) { o.starts[i].at = at; }, "start" + std::to_string(i));
+}
+bool MapEdit::set_start(std::size_t i, int owner, std::optional<Point> hall) {
+  return i < map_.starts.size() && change_objects([&](Objects& o) { o.starts[i].owner = owner; o.starts[i].hall = hall; }, "startp" + std::to_string(i));
+}
+bool MapEdit::remove_start(std::size_t i) {
+  return i < map_.starts.size() && change_objects([&](Objects& o) { o.starts.erase(o.starts.begin() + static_cast<std::ptrdiff_t>(i)); }, {});
+}
+std::size_t MapEdit::add_mine(Point at, const std::string& resource, int amount) {
+  const std::size_t index = map_.mines.size();
+  change_objects([&](Objects& o) { o.mines.push_back({at, resource, amount}); }, {});
+  return index;
+}
+bool MapEdit::move_mine(std::size_t i, Point at) {
+  return i < map_.mines.size() && change_objects([&](Objects& o) { o.mines[i].at = at; }, "mine" + std::to_string(i));
+}
+bool MapEdit::set_mine(std::size_t i, const std::string& resource, int amount) {
+  return i < map_.mines.size() && change_objects([&](Objects& o) { o.mines[i].resource = resource; o.mines[i].amount = amount; }, "minep" + std::to_string(i));
+}
+bool MapEdit::remove_mine(std::size_t i) {
+  return i < map_.mines.size() && change_objects([&](Objects& o) { o.mines.erase(o.mines.begin() + static_cast<std::ptrdiff_t>(i)); }, {});
+}
+
+std::vector<std::string> MapEdit::problems(const ResourceTable& resources, const std::string& level_kind) const {
+  std::vector<std::string> out;
+  const auto tilemap = tilemap_from(map_, sets_);
+  if (!tilemap) return {tilemap.error()};
+  const Grid land = tilemap->land_blocked();
+  const Grid water = tilemap->water_blocked();
+  const auto inside = [&](Point p, int size) { return p.x >= 0 && p.y >= 0 && p.x + size <= map_.width && p.y + size <= map_.height; };
+
+  std::set<int> owners;
+  for (std::size_t i = 0; i < map_.starts.size(); ++i) {
+    const Start& s = map_.starts[i];
+    const std::string who = "start of player " + std::to_string(s.owner + 1);
+    if (!owners.insert(s.owner).second) out.push_back("two starts for player " + std::to_string(s.owner + 1));
+    if (!inside(s.at, 1)) {
+      out.push_back(who + " is outside the map");
+      continue;
+    }
+    if (level_kind != "naval" && land.is_blocked(s.at)) out.push_back(who + " is on ground that units cannot walk on");
+  }
+  if (!owners.contains(0)) out.push_back("there is no start for player 1 (you)");
+  if (owners.size() < 2) out.push_back("there must be a start for an opponent too");
+
+  std::vector<Point> taken;  // tiles covered by mines
+  for (std::size_t i = 0; i < map_.mines.size(); ++i) {
+    const Mine& m = map_.mines[i];
+    const std::string who = "mine " + std::to_string(i + 1) + " (" + m.resource + ")";
+    const ResourceId r = resources.index(m.resource);
+    if (r == kNoResource) {
+      out.push_back(who + ": the game has no resource '" + m.resource + "'");
+      continue;
+    }
+    if (m.amount <= 0) out.push_back(who + " holds nothing");
+    if (!inside(m.at, 3)) {
+      out.push_back(who + " is outside the map");
+      continue;
+    }
+    const bool at_sea = resources.at(r).site_terrain == SiteTerrain::Water;
+    for (int dy = 0; dy < 3; ++dy)
+      for (int dx = 0; dx < 3; ++dx) {
+        const Point p{m.at.x + dx, m.at.y + dy};
+        if (at_sea ? water.is_blocked(p) : land.is_blocked(p)) {
+          out.push_back(who + (at_sea ? " is not on open water" : " is on ground that cannot hold it"));
+          dy = 3;
+          break;
+        }
+        if (std::ranges::find(taken, p) != taken.end()) {
+          out.push_back(who + " overlaps another mine");
+          dy = 3;
+          break;
+        }
+        taken.push_back(p);
+      }
+  }
+
+  if (level_kind == "land" && owners.size() >= 2 && out.empty()) {
+    Grid walk = land;
+    for (const Mine& m : map_.mines)
+      for (int dy = 0; dy < 3; ++dy)
+        for (int dx = 0; dx < 3; ++dx) walk.set_blocked({m.at.x + dx, m.at.y + dy});
+    const Scenario scenario = scenario_from(map_);
+    const auto far = scenario.farthest_from(0);
+    if (far && scenario.starts.size() > *far) {
+      const Point a = scenario.starts[0].start, b = scenario.starts[*far].start;
+      const auto path = a_star_closest(walk, a, b);
+      if (path.empty() || std::abs(path.back().x - b.x) + std::abs(path.back().y - b.y) > 4)
+        out.push_back("the bases are not connected on foot (a \"land\" level needs a way between them; trees and water block)");
+    }
+  }
+  return out;
+}
+
 void MapEdit::apply(const Step& step, bool forward) {
+  if (step.objects) {
+    const Objects& to = forward ? step.objects->second : step.objects->first;
+    map_.starts = to.starts;
+    map_.mines = to.mines;
+  }
   for (const VertexChange& c : step.vertices) vertices_[c.index] = forward ? c.new_value : c.old_value;
   for (const TileChange& c : step.tiles) {
     map_.tiles[c.index] = forward ? c.new_code : c.old_code;
@@ -290,6 +429,7 @@ void MapEdit::commit(Step step) {
     return;
   }
   step.id = next_id_++;
+  object_key_.clear();
   redo_.clear();
   undo_.push_back(std::move(step));
 }
@@ -310,6 +450,8 @@ void MapEdit::end_stroke() {
 }
 
 bool MapEdit::undo() {
+  ++revision_;
+  object_key_.clear();
   if (undo_.empty() || in_stroke_) return false;
   Step step = std::move(undo_.back());
   undo_.pop_back();
@@ -319,6 +461,8 @@ bool MapEdit::undo() {
 }
 
 bool MapEdit::redo() {
+  ++revision_;
+  object_key_.clear();
   if (redo_.empty() || in_stroke_) return false;
   Step step = std::move(redo_.back());
   redo_.pop_back();

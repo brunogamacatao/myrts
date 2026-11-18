@@ -5,6 +5,12 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
+#include <filesystem>
+#ifndef _WIN32
+#include <csignal>
+#include <unistd.h>
+#endif
 
 #include "editor_model/levels.hpp"
 #include "inspector.hpp"
@@ -107,6 +113,39 @@ void App::save() {
   set_status(project_->report().ok() ? "Saved. No problems found." : "Saved, but the game has problems (see Problems).");
 }
 
+void App::play_level() {
+  if (!project_) return;
+  if (levels::count(*project_) == 0) return;
+  save();
+  if (unsaved()) return;  // saving failed: the status says why
+  if (!project_->report().ok()) {
+    set_status("Fix the problems before playing (see Problems).");
+    return;
+  }
+  if (game_program_.empty() || !std::filesystem::exists(game_program_)) {
+    set_status("The game program (myrts) was not found next to the editor.");
+    return;
+  }
+  const auto& level = (*project_->document(project_->package().campaign_file))["levels"][active_level_];
+  std::string faction = level.value("player_faction", std::string{});
+  if (faction.empty())
+    if (const auto factions = reference_options(*project_, "factions"); !factions.empty()) faction = factions[0];
+  const std::string root = project_->root().generic_string(), number = std::to_string(active_level_ + 1);
+#ifdef _WIN32
+  const std::string command = "\"" + game_program_ + "\" --game \"" + root + "\" --level " + number + " --faction \"" + faction + "\"";
+  (void)std::system(("start \"\" " + command).c_str());
+#else
+  // No shell: the paths and ids are passed as they are.
+  signal(SIGCHLD, SIG_IGN);  // the game is left to run on its own, without leaving a zombie behind
+  if (fork() == 0) {
+    setsid();
+    execl(game_program_.c_str(), game_program_.c_str(), "--game", root.c_str(), "--level", number.c_str(), "--faction", faction.c_str(), static_cast<char*>(nullptr));
+    _exit(1);
+  }
+#endif
+  set_status("Playing level " + std::to_string(active_level_ + 1) + ": " + levels::name(*project_, active_level_));
+}
+
 void App::close_project() {
   project_.reset();
   selected_document_.clear();
@@ -141,6 +180,8 @@ void App::draw() {
 
   ImGuiIO& io = ImGui::GetIO();
   if (project_ && io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false)) save();
+  if (project_ && !io.WantTextInput && ImGui::IsKeyPressed(ImGuiKey_Delete, false)) map_->delete_selected();
+  if (project_ && ImGui::IsKeyPressed(ImGuiKey_F5, false)) play_level();
   if (project_ && io.KeyCtrl && !io.WantTextInput) {  // a text field has its own undo while it is being typed in
     const bool undo = ImGui::IsKeyPressed(ImGuiKey_Z, true) && !io.KeyShift;
     const bool redo = (ImGui::IsKeyPressed(ImGuiKey_Z, true) && io.KeyShift) || ImGui::IsKeyPressed(ImGuiKey_Y, true);
@@ -192,6 +233,7 @@ void App::draw_menu() {
     ImGui::EndMenu();
   }
   if (ImGui::BeginMenu("Project", project_.has_value())) {
+    if (ImGui::MenuItem("Play the active level", "F5")) play_level();
     if (ImGui::MenuItem("Check the game")) {
       project_->revalidate();
       set_status(project_->report().ok() ? "No problems found." : "The game has problems (see Problems).");
@@ -478,6 +520,8 @@ void App::draw_level_inspector() {
   ImGui::Text("Level %zu of %zu%s", selected_level_ + 1, n, selected_level_ == active_level_ ? "  (active)" : "");
   ImGui::SameLine();
   if (selected_level_ != active_level_ && ImGui::SmallButton("Make active")) active_level_ = selected_level_;
+  ImGui::SameLine();
+  if (ImGui::SmallButton("Play the active level (F5)")) play_level();
   ImGui::Separator();
   ImGui::BeginChild("levelfields");
   draw_fields(project, project.package().campaign_file, level_schema(),
@@ -497,9 +541,13 @@ void App::draw_welcome() {
     }
     if (ImGui::BeginTabItem("Map")) {
       const std::size_t n = levels::count(*project_);
-      std::string level_map;
-      if (n > 0) level_map = (*project_->document(project_->package().campaign_file))["levels"][active_level_].value("map", std::string{});
-      map_->draw(*project_, level_map, active_level_);
+      std::string level_map, level_kind = "land";
+      if (n > 0) {
+        const auto& level = (*project_->document(project_->package().campaign_file))["levels"][active_level_];
+        level_map = level.value("map", std::string{});
+        level_kind = level.value("kind", std::string("land"));
+      }
+      map_->draw(*project_, level_map, active_level_, level_kind);
       ImGui::EndTabItem();
     }
     if (ImGui::BeginTabItem("Characters")) {

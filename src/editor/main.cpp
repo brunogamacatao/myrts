@@ -50,6 +50,17 @@ int main(int argc, char** argv) {
 
   {  // the app holds pictures (Allegro bitmaps): it must be gone before the display is
   myrts::editor::App app;
+  if (ALLEGRO_PATH* exe = al_get_standard_path(ALLEGRO_EXENAME_PATH)) {  // the game is built next to the editor
+    al_set_path_filename(exe, "myrts");
+    app.set_game_program(al_path_cstr(exe, ALLEGRO_NATIVE_PATH_SEP) + std::string(
+#ifdef _WIN32
+        ".exe"
+#else
+        ""
+#endif
+        ));
+    al_destroy_path(exe);
+  }
   // The game to open at start: the first argument, or MYRTS_GAME.
   if (argc > 1) app.open_project(argv[1]);
   else if (const char* env = std::getenv("MYRTS_GAME")) app.open_project(env);

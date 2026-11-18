@@ -28,6 +28,8 @@ class App {
   [[nodiscard]] std::string window_title() const;
 
   void open_project(const std::string& directory);
+  /// Where the game executable is (it is started by "Play").
+  void set_game_program(std::string path) { game_program_ = std::move(path); }
 
  private:
   [[nodiscard]] bool unsaved() const { return project_ && (project_->dirty() || map_->dirty()); }
@@ -41,6 +43,7 @@ class App {
   void clamp_levels();
   void draw_welcome();
   void save();
+  void play_level();
   void close_project();
   void set_status(std::string text) { status_ = std::move(text); }
 
@@ -60,6 +63,7 @@ class App {
   std::string template_path_ = "games/warcraft-like";
   std::string dialog_error_;
   std::string status_;
+  std::string game_program_;
   std::string selected_document_;
   std::size_t selected_level_ = 0;  ///< the one the inspector shows
   std::size_t active_level_ = 0;    ///< the level the editors work on (double-click in the list)

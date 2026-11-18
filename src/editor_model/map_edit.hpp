@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <expected>
+#include <functional>
+#include <optional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -61,10 +63,32 @@ class MapEdit {
   [[nodiscard]] bool can_undo() const { return !undo_.empty(); }
   [[nodiscard]] bool can_redo() const { return !redo_.empty(); }
   [[nodiscard]] bool dirty() const { return top_id() != saved_id_; }
+  /// Changes with every edit, undo and redo (for caching what is computed from the map).
+  [[nodiscard]] std::uint64_t revision() const { return revision_; }
   void mark_saved() { saved_id_ = top_id(); }
 
   /// The `.mrmap` text of the map as it is now.
   [[nodiscard]] std::string to_mrmap() const { return write_mrmap(map_); }
+
+  // ---- objects: where players start and the mines. Each change is one undo step; changes with the same
+  // non-empty `merge_key` in a row (typing an amount) are one step. ----
+  using Start = MapFile::Start;
+  using Mine = MapFile::Mine;
+  std::size_t add_start(int owner, Point at);
+  bool move_start(std::size_t index, Point at);
+  bool set_start(std::size_t index, int owner, std::optional<Point> hall);
+  bool remove_start(std::size_t index);
+  std::size_t add_mine(Point at, const std::string& resource, int amount);
+  bool move_mine(std::size_t index, Point at);
+  bool set_mine(std::size_t index, const std::string& resource, int amount);
+  bool remove_mine(std::size_t index);
+  /// Ends a run of merged object changes.
+  void seal() { object_key_.clear(); }
+
+  /// What would stop a level from being played on this map: starts or mines that lie on terrain they cannot use,
+  /// overlap each other or are in the sea, a resource the game does not have, and (for `land` levels) bases that are not
+  /// connected on foot. `level_kind` is the level's kind ("land", "air", "naval"). Empty: nothing found.
+  [[nodiscard]] std::vector<std::string> problems(const ResourceTable& resources, const std::string& level_kind) const;
 
   /// A tile that shows `terrain` all over (for palettes), or nullopt.
   [[nodiscard]] std::optional<std::uint16_t> solid_tile(Terrain terrain) const;
@@ -78,11 +102,18 @@ class MapEdit {
     std::size_t index;
     Terrain old_value, new_value;
   };
+  struct Objects {
+    std::vector<Start> starts;
+    std::vector<Mine> mines;
+    bool operator==(const Objects& o) const;
+  };
   struct Step {
     std::uint64_t id = 0;
     std::vector<VertexChange> vertices;
     std::vector<TileChange> tiles;
-    [[nodiscard]] bool empty() const { return vertices.empty() && tiles.empty(); }
+    std::optional<std::pair<Objects, Objects>> objects;  ///< before and after
+    std::string key;                                      ///< merges with the next object step of the same key
+    [[nodiscard]] bool empty() const { return vertices.empty() && tiles.empty() && !objects; }
   };
 
   MapEdit() = default;
@@ -95,6 +126,7 @@ class MapEdit {
   void derive_vertices();
   void apply(const Step& step, bool forward);
   void commit(Step step);
+  bool change_objects(const std::function<void(Objects&)>& edit, const std::string& key);
 
   MapFile map_;
   std::shared_ptr<const TileSets> sets_;
@@ -105,6 +137,8 @@ class MapEdit {
   Step stroke_;
   bool in_stroke_ = false;
   std::uint64_t next_id_ = 1, saved_id_ = 0;
+  std::string object_key_;
+  std::uint64_t revision_ = 0;
 };
 
 }  // namespace myrts::editor

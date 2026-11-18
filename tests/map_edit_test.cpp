@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <random>
 
+#include "core/campaign.hpp"
 #include "core/defs.hpp"
 #include "editor_model/map_edit.hpp"
 
@@ -149,4 +150,95 @@ TEST_CASE("a saved map reads back the same, and its terrain still edits") {
   CHECK_FALSE(e->dirty());
   e->paint(3, 3, 1, Terrain::WaterDark);
   CHECK(e->dirty());
+}
+
+TEST_CASE("starts and mines can be added, moved, changed and removed, and every change undone") {
+  auto e = MapEdit::create(tilesets(), "forest", 32, 32, Terrain::GrassLight, "Objects");
+  REQUIRE(e.has_value());
+  const auto starts = e->map().starts;
+  CHECK_FALSE(e->dirty());
+
+  const std::size_t s = e->add_start(2, {5, 5});
+  CHECK(e->map().starts.size() == 3);
+  CHECK(e->move_start(s, {6, 7}));
+  CHECK(e->move_start(s, {7, 7}));  // the same object dragged on: one step
+  CHECK(e->map().starts[s].at == Point{7, 7});
+  CHECK(e->set_start(s, 3, Point{8, 8}));
+  CHECK(e->map().starts[s].owner == 3);
+  CHECK(e->map().starts[s].hall == Point{8, 8});
+  const std::size_t m = e->add_mine({10, 10}, "gold", 1000);
+  for (int amount = 1100; amount <= 1500; amount += 100) e->set_mine(m, "gold", amount);  // typing in the field
+  CHECK(e->map().mines[m].amount == 1500);
+  CHECK_FALSE(e->move_start(99, {1, 1}));
+  CHECK_FALSE(e->set_mine(99, "gold", 1));
+  CHECK(e->remove_start(s));
+  CHECK(e->dirty());
+
+  CHECK(e->undo());  // the removed start is back
+  CHECK(e->map().starts.size() == 3);
+  CHECK(e->undo());  // the mine's amount went back in one step
+  CHECK(e->map().mines[m].amount == 1000);
+  CHECK(e->undo());  // the mine is gone
+  CHECK(e->map().mines.empty());
+  CHECK(e->undo());  // the start's owner and hall
+  CHECK(e->map().starts[s].hall == std::nullopt);
+  CHECK(e->undo());  // its move
+  CHECK(e->map().starts[s].at == Point{5, 5});
+  CHECK(e->undo());
+  CHECK(e->map().starts.size() == 2);
+  CHECK_FALSE(e->can_undo());
+  CHECK_FALSE(e->dirty());
+  CHECK(e->redo());
+  CHECK(e->map().starts.size() == 3);
+}
+
+TEST_CASE("every map of the shipped campaign has no problems for the level that uses it") {
+  const auto registry = Registry::load_directory((kRoot / "data").string());
+  const auto campaign = Campaign::load_file((kRoot / "data" / "campaign.json").string());
+  REQUIRE(registry.has_value());
+  REQUIRE(campaign.has_value());
+  for (const Level& level : campaign->levels()) {
+    INFO(level.name);
+    auto e = MapEdit::from_map(*load_map((kRoot / level.map).string(), *tilesets(), *registry->resources(), GameRules{}), tilesets());
+    REQUIRE(e.has_value());
+    const auto problems = e->problems(*registry->resources(), level.kind);
+    for (const auto& p : problems) INFO(p);
+    CHECK(problems.empty());
+  }
+}
+
+TEST_CASE("problems names what would stop a level") {
+  const auto registry = Registry::load_directory((kRoot / "data").string());
+  auto e = MapEdit::create(tilesets(), "forest", 32, 32, Terrain::GrassLight, "Checks");
+  REQUIRE(e.has_value());
+  const ResourceTable& resources = *registry->resources();
+  CHECK(e->problems(resources, "land").empty());
+
+  e->add_mine({10, 10}, "unobtainium", 100);
+  CHECK(e->problems(resources, "land").size() == 1);
+  e->undo();
+  e->add_mine({10, 10}, "gold", 0);
+  CHECK(e->problems(resources, "land").size() == 1);  // holds nothing
+  e->undo();
+  e->add_mine({10, 10}, "oil", 100);  // oil needs the sea
+  CHECK(e->problems(resources, "land").size() == 1);
+  e->undo();
+  e->add_mine({10, 10}, "gold", 100);
+  e->add_mine({11, 11}, "gold", 100);  // overlaps
+  CHECK(e->problems(resources, "land").size() == 1);
+  e->undo();
+  e->undo();
+
+  e->remove_start(1);
+  CHECK(e->problems(resources, "land").size() == 1);  // no opponent
+  e->undo();
+  e->add_start(0, {2, 2});
+  CHECK(e->problems(resources, "land").size() == 1);  // two starts for player 1
+  e->undo();
+
+  // A lake across the middle cuts the map in two: fine for an air level, not for a land one.
+  e->paint(16, 0, 1, Terrain::WaterLight);
+  for (int y = 0; y <= 32; ++y) e->paint(16, y, 3, Terrain::WaterLight);
+  CHECK_FALSE(e->problems(resources, "land").empty());
+  CHECK(e->problems(resources, "air").empty());
 }

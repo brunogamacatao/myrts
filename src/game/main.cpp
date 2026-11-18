@@ -33,8 +33,12 @@ int main(int argc, char** argv) {
   // The game to play is a folder with a game.json: --game <dir>, or MYRTS_GAME, or the bundled one.
   std::string game_dir = "games/warcraft-like";
   if (const char* env = std::getenv("MYRTS_GAME")) game_dir = env;
-  for (int i = 1; i + 1 < argc; ++i)
+  std::string level_arg, faction_arg;  // --level N --faction ID: start that level straight away (the editor's "Play")
+  for (int i = 1; i + 1 < argc; ++i) {
     if (std::string(argv[i]) == "--game") game_dir = argv[i + 1];
+    if (std::string(argv[i]) == "--level") level_arg = argv[i + 1];
+    if (std::string(argv[i]) == "--faction") faction_arg = argv[i + 1];
+  }
   auto package_result = myrts::GamePackage::load(game_dir);
   if (!package_result) {
     std::fprintf(stderr, "couldn't load the game: %s\n", package_result.error().c_str());
@@ -137,9 +141,11 @@ int main(int argc, char** argv) {
 
   SceneManager scenes({display, font, &assets, &*registry, &cursors, shared_campaign, &audio, shared_sounds, shared_tilesets, save_path, shared_rules, shared_strings, package});
   // Testing aid: MYRTS_FACTION=alliance starts the first level straight away as that side (skipping the menus).
-  if (const char* faction = std::getenv("MYRTS_FACTION")) {
-    const char* level = std::getenv("MYRTS_LEVEL");  // testing aid: which level (1-based) to start on
-    if (!scenes.start(make_game(level ? static_cast<std::size_t>(std::max(1, std::atoi(level)) - 1) : 0, faction))) return EXIT_FAILURE;
+  if (const char* env_faction = std::getenv("MYRTS_FACTION"); env_faction || !faction_arg.empty()) {
+    const char* env_level = std::getenv("MYRTS_LEVEL");  // which level (1-based) to start on
+    const std::string level = !level_arg.empty() ? level_arg : (env_level ? env_level : "");
+    const std::string faction = !faction_arg.empty() ? faction_arg : env_faction;
+    if (!scenes.start(make_game(level.empty() ? 0 : static_cast<std::size_t>(std::max(1, std::atoi(level.c_str())) - 1), faction.c_str()))) return EXIT_FAILURE;
   } else if (!scenes.start(make_intro([] { return Transition::replace(make_main_menu()); }))) {
     return EXIT_FAILURE;
   }

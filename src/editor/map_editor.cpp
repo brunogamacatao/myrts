@@ -33,6 +33,13 @@ void MapEditor::reset() {
   error_.clear();
 }
 
+bool MapEditor::delete_selected() {
+  if (!active_ || !edit_ || selected_kind_ == Kind::None) return false;
+  const bool done = selected_kind_ == Kind::Start ? edit_->remove_start(selected_) : edit_->remove_mine(selected_);
+  selected_kind_ = Kind::None;
+  return done;
+}
+
 bool MapEditor::undo() { return active_ && edit_ && edit_->undo(); }
 bool MapEditor::redo() { return active_ && edit_ && edit_->redo(); }
 
@@ -130,6 +137,29 @@ void MapEditor::draw_toolbar(Project& project, const std::string& level_map, std
   }
   ImGui::SameLine();
   ImGui::Text(" %s", terrain_label(terrain_));
+  ImGui::TextUnformatted("Tool");
+  ImGui::SameLine();
+  const auto tool_button = [&](const char* label, Tool tool) {
+    const bool on = tool_ == tool;
+    if (on) ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+    if (ImGui::Button(label)) tool_ = tool;
+    if (on) ImGui::PopStyleColor();
+    ImGui::SameLine();
+  };
+  tool_button("Paint terrain", Tool::Terrain);
+  tool_button("Select / move", Tool::Select);
+  tool_button("Add start", Tool::AddStart);
+  tool_button("Add mine", Tool::AddMine);
+  if (tool_ == Tool::AddMine && context_) {
+    ImGui::SetNextItemWidth(110);
+    if (ImGui::BeginCombo("##mineres", new_mine_resource_.c_str())) {
+      for (const ResourceDef& r : context_->registry.resources()->all())
+        if (ImGui::Selectable(r.id.c_str(), r.id == new_mine_resource_)) new_mine_resource_ = r.id;
+      ImGui::EndCombo();
+    }
+    ImGui::SameLine();
+  }
+  ImGui::NewLine();
   ImGui::SetNextItemWidth(120);
   ImGui::SliderInt("Brush", &brush_, 1, 8);
   ImGui::SameLine();
@@ -138,9 +168,116 @@ void MapEditor::draw_toolbar(Project& project, const std::string& level_map, std
   ImGui::SameLine();
   ImGui::Checkbox("Grid", &grid_);
   ImGui::SameLine();
-  if (ImGui::Button("Undo") ) edit_->undo();
+  if (ImGui::Button("Undo")) edit_->undo();
   ImGui::SameLine();
   if (ImGui::Button("Redo")) edit_->redo();
+}
+
+void MapEditor::handle_object_tools(const ImVec2& origin, float cell, bool hovered) {
+  MapEdit& edit = *edit_;
+  ImGuiIO& io = ImGui::GetIO();
+  const Point tile{static_cast<int>(std::floor((io.MousePos.x - origin.x) / cell)), static_cast<int>(std::floor((io.MousePos.y - origin.y) / cell))};
+  const bool inside = tile.x >= 0 && tile.y >= 0 && tile.x < edit.width() && tile.y < edit.height();
+  if (hovered) {
+    const ImVec2 a{origin.x + static_cast<float>(tile.x) * cell, origin.y + static_cast<float>(tile.y) * cell};
+    const float size = tool_ == Tool::AddMine ? 3.0f : 1.0f;
+    ImGui::GetWindowDrawList()->AddRect(a, {a.x + size * cell, a.y + size * cell}, IM_COL32(255, 215, 80, 255), 0, 0, 2.0f);
+  }
+  if (!hovered || !inside) {
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) edit.seal();
+    if (!ImGui::IsItemActive()) return;
+  }
+  if (ImGui::IsItemActivated() && inside) {
+    if (tool_ == Tool::AddStart) {
+      int owner = 0;
+      for (const auto& s : edit.map().starts) owner = std::max(owner, s.owner + 1);
+      selected_ = edit.add_start(owner, tile);
+      selected_kind_ = Kind::Start;
+      tool_ = Tool::Select;
+    } else if (tool_ == Tool::AddMine) {
+      selected_ = edit.add_mine({std::clamp(tile.x - 1, 0, edit.width() - 3), std::clamp(tile.y - 1, 0, edit.height() - 3)}, new_mine_resource_, 2500);
+      selected_kind_ = Kind::Mine;
+      tool_ = Tool::Select;
+    } else {  // select: the mine or the start under the cursor
+      selected_kind_ = Kind::None;
+      for (std::size_t i = 0; i < edit.map().mines.size(); ++i) {
+        const Point at = edit.map().mines[i].at;
+        if (tile.x >= at.x && tile.x < at.x + 3 && tile.y >= at.y && tile.y < at.y + 3) {
+          selected_kind_ = Kind::Mine, selected_ = i, grab_ = {tile.x - at.x, tile.y - at.y};
+        }
+      }
+      for (std::size_t i = 0; i < edit.map().starts.size(); ++i) {
+        const Point at = edit.map().starts[i].at;
+        if (std::abs(tile.x - at.x) <= 1 && std::abs(tile.y - at.y) <= 1) selected_kind_ = Kind::Start, selected_ = i, grab_ = {};
+      }
+    }
+    edit.seal();
+  }
+  if (ImGui::IsItemActive() && tool_ == Tool::Select && selected_kind_ != Kind::None && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 3.0f)) {
+    if (selected_kind_ == Kind::Start && selected_ < edit.map().starts.size())
+      edit.move_start(selected_, {std::clamp(tile.x, 0, edit.width() - 1), std::clamp(tile.y, 0, edit.height() - 1)});
+    if (selected_kind_ == Kind::Mine && selected_ < edit.map().mines.size())
+      edit.move_mine(selected_, {std::clamp(tile.x - grab_.x, 0, edit.width() - 3), std::clamp(tile.y - grab_.y, 0, edit.height() - 3)});
+  }
+  if (ImGui::IsItemDeactivated()) edit.seal();
+}
+
+void MapEditor::draw_objects_panel(Project& project) {
+  (void)project;
+  MapEdit& edit = *edit_;
+  if (edit.revision() != checked_revision_ && context_) {
+    problems_ = edit.problems(*context_->registry.resources(), level_kind_);
+    checked_revision_ = edit.revision();
+  }
+  if (selected_kind_ == Kind::Start && selected_ < edit.map().starts.size()) {
+    const auto start = edit.map().starts[selected_];
+    int player = start.owner + 1;
+    bool has_hall = start.hall.has_value();
+    Point hall = start.hall.value_or(Point{start.at.x, start.at.y});
+    ImGui::Text("Start %zu:", selected_ + 1);
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(90);
+    bool changed = ImGui::InputInt("Player", &player, 1);
+    ImGui::SameLine();
+    changed |= ImGui::Checkbox("Own hall position", &has_hall);
+    if (has_hall) {
+      ImGui::SameLine();
+      ImGui::SetNextItemWidth(80);
+      changed |= ImGui::InputInt("hall x", &hall.x, 0);
+      ImGui::SameLine();
+      ImGui::SetNextItemWidth(80);
+      changed |= ImGui::InputInt("hall y", &hall.y, 0);
+    }
+    if (changed) edit.set_start(selected_, std::clamp(player, 1, 8) - 1, has_hall ? std::optional<Point>(hall) : std::nullopt);
+    ImGui::SameLine();
+    if (ImGui::Button("Delete")) delete_selected();
+  } else if (selected_kind_ == Kind::Mine && selected_ < edit.map().mines.size() && context_) {
+    const auto mine = edit.map().mines[selected_];
+    std::string resource = mine.resource;
+    int amount = mine.amount;
+    ImGui::Text("Mine %zu:", selected_ + 1);
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(110);
+    bool changed = false;
+    if (ImGui::BeginCombo("Resource", resource.c_str())) {
+      for (const ResourceDef& r : context_->registry.resources()->all())
+        if (ImGui::Selectable(r.id.c_str(), r.id == resource)) resource = r.id, changed = true;
+      ImGui::EndCombo();
+    }
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(130);
+    changed |= ImGui::InputInt("Amount", &amount, 100, 1000);
+    if (changed) edit.set_mine(selected_, resource, std::max(amount, 0));
+    ImGui::SameLine();
+    if (ImGui::Button("Delete##mine")) delete_selected();
+  } else {
+    ImGui::TextDisabled("Select tool: click a start or a mine to edit it, drag to move it. Delete removes it.");
+  }
+  if (problems_.empty()) {
+    ImGui::TextColored({0.4f, 0.9f, 0.4f, 1}, "The map is fine for a %s level.", level_kind_.c_str());
+  } else {
+    for (const std::string& p : problems_) ImGui::TextColored({1, 0.45f, 0.4f, 1}, "x %s", p.c_str());
+  }
 }
 
 void MapEditor::draw_canvas(Project& project) {
@@ -200,19 +337,26 @@ void MapEditor::draw_canvas(Project& project) {
   // Starts and mines (drawn now, edited in the next phase).
   for (const auto& s : edit.map().starts) {
     const ImVec2 c{origin.x + (static_cast<float>(s.at.x) + 0.5f) * cell, origin.y + (static_cast<float>(s.at.y) + 0.5f) * cell};
+    const bool chosen = selected_kind_ == Kind::Start && &s == &edit.map().starts[std::min(selected_, edit.map().starts.size() - 1)];
     dl->AddCircleFilled(c, cell * 0.8f, s.owner == 0 ? IM_COL32(80, 160, 255, 150) : IM_COL32(255, 90, 80, 150));
+    if (chosen) dl->AddCircle(c, cell * 0.9f, IM_COL32(255, 255, 255, 255), 0, 2.5f);
     char label[16];
     std::snprintf(label, sizeof label, "P%d", s.owner + 1);
     dl->AddText({c.x - 8, c.y - 7}, IM_COL32_WHITE, label);
   }
   for (const auto& m : edit.map().mines) {
     const ImVec2 a{origin.x + static_cast<float>(m.at.x) * cell, origin.y + static_cast<float>(m.at.y) * cell};
-    dl->AddRect(a, {a.x + 3 * cell, a.y + 3 * cell}, IM_COL32(255, 215, 80, 255), 0, 0, 2.0f);
+    const bool chosen = selected_kind_ == Kind::Mine && &m == &edit.map().mines[std::min(selected_, edit.map().mines.size() - 1)];
+    dl->AddRectFilled(a, {a.x + 3 * cell, a.y + 3 * cell}, IM_COL32(255, 215, 80, 50));
+    dl->AddRect(a, {a.x + 3 * cell, a.y + 3 * cell}, chosen ? IM_COL32(255, 255, 255, 255) : IM_COL32(255, 215, 80, 255), 0, 0, chosen ? 3.0f : 2.0f);
+    dl->AddText({a.x + 3, a.y + 3}, IM_COL32_WHITE, m.resource.c_str());
   }
 
   // The brush: it paints the vertices around the cursor; the outline shows which.
   const ImVec2 mouse = io.MousePos;
-  if (hovered) {
+  if (tool_ != Tool::Terrain) {
+    handle_object_tools(origin, cell, hovered);
+  } else if (hovered) {
     const int vx = static_cast<int>(std::lround((mouse.x - origin.x) / cell)), vy = static_cast<int>(std::lround((mouse.y - origin.y) / cell));
     const int first = -(brush_ / 2);
     const ImVec2 a{origin.x + static_cast<float>(vx + first) * cell, origin.y + static_cast<float>(vy + first) * cell};
@@ -226,7 +370,7 @@ void MapEditor::draw_canvas(Project& project) {
       edit.paint(std::clamp(vx, 0, edit.width()), std::clamp(vy, 0, edit.height()), brush_, terrain_);
     }
   }
-  if (painting_ && !ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+  if (painting_ && (tool_ != Tool::Terrain || !ImGui::IsMouseDown(ImGuiMouseButton_Left))) {
     edit.end_stroke();
     painting_ = false;
   }
@@ -234,10 +378,17 @@ void MapEditor::draw_canvas(Project& project) {
   ImGui::EndChild();
 }
 
-void MapEditor::draw(Project& project, const std::string& level_map, std::size_t level_index) {
+void MapEditor::draw(Project& project, const std::string& level_map, std::size_t level_index, const std::string& level_kind) {
   active_ = true;
+  if (level_kind != level_kind_) {
+    level_kind_ = level_kind;
+    checked_revision_ = ~0ull;
+  }
   draw_toolbar(project, level_map, level_index);
-  if (edit_) draw_canvas(project);
+  if (edit_) {
+    draw_objects_panel(project);
+    draw_canvas(project);
+  }
 
   if (ask_new_) ImGui::OpenPopup("New map");
   ask_new_ = false;
