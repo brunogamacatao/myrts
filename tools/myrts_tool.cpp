@@ -12,6 +12,7 @@
 #include "core/game_package.hpp"
 #include "core/game_rules.hpp"
 #include "core/mapfile.hpp"
+#include "core/package_check.hpp"
 #include "core/match_setup.hpp"
 #include "core/sounds.hpp"
 #include "core/tileset.hpp"
@@ -26,10 +27,6 @@ struct Report {
   void problem(const std::string& text) {
     ++problems;
     std::printf("  PROBLEM: %s\n", text.c_str());
-  }
-  void check_file(const GamePackage& pkg, const std::string& relative, const std::string& who) {
-    if (relative.empty()) return;
-    if (!fs::exists(pkg.path(relative))) problem(who + ": missing file " + relative);
   }
 };
 
@@ -75,36 +72,12 @@ bool load_everything(const fs::path& dir, Report& report, GamePackage& pkg_out, 
 }
 
 int validate(const fs::path& dir) {
-  Report report;
-  GamePackage pkg = GamePackage::defaults(dir);
-  Registry registry;
-  std::shared_ptr<const TileSets> tilesets;
-  GameRules rules;
-  Campaign campaign = Campaign::single("");
-  if (!load_everything(dir, report, pkg, registry, tilesets, rules, campaign)) return 1;
-
-  for (const UnitDef& u : registry.units()) report.check_file(pkg, u.sprite, "unit " + u.id);
-  for (const BuildingDef& b : registry.buildings()) {
-    report.check_file(pkg, b.sprite, "building " + b.id);
-    report.check_file(pkg, b.sprite_construction, "building " + b.id);
-  }
-  for (const ResourceDef& r : registry.resources()->all()) report.check_file(pkg, r.icon, "resource " + r.id);
-  for (const auto& music : {pkg.music_intro, pkg.music_menu, pkg.music_victory, pkg.music_defeat}) report.check_file(pkg, music, "game.json music");
-  for (std::size_t i = 0; i < tilesets->count(); ++i) report.check_file(pkg, tilesets->era(static_cast<Era>(i)).image(), "tileset");
-  if (auto sounds = SoundTable::load_file(pkg.path(pkg.sound_table_file)); !sounds) report.problem(sounds.error());
-
-  // Every level must build a playable match (this loads its map, and checks the factions, objectives and stocks).
-  for (std::size_t i = 0; i < campaign.size(); ++i) {
-    const Level& level = campaign.level(i);
-    report.check_file(pkg, level.music, "level '" + level.name + "' music");
-    MatchOptions options;
-    options.assets_dir = pkg.root().generic_string();
-    options.world.set_rules(rules);
-    if (const auto match = build_match(registry, tilesets, level, options); !match)
-      report.problem("level '" + level.name + "': " + match.error());
-  }
-  std::printf(report.problems == 0 ? "OK: no problems found\n" : "%d problem(s) found\n", report.problems);
-  return report.problems == 0 ? 0 : 1;
+  const PackageReport report = check_package(dir);
+  for (const std::string& line : report.info) std::printf("%s\n", line.c_str());
+  for (const std::string& problem : report.problems) std::printf("  PROBLEM: %s\n", problem.c_str());
+  if (report.ok()) std::printf("OK: no problems found\n");
+  else std::printf("%zu problem(s) found\n", report.problems.size());
+  return report.ok() ? 0 : 1;
 }
 
 int import_pud(const fs::path& dir, const std::string& in, const std::string& out) {

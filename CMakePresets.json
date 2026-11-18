@@ -33,6 +33,7 @@
       "displayName": "Tests only (no Allegro required)",
       "cacheVariables": {
         "MYRTS_BUILD_GAME": "OFF",
+        "MYRTS_BUILD_EDITOR": "OFF",
         "VCPKG_MANIFEST_NO_DEFAULT_FEATURES": "ON"
       }
     },

@@ -7,12 +7,25 @@
     "nlohmann-json",
     "catch2"
   ],
-  "default-features": ["game"],
+  "default-features": ["game", "editor"],
   "features": {
     "game": {
       "description": "Dependencies of the game executable",
       "dependencies": [
         "allegro5"
+      ]
+    },
+    "editor": {
+      "description": "Dependencies of the editor (MyRTS Engine)",
+      "dependencies": [
+        "allegro5",
+        {
+          "name": "imgui",
+          "features": [
+            "allegro5-binding",
+            "docking-experimental"
+          ]
+        }
       ]
     }
   }
