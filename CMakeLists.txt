@@ -7,6 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(MYRTS_BUILD_GAME "Build the game executable (needs Allegro 5)" ON)
+option(MYRTS_BUILD_EDITOR "Build the editor, MyRTS Engine (needs Allegro 5 and Dear ImGui)" ON)
 option(MYRTS_BUILD_TESTS "Build unit tests" ON)
 option(MYRTS_WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
 
@@ -55,7 +56,8 @@ add_library(myrts_core STATIC
   src/core/resources.cpp
   src/core/mapfile.cpp
   src/core/strings.cpp
-  src/core/fog_settings.cpp)
+  src/core/fog_settings.cpp
+  src/core/package_check.cpp)
 target_include_directories(myrts_core PUBLIC src)
 target_compile_features(myrts_core PUBLIC cxx_std_23)
 target_link_libraries(myrts_core PRIVATE myrts_warnings nlohmann_json::nlohmann_json)
@@ -63,8 +65,17 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(myrts_core PRIVATE -Wconversion)
 endif()
 
-# ---- game ----------------------------------------------------------------
-if(MYRTS_BUILD_GAME)
+# ---- editor model: the game package as the editor holds it (no graphics) --
+add_library(myrts_editor_model STATIC
+  src/editor_model/project.cpp
+  src/editor_model/levels.cpp
+  src/editor_model/schema.cpp)
+target_include_directories(myrts_editor_model PUBLIC src)
+target_compile_features(myrts_editor_model PUBLIC cxx_std_23)
+target_link_libraries(myrts_editor_model PUBLIC myrts_core PRIVATE myrts_warnings nlohmann_json::nlohmann_json)
+
+# ---- Allegro, for the game and the editor ---------------------------------
+if(MYRTS_BUILD_GAME OR MYRTS_BUILD_EDITOR)
 
   # vcpkg ships a CMake config; system installs only provide pkg-config files.
   find_package(Allegro CONFIG QUIET)
@@ -88,7 +99,10 @@ if(MYRTS_BUILD_GAME)
       allegro-5 allegro_font-5 allegro_image-5 allegro_primitives-5 allegro_audio-5 allegro_acodec-5)
     set(MYRTS_ALLEGRO_LIBS PkgConfig::ALLEGRO)
   endif()
+endif()
 
+# ---- game ----------------------------------------------------------------
+if(MYRTS_BUILD_GAME)
   add_executable(myrts
     src/game/main.cpp
     src/game/sprite.cpp
@@ -120,6 +134,30 @@ if(MYRTS_BUILD_GAME)
   add_custom_target(copy_assets ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/games $<TARGET_FILE_DIR:myrts>/games)
   add_dependencies(myrts copy_assets)
+endif()
+
+# ---- editor: MyRTS Engine ------------------------------------------------
+# Dear ImGui (docking branch) drawn through Allegro. Skipped, with a notice, when ImGui is not installed.
+if(MYRTS_BUILD_EDITOR)
+  find_package(imgui CONFIG QUIET)
+  if(TARGET imgui::imgui)
+    add_executable(myrts_engine
+      src/editor/main.cpp
+      src/editor/app.cpp
+      src/editor/inspector.cpp)
+    target_link_libraries(myrts_engine PRIVATE
+      myrts_editor_model myrts_core myrts_warnings nlohmann_json::nlohmann_json imgui::imgui ${MYRTS_ALLEGRO_LIBS})
+    # Same folder as the game's copy (both executables are built in the same place): never copy the two at once.
+    if(TARGET copy_assets)
+      add_dependencies(myrts_engine copy_assets)
+    else()
+      add_custom_target(copy_assets ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/games $<TARGET_FILE_DIR:myrts_engine>/games)
+      add_dependencies(myrts_engine copy_assets)
+    endif()
+  else()
+    message(NOTICE "Dear ImGui not found: the editor (myrts_engine) is not built")
+  endif()
 endif()
 
 # ---- tools: command line utilities for game packages (no graphics) --------
@@ -155,9 +193,11 @@ if(MYRTS_BUILD_TESTS)
     tests/resources_test.cpp
     tests/objectives_test.cpp
     tests/mapfile_test.cpp
-    tests/fog_settings_test.cpp)
+    tests/fog_settings_test.cpp
+    tests/project_test.cpp
+    tests/levels_test.cpp)
   target_compile_definitions(myrts_tests PRIVATE MYRTS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
-  target_link_libraries(myrts_tests PRIVATE myrts_core myrts_warnings nlohmann_json::nlohmann_json Catch2::Catch2WithMain)
+  target_link_libraries(myrts_tests PRIVATE myrts_core myrts_editor_model myrts_warnings nlohmann_json::nlohmann_json Catch2::Catch2WithMain)
   if(catch2_SOURCE_DIR)
     list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)  # FetchContent fallback
   endif()
