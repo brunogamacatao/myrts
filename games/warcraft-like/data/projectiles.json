@@ -1,0 +1,12 @@
+{
+  "format_version": 1,
+  "projectiles": [
+    { "id": "arrow",   "shape": "arrow",   "speed": 460 },
+    { "id": "bolt",    "shape": "bolt",    "speed": 520 },
+    { "id": "axe",     "shape": "axe",     "speed": 320 },
+    { "id": "boulder", "shape": "boulder", "speed": 280, "arc_max": 46, "arc_ratio": 0.35 },
+    { "id": "fire",    "shape": "fire",    "speed": 340 },
+    { "id": "magic",   "shape": "magic",   "speed": 400 },
+    { "id": "coil",    "shape": "coil",    "speed": 360 }
+  ]
+}
