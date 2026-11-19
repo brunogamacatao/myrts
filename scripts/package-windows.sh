@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cross-compiles the game for Windows 10/11 64-bit (MinGW-w64 + static vcpkg) and zips it.
+# Cross-compiles the game and the editor for Windows 10/11 64-bit (MinGW-w64 + static vcpkg) and zips it.
 # Usage: scripts/package-windows.sh        -> dist/myrts-windows-x64.zip
 # Needs (Debian/Ubuntu): sudo apt install g++-mingw-w64-x86-64-posix gcc-mingw-w64-x86-64-posix zip
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
@@ -34,14 +34,19 @@ cmake --build "$BUILD"
 rm -rf "$DIST/$NAME" "$DIST/$NAME.zip"
 mkdir -p "$DIST/$NAME"
 cp "$BUILD/myrts.exe" "$DIST/$NAME/"
+[ -f "$BUILD/myrts_engine.exe" ] && cp "$BUILD/myrts_engine.exe" "$DIST/$NAME/"
 cp -r games "$DIST/$NAME/games"
+cp -r templates "$DIST/$NAME/templates"
+cp -r docs "$DIST/$NAME/docs"
 cp NOTICE.md "$DIST/$NAME/"
 cat > "$DIST/$NAME/LEIAME.txt" <<'EOT'
 myrts - Windows 10/11 (64 bits)
 
 Como jogar: extraia TODO o conteudo do zip para uma pasta e de dois cliques em myrts.exe.
-Nao precisa instalar nada (sem DLLs ou runtimes extras). Mantenha o myrts.exe junto das
-pasta games: o jogo a carrega da pasta do executavel (ou use --game <pasta>).
+Para criar o seu proprio jogo, abra myrts_engine.exe (o editor): Arquivo > New from template.
+Nao precisa instalar nada (sem DLLs ou runtimes extras). Mantenha os .exe junto das
+pastas games e templates: eles as carregam da pasta do executavel (ou use --game <pasta>).
+Guia do editor: docs/EDITOR.md.
 
 Controles: veja README.md do projeto. Esc cancela o comando / limpa a selecao / sai.
 Creditos dos assets: games/warcraft-like/credits.txt e NOTICE.md.

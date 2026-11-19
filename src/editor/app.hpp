@@ -34,6 +34,7 @@ class App {
 
  private:
   [[nodiscard]] bool unsaved() const { return project_ && (project_->dirty() || map_->dirty()); }
+  void keep_panels_fixed(unsigned int dockspace);
   void build_default_layout(unsigned int dockspace);
   void draw_menu();
   void draw_dialogs();
@@ -61,6 +62,7 @@ class App {
   Pending pending_ = Pending::None;  ///< what the "unsaved changes" dialog is guarding
   bool ask_export_ = false;
   std::string export_path_ = "export";
+  float view_w_ = 0, view_h_ = 0, side_w_ = 0, bottom_h_ = 0;  // window and side panel sizes, to keep the panels fixed when the window is resized
   bool ask_open_ = false, ask_new_ = false, ask_unsaved_ = false, first_frame_ = true;
   std::string open_path_ = "games/warcraft-like";
   std::string new_path_ = "my-game";

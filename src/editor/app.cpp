@@ -182,6 +182,7 @@ void App::draw() {
     build_default_layout(dockspace);
   else if (first_frame_ && ImGui::DockBuilderGetNode(dockspace)->IsLeafNode() && ImGui::DockBuilderGetNode(dockspace)->Windows.Size == 0)
     build_default_layout(dockspace);
+  keep_panels_fixed(dockspace);
   draw_menu();
   clamp_levels();
   draw_levels_panel();
@@ -201,6 +202,27 @@ void App::draw() {
     if (redo && !map_->redo()) project_->redo();
   }
   first_frame_ = false;
+}
+
+void App::keep_panels_fixed(unsigned int dockspace) {
+  // When the window is resized, only the central editor changes size: the side and bottom panels keep their pixels.
+  const ImGuiViewport* viewport = ImGui::GetMainViewport();
+  const ImGuiWindow* levels = ImGui::FindWindowByName("Levels");
+  const ImGuiWindow* problems = ImGui::FindWindowByName("Problems");
+  const ImGuiDockNode* left = levels ? levels->DockNode : nullptr;
+  const ImGuiDockNode* bottom = problems ? problems->DockNode : nullptr;
+  const bool resized = view_w_ > 0 && (viewport->Size.x != view_w_ || viewport->Size.y != view_h_);
+  if (resized && !first_frame_) {
+    bool changed = false;
+    if (left && side_w_ > 0) { ImGui::DockBuilderSetNodeSize(left->ID, ImVec2(side_w_, left->Size.y)); changed = true; }
+    if (bottom && bottom_h_ > 0) { ImGui::DockBuilderSetNodeSize(bottom->ID, ImVec2(bottom->Size.x, bottom_h_)); changed = true; }
+    if (changed) ImGui::DockBuilderFinish(dockspace);
+  } else {
+    if (left) side_w_ = left->Size.x;
+    if (bottom) bottom_h_ = bottom->Size.y;
+  }
+  view_w_ = viewport->Size.x;
+  view_h_ = viewport->Size.y;
 }
 
 void App::build_default_layout(unsigned int dockspace) {

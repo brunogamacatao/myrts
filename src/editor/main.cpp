@@ -33,6 +33,7 @@ int main(int argc, char** argv) {
   if (const char* size = std::getenv("MYRTS_WINDOW")) std::sscanf(size, "%dx%d", &width, &height);
   ALLEGRO_DISPLAY* display = al_create_display(width, height);
   must_init(display, "display");
+  al_set_window_constraints(display, 800, 520, 0, 0);  // not smaller than the side panels and a usable editor
   ALLEGRO_EVENT_QUEUE* queue = al_create_event_queue();
   ALLEGRO_TIMER* timer = al_create_timer(1.0 / 60.0);
   al_register_event_source(queue, al_get_display_event_source(display));
@@ -73,7 +74,12 @@ int main(int argc, char** argv) {
     al_wait_for_event(queue, &event);
     ImGui_ImplAllegro5_ProcessEvent(&event);
     if (event.type == ALLEGRO_EVENT_DISPLAY_CLOSE) app.request_quit();
-    if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE) ImGui_ImplAllegro5_InvalidateDeviceObjects();
+    if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE) {  // the window was resized or maximized: the central panel takes the new size
+      ImGui_ImplAllegro5_InvalidateDeviceObjects();
+      al_acknowledge_resize(display);
+      ImGui_ImplAllegro5_CreateDeviceObjects();
+      redraw = true;
+    }
     if (event.type == ALLEGRO_EVENT_TIMER) redraw = true;
 
     if (redraw && al_is_event_queue_empty(queue)) {
